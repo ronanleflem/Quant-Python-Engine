@@ -1,0 +1,29 @@
+{
+  "data": {
+    "path": "tests/data/ohlcv.json",
+    "symbols": ["ABC"],
+    "start": "2020-01-01",
+    "end": "2020-01-05"
+  },
+  "strategy": {
+    "filters": {
+      "ema_fast": 2,
+      "ema_slow": 3
+    },
+    "tpsl": {
+      "atr_k": 1.5
+    },
+    "validation": {
+      "min_trades": 1,
+      "train_months": 0,
+      "test_months": 1,
+      "folds": 1,
+      "embargo_days": 0
+    },
+    "objective": "sharpe",
+    "search_space": {
+      "ema_fast": [2,3],
+      "ema_slow": [3,4]
+    }
+  }
+}
