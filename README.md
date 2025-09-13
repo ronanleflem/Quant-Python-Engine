@@ -47,6 +47,13 @@ docker compose up -d
 poetry run alembic upgrade head
 ```
 
+## Qualité
+```bash
+pip install pre-commit
+pre-commit install
+pre-commit run --all-files
+```
+
 ## Endpoints clés
 - `POST /submit`
 - `GET /status/{id}`
