@@ -7,11 +7,12 @@ contract of the original design.
 """
 from __future__ import annotations
 
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 from ..core.spec import Spec
 from ..optimize.runner import run as run_optimisation
 from ..io import ids
+from ..persistence import db
 from . import schemas
 
 _jobs: Dict[str, Dict[str, Any]] = {}
@@ -36,4 +37,120 @@ def result(job_id: str) -> schemas.ResultResponse:
     if not job:
         return schemas.ResultResponse(result=None)
     return schemas.ResultResponse(result=job.get("result"))
+
+
+# ---------------------------------------------------------------------------
+# Read-only endpoints backed by the SQLite persistence layer
+
+
+def list_runs(
+    status: str | None = None,
+    symbol: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    page: int = 1,
+    page_size: int = 50,
+) -> List[Dict[str, Any]]:
+    """Return paginated runs."""
+
+    offset = (page - 1) * page_size
+    with db.session() as conn:
+        query = "SELECT run_id, status, objective, out_dir, started_at, finished_at FROM experiment_runs"
+        params: List[Any] = []
+        clauses: List[str] = []
+        if status:
+            clauses.append("status = ?")
+            params.append(status)
+        if date_from:
+            clauses.append("started_at >= ?")
+            params.append(date_from)
+        if date_to:
+            clauses.append("started_at <= ?")
+            params.append(date_to)
+        if clauses:
+            query += " WHERE " + " AND ".join(clauses)
+        query += " ORDER BY started_at DESC LIMIT ? OFFSET ?"
+        params.extend([page_size, offset])
+        rows = conn.execute(query, params).fetchall()
+        return [dict(row) for row in rows]
+
+
+def get_run(run_id: str) -> Dict[str, Any] | None:
+    """Return a single run with aggregated metrics."""
+
+    with db.session() as conn:
+        cur = conn.execute(
+            "SELECT * FROM experiment_runs WHERE run_id = ?", (run_id,)
+        )
+        run = cur.fetchone()
+        if not run:
+            return None
+        aggregated = {
+            r["metric_name"]: r["metric_value"]
+            for r in conn.execute(
+                "SELECT metric_name, metric_value FROM run_metrics WHERE run_id = ? AND fold IS NULL",
+                (run_id,),
+            )
+        }
+        folds: Dict[int, Dict[str, float]] = {}
+        for r in conn.execute(
+            "SELECT fold, metric_name, metric_value FROM run_metrics WHERE run_id = ? AND fold IS NOT NULL",
+            (run_id,),
+        ):
+            folds.setdefault(r["fold"], {})[r["metric_name"]] = r["metric_value"]
+        return {"run": dict(run), "metrics": {"aggregated": aggregated, "folds": folds}}
+
+
+def get_run_trials(
+    run_id: str,
+    order_by: str = "objective_value.desc",
+    page: int = 1,
+    page_size: int = 50,
+) -> List[Dict[str, Any]]:
+    """Return leaderboard of trials for a run."""
+
+    offset = (page - 1) * page_size
+    field, _, direction = order_by.partition(".")
+    direction = "DESC" if direction.lower() == "desc" else "ASC"
+    allowed_fields = {
+        "objective_value",
+        "n_trades",
+        "max_dd",
+        "sharpe",
+        "sortino",
+        "cagr",
+        "hit_rate",
+        "avg_r",
+    }
+    if field not in allowed_fields:
+        field = "objective_value"
+    with db.session() as conn:
+        query = (
+            f"SELECT trial_number, params_json, objective_value, status, n_trades, max_dd, "
+            f"sharpe, sortino, cagr, hit_rate, avg_r FROM trials WHERE run_id = ? "
+            f"ORDER BY {field} {direction} LIMIT ? OFFSET ?"
+        )
+        rows = conn.execute(query, (run_id, page_size, offset)).fetchall()
+        return [dict(row) for row in rows]
+
+
+def get_run_metrics(run_id: str) -> Dict[str, Any]:
+    """Return metrics for a run (aggregated and per fold)."""
+
+    with db.session() as conn:
+        aggregated = {
+            r["metric_name"]: r["metric_value"]
+            for r in conn.execute(
+                "SELECT metric_name, metric_value FROM run_metrics WHERE run_id = ? AND fold IS NULL",
+                (run_id,),
+            )
+        }
+        folds: Dict[int, Dict[str, float]] = {}
+        for r in conn.execute(
+            "SELECT fold, metric_name, metric_value FROM run_metrics WHERE run_id = ? AND fold IS NOT NULL",
+            (run_id,),
+        ):
+            folds.setdefault(r["fold"], {})[r["metric_name"]] = r["metric_value"]
+    return {"aggregated": aggregated, "folds": folds}
+
 
