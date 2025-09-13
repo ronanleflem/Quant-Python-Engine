@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+summary.json
+trials.parquet
+trades_*.parquet
+equity_*.parquet
