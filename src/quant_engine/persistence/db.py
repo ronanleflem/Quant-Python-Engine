@@ -117,6 +117,57 @@ def init_db(conn: sqlite3.Connection) -> None:
         ON trials(trial_number)
         """
     )
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS market_stats (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            symbol TEXT NOT NULL,
+            timeframe TEXT NOT NULL,
+            event TEXT NOT NULL,
+            condition_name TEXT,
+            condition_value TEXT,
+            target TEXT NOT NULL,
+            split TEXT NOT NULL,
+            n INTEGER NOT NULL,
+            successes INTEGER NOT NULL,
+            p_hat REAL NOT NULL,
+            ci_low REAL,
+            ci_high REAL,
+            lift REAL NOT NULL,
+            start TEXT NOT NULL,
+            end TEXT NOT NULL,
+            spec_id TEXT,
+            dataset_id TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(
+                symbol,
+                timeframe,
+                event,
+                condition_name,
+                condition_value,
+                target,
+                split,
+                start,
+                end,
+                spec_id
+            )
+        )
+        """
+    )
+    cur.execute(
+        """
+        CREATE INDEX IF NOT EXISTS ix_market_stats_lookup
+        ON market_stats(
+            symbol,
+            timeframe,
+            event,
+            condition_name,
+            condition_value,
+            target,
+            split
+        )
+        """
+    )
     conn.commit()
 
 
