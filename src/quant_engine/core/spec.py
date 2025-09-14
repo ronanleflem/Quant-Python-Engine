@@ -50,6 +50,20 @@ class ValidationSpec:
 
 
 @dataclass
+class ArtifactsSpec:
+    """Persistence configuration for locally written artifacts."""
+
+    out_dir: str | None = None
+
+
+@dataclass
+class PersistenceSpec:
+    """Configuration for optional database persistence."""
+
+    enabled: bool = False
+
+
+@dataclass
 class StrategySpec:
     filters: FiltersSpec
     tpsl: TPSLSpec
