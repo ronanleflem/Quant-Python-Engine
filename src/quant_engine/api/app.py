@@ -13,9 +13,11 @@ from ..core.spec import Spec
 from ..optimize.runner import run as run_optimisation
 from ..io import ids
 from ..persistence import db
+from ..stats import runner as stats_runner
 from . import schemas
 
 _jobs: Dict[str, Dict[str, Any]] = {}
+_last_stats: Dict[str, Any] | None = None
 
 
 def submit(spec: Spec) -> schemas.SubmitResponse:
@@ -37,6 +39,24 @@ def result(job_id: str) -> schemas.ResultResponse:
     if not job:
         return schemas.ResultResponse(result=None)
     return schemas.ResultResponse(result=job.get("result"))
+
+
+# ---------------------------------------------------------------------------
+# Statistics endpoints (synchronous MVP)
+
+
+def stats_run(spec: schemas.StatsSpec) -> schemas.StatusResponse:
+    """Execute a statistics run synchronously and store the result."""
+
+    global _last_stats
+    _last_stats = stats_runner.run_stats(spec)
+    return schemas.StatusResponse(status="completed")
+
+
+def stats_result() -> schemas.ResultResponse:
+    """Return the last statistics result if available."""
+
+    return schemas.ResultResponse(result=_last_stats)
 
 
 # ---------------------------------------------------------------------------
