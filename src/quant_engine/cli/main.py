@@ -18,7 +18,9 @@ except Exception:  # pragma: no cover - fallback used when import fails
 
 app = typer.Typer()
 runs_app = typer.Typer()
+stats_app = typer.Typer()
 app.add_typer(runs_app, name="runs")
+app.add_typer(stats_app, name="stats")
 
 
 class RunStatus(str, Enum):
@@ -73,6 +75,68 @@ def submit(
         typer.echo(f"Connection error: {e.reason}")
         raise typer.Exit(1)
     typer.echo(payload.get("id", ""))
+
+
+@stats_app.command("run")
+def stats_run(
+    spec: Path = typer.Option(..., "--spec", exists=True, file_okay=True, dir_okay=False)
+) -> None:
+    """Execute a statistics specification locally and display top entries."""
+
+    from ..api.schemas import StatsSpec  # local import to keep startup light
+    from ..stats.runner import run_stats
+    import pandas as pd
+
+    sp = StatsSpec.model_validate_json(Path(spec).read_text())
+    df = run_stats(sp)
+    if "split" in df.columns and "test" in df["split"].values:
+        df = df[df["split"] == "test"]
+    top = df.sort_values("lift", ascending=False).head(10)
+    if top.empty:
+        typer.echo("No statistics available")
+    else:
+        typer.echo(top.to_string(index=False))
+
+
+@stats_app.command("show")
+def stats_show(
+    symbol: str = typer.Option(..., "--symbol"),
+    event: str = typer.Option(..., "--event"),
+    target: str = typer.Option(..., "--target"),
+    timeframe: Optional[str] = typer.Option(None, "--timeframe"),
+    limit: int = typer.Option(20, "--limit"),
+) -> None:
+    """Fetch persisted stats from the HTTP API and display them."""
+
+    import pandas as pd
+
+    params = {
+        "symbol": symbol,
+        "event": event,
+        "target": target,
+        "page": 1,
+        "page_size": limit,
+    }
+    if timeframe is not None:
+        params["timeframe"] = timeframe
+    url = "http://127.0.0.1:8000/stats?" + parse.urlencode(params)
+    try:
+        with request.urlopen(url) as resp:
+            if resp.status != 200:
+                typer.echo(f"HTTP {resp.status}: {resp.reason}")
+                raise typer.Exit(1)
+            rows = json.loads(resp.read().decode())
+    except error.HTTPError as e:
+        typer.echo(f"HTTP {e.code}: {e.reason}")
+        raise typer.Exit(1)
+    except error.URLError as e:
+        typer.echo(f"Connection error: {e.reason}")
+        raise typer.Exit(1)
+    df = pd.DataFrame(rows)
+    if df.empty:
+        typer.echo("No stats found")
+    else:
+        typer.echo(df.to_string(index=False))
 
 
 @runs_app.command("list")

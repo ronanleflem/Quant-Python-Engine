@@ -63,3 +63,47 @@ pre-commit run --all-files
 - `GET /runs/{id}/trials`
 - `GET /runs/{id}/metrics`
 
+## Market Stats
+
+### Exemple de spécification
+
+```json
+{
+  "data": {
+    "dataset_path": "data/eurusd_m1_2025H1.csv",
+    "symbols": ["EURUSD"],
+    "timeframe": "M1",
+    "start": "2025-01-01",
+    "end": "2025-06-30"
+  },
+  "events": [
+    { "name": "k_consecutive", "params": { "k": 2, "direction": "up" } }
+  ],
+  "conditions": [
+    { "name": "htf_trend", "params": { "tf_multiplier": 60, "ema_period": 50 } },
+    { "name": "vol_tertile", "params": { "window": 14 } },
+    { "name": "session", "params": { "col": "session_id" } }
+  ],
+  "targets": [
+    { "name": "up_next_bar", "params": {} },
+    { "name": "continuation_n", "params": { "n": 3, "direction": "up" } }
+  ],
+  "validation": { "scheme": "walk_forward", "train_months": 2, "test_months": 1, "folds": 3, "embargo_days": 2 },
+  "artifacts": { "out_dir": "runs/stats_eurusd_m1_2025H1", "save_equity": false, "save_trades": false },
+  "persistence": { "store_trades_in_db": false, "store_equity_in_db": false }
+}
+```
+
+### CLI
+
+```bash
+poetry run quant-engine stats run --spec path/to/stats_spec.json
+poetry run quant-engine stats show --symbol EURUSD --event k_consecutive --target up_next_bar --timeframe M1 --limit 20
+```
+
+### API
+
+- `POST /stats/run`
+- `GET /stats/result`
+- `GET /stats`
+
