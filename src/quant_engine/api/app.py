@@ -269,3 +269,50 @@ def stats_summary(
         return out
 
 
+def stats_heatmap(
+    symbol: str,
+    timeframe: str,
+    event: str,
+    target: str,
+    condition_name: str,
+) -> List[Dict[str, Any]]:
+    """Return heatmap-style bins for a condition."""
+
+    base_query = (
+        "SELECT condition_value as bin, p_hat, ci_low, ci_high, n, lift "
+        "FROM market_stats WHERE symbol = ? AND timeframe = ? AND event = ? "
+        "AND target = ? AND condition_name = ?"
+    )
+    params = [symbol, timeframe, event, target, condition_name]
+    with db.session() as conn:
+        rows = conn.execute(base_query + " AND split = 'test'", params).fetchall()
+        if not rows:
+            rows = conn.execute(base_query, params).fetchall()
+    out = [dict(r) for r in rows]
+
+    def sort_key(r: Dict[str, Any]):
+        try:
+            return float(r["bin"])
+        except (TypeError, ValueError):
+            return r["bin"]
+
+    out.sort(key=sort_key)
+    return out
+
+
+def stats_top(symbol: str, timeframe: str, k: int = 10) -> List[Dict[str, Any]]:
+    """Return top-k patterns by absolute lift."""
+
+    base_query = (
+        "SELECT event, condition_name, condition_value, target, p_hat, ci_low, ci_high, n, lift "
+        "FROM market_stats WHERE symbol = ? AND timeframe = ?"
+    )
+    params = [symbol, timeframe]
+    with db.session() as conn:
+        rows = conn.execute(base_query + " AND split = 'test'", params).fetchall()
+        if not rows:
+            rows = conn.execute(base_query, params).fetchall()
+    rows_sorted = sorted(rows, key=lambda r: abs(r["lift"]), reverse=True)[:k]
+    return [dict(r) for r in rows_sorted]
+
+
