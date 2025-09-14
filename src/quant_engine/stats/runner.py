@@ -1,7 +1,7 @@
-"""Execution utilities for :mod:`quant_engine.stats`."""
 from __future__ import annotations
 
 from datetime import date
+from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
 import pandas as pd
@@ -10,9 +10,14 @@ from ..api.schemas import StatsSpec
 from ..core.dataset import load_dataset
 from ..core.spec import DataSpec
 from ..core.features import atr
+from ..validate import splitter
+from ..io import artifacts
 from . import conditions as cond_mod
 from . import events as event_mod
 from . import targets as tgt_mod
+from .estimators import freq_with_wilson, baseline
+
+N_MIN = 300
 
 
 def _build_data_frame(dataset: List[Dict[str, Any]]) -> pd.DataFrame:
@@ -24,21 +29,7 @@ def _build_data_frame(dataset: List[Dict[str, Any]]) -> pd.DataFrame:
     return df
 
 
-def run_stats(spec: StatsSpec) -> pd.DataFrame:
-    """Run statistics computation according to ``spec``.
-
-    Returns a long-form :class:`pandas.DataFrame` with at least the columns
-    ``ts``, ``symbol``, ``event``, ``event_on``, ``condition_name``,
-    ``condition_value``, ``target`` and ``outcome_value``.
-    """
-
-    data_spec = DataSpec(
-        path=spec.data.dataset_path,
-        symbols=spec.data.symbols,
-        start=date.fromisoformat(spec.data.start),
-        end=date.fromisoformat(spec.data.end),
-    )
-    dataset = load_dataset(data_spec)
+def _long_form(dataset: List[Dict[str, Any]], spec: StatsSpec) -> pd.DataFrame:
     df = _build_data_frame(dataset)
     if df.empty:
         return pd.DataFrame(
@@ -110,6 +101,117 @@ def run_stats(spec: StatsSpec) -> pd.DataFrame:
                         }
                     )
     return pd.DataFrame.from_records(records)
+
+
+def _aggregate(df: pd.DataFrame) -> pd.DataFrame:
+    columns = [
+        "symbol",
+        "event",
+        "condition_name",
+        "condition_value",
+        "target",
+        "n",
+        "successes",
+        "p_hat",
+        "ci_low",
+        "ci_high",
+        "lift",
+        "insufficient",
+    ]
+    if df.empty:
+        return pd.DataFrame(columns=columns)
+    df = df[df["event_on"]].dropna(subset=["outcome_value"])
+    if df.empty:
+        return pd.DataFrame(columns=columns)
+
+    base = baseline(df["outcome_value"])
+    grouped = (
+        df.groupby(
+            ["symbol", "event", "condition_name", "condition_value", "target"],
+            dropna=False,
+        )["outcome_value"]
+        .agg(["count", "sum"])
+        .rename(columns={"count": "n", "sum": "successes"})
+        .reset_index()
+    )
+    if grouped.empty:
+        grouped["p_hat"] = []
+        grouped["ci_low"] = []
+        grouped["ci_high"] = []
+        grouped["lift"] = []
+        grouped["insufficient"] = []
+        return grouped[columns]
+
+    grouped[["p_hat", "ci_low", "ci_high"]] = grouped.apply(
+        lambda r: pd.Series(freq_with_wilson(int(r["successes"]), int(r["n"]))),
+        axis=1,
+    )
+    grouped["lift"] = grouped["p_hat"] - base
+    grouped["insufficient"] = grouped["n"] < N_MIN
+    grouped.loc[grouped["insufficient"], ["ci_low", "ci_high"]] = pd.NA
+    return grouped[columns]
+
+
+def run_stats(spec: StatsSpec) -> pd.DataFrame:
+    data_spec = DataSpec(
+        path=spec.data.dataset_path,
+        symbols=spec.data.symbols,
+        start=date.fromisoformat(spec.data.start),
+        end=date.fromisoformat(spec.data.end),
+    )
+    dataset = load_dataset(data_spec)
+
+    splits: List[Tuple[str, List[Dict[str, Any]]]] = []
+    if spec.validation is not None:
+        val = spec.validation
+        folds = splitter.generate_folds(
+            dataset, val.train_months, val.test_months, val.folds, val.embargo_days
+        )
+        if not folds:
+            splits.append(("test", dataset))
+        else:
+            for fold in folds:
+                splits.append(("train", fold["train"]))
+                splits.append(("test", fold["test"]))
+    else:
+        splits.append(("test", dataset))
+
+    results: List[pd.DataFrame] = []
+    for split_name, split_data in splits:
+        df_long = _long_form(split_data, spec)
+        agg = _aggregate(df_long)
+        if agg.empty:
+            continue
+        agg["split"] = split_name
+        results.append(agg)
+
+    columns = [
+        "symbol",
+        "event",
+        "condition_name",
+        "condition_value",
+        "target",
+        "n",
+        "successes",
+        "p_hat",
+        "ci_low",
+        "ci_high",
+        "lift",
+        "insufficient",
+        "split",
+    ]
+    if results:
+        out = pd.concat(results, ignore_index=True)[columns]
+    else:
+        out = pd.DataFrame(columns=columns)
+
+    if spec.artifacts and spec.artifacts.out_dir:
+        out_dir = Path(spec.artifacts.out_dir)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        artifacts.write_stats_summary(out_dir / "stats_summary.parquet", out)
+        artifacts.write_stats_details(out_dir / "stats_details.parquet", pd.DataFrame())
+
+    return out
 
 
 __all__ = ["run_stats"]
