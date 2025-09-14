@@ -1,7 +1,6 @@
 import pandas as pd
-import pandas as pd
 
-from quant_engine.stats import events, conditions, targets, runner
+from quant_engine.stats import events, conditions, targets, runner, estimators
 from quant_engine.api import schemas
 
 
@@ -48,7 +47,22 @@ def test_targets():
     assert ttr.tolist() == [3, 3, pd.NA, pd.NA, pd.NA]
 
 
-def test_runner_long_format():
+def test_freq_with_wilson():
+    p, low, high = estimators.freq_with_wilson(50, 100)
+    assert round(p, 3) == 0.5
+    assert low < p < high
+
+
+def test_aggregate_binary():
+    s = pd.Series([True, False, True, True])
+    res = estimators.aggregate_binary(s)
+    assert res["n"] == 4
+    assert res["successes"] == 3
+    assert res["p_hat"] == 0.75
+    assert res["ci_low"] < res["p_hat"] < res["ci_high"]
+
+
+def test_runner_summary():
     spec = schemas.StatsSpec(
         data=schemas.StatsDataSpec(
             dataset_path='tests/data/ohlcv.json',
@@ -58,22 +72,29 @@ def test_runner_long_format():
             end='2020-01-05',
         ),
         events=[schemas.StatsEventSpec(name='k_consecutive', params={'k':2,'direction':'up'})],
-        conditions=[schemas.StatsConditionSpec(name='session', params={'col':'session_id'})],
         targets=[schemas.StatsTargetSpec(name='up_next_bar')],
     )
     df = runner.run_stats(spec)
-    assert list(df.columns) == [
-        'ts',
+    cols = [
         'symbol',
         'event',
-        'event_on',
         'condition_name',
         'condition_value',
         'target',
-        'outcome_value',
+        'n',
+        'successes',
+        'p_hat',
+        'ci_low',
+        'ci_high',
+        'lift',
+        'insufficient',
+        'split',
     ]
-    assert len(df) == 5
-    first = df.iloc[0]
-    assert first['event'] == 'k_consecutive'
-    assert first['condition_name'] == 'session'
-    assert first['target'] == 'up_next_bar'
+    assert list(df.columns) == cols
+    assert len(df) == 1
+    row = df.iloc[0]
+    assert row['n'] == 3
+    assert row['successes'] == 3
+    assert row['lift'] == 0.0
+    assert row['insufficient'] == True
+    assert row['split'] == 'test'
