@@ -62,6 +62,29 @@ def test_aggregate_binary():
     assert res["ci_low"] < res["p_hat"] < res["ci_high"]
 
 
+def test_bayes_estimators():
+    alpha_post, beta_post = estimators.beta_binomial_posterior(3, 4)
+    assert alpha_post == 3.5
+    assert beta_post == 1.5
+    p_mean = estimators.posterior_mean(alpha_post, beta_post)
+    p_map = estimators.posterior_map(alpha_post, beta_post)
+    assert round(p_mean, 2) == 0.70
+    assert round(p_map, 2) == 0.83
+    low, high = estimators.beta_hdi(alpha_post, beta_post)
+    assert 0 < low < p_mean < high < 1
+
+    a0, b0 = estimators.beta_binomial_posterior(0, 0)
+    assert estimators.posterior_map(a0, b0) == estimators.posterior_mean(a0, b0) == 0.5
+
+
+def test_aggregate_binary_bayes():
+    res = estimators.aggregate_binary_bayes(3, 4)
+    assert res["n"] == 4
+    assert res["successes"] == 3
+    assert round(res["p_mean"], 2) == 0.70
+    assert res["hdi_low"] < res["p_mean"] < res["hdi_high"]
+
+
 def test_runner_summary():
     spec = schemas.StatsSpec(
         data=schemas.StatsDataSpec(
