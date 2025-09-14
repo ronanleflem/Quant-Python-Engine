@@ -14,6 +14,7 @@ from ..optimize.runner import run as run_optimisation
 from ..io import ids
 from ..persistence import db
 from ..stats import runner as stats_runner
+from ..stats.estimators import freq_with_wilson
 from . import schemas
 
 _jobs: Dict[str, Dict[str, Any]] = {}
@@ -172,5 +173,99 @@ def get_run_metrics(run_id: str) -> Dict[str, Any]:
         ):
             folds.setdefault(r["fold"], {})[r["metric_name"]] = r["metric_value"]
     return {"aggregated": aggregated, "folds": folds}
+
+
+# ---------------------------------------------------------------------------
+# Market statistics read endpoints
+
+
+def list_stats(
+    symbol: str | None = None,
+    timeframe: str | None = None,
+    event: str | None = None,
+    condition_name: str | None = None,
+    target: str | None = None,
+    split: str | None = None,
+    page: int = 1,
+    page_size: int = 50,
+) -> List[Dict[str, Any]]:
+    offset = (page - 1) * page_size
+    with db.session() as conn:
+        query = (
+            "SELECT symbol, timeframe, event, condition_name, condition_value, "
+            "target, split, n, successes, p_hat, ci_low, ci_high, lift, start, end, "
+            "spec_id, dataset_id, created_at FROM market_stats"
+        )
+        params: List[Any] = []
+        clauses: List[str] = []
+        if symbol:
+            clauses.append("symbol = ?")
+            params.append(symbol)
+        if timeframe:
+            clauses.append("timeframe = ?")
+            params.append(timeframe)
+        if event:
+            clauses.append("event = ?")
+            params.append(event)
+        if condition_name:
+            clauses.append("condition_name = ?")
+            params.append(condition_name)
+        if target:
+            clauses.append("target = ?")
+            params.append(target)
+        if split:
+            clauses.append("split = ?")
+            params.append(split)
+        if clauses:
+            query += " WHERE " + " AND ".join(clauses)
+        query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
+        params.extend([page_size, offset])
+        rows = conn.execute(query, params).fetchall()
+        return [dict(r) for r in rows]
+
+
+def stats_summary(
+    symbol: str | None = None,
+    timeframe: str | None = None,
+    event: str | None = None,
+) -> List[Dict[str, Any]]:
+    with db.session() as conn:
+        query = (
+            "SELECT condition_name, condition_value, target, SUM(n) as n, "
+            "SUM(successes) as successes FROM market_stats"
+        )
+        params: List[Any] = []
+        clauses: List[str] = []
+        if symbol:
+            clauses.append("symbol = ?")
+            params.append(symbol)
+        if timeframe:
+            clauses.append("timeframe = ?")
+            params.append(timeframe)
+        if event:
+            clauses.append("event = ?")
+            params.append(event)
+        if clauses:
+            query += " WHERE " + " AND ".join(clauses)
+        query += " GROUP BY condition_name, condition_value, target"
+        rows = conn.execute(query, params).fetchall()
+        out: List[Dict[str, Any]] = []
+        for r in rows:
+            n = int(r["n"])
+            successes = int(r["successes"])
+            p_hat, ci_low, ci_high = freq_with_wilson(successes, n)
+            out.append(
+                {
+                    "condition_name": r["condition_name"],
+                    "condition_value": r["condition_value"],
+                    "target": r["target"],
+                    "n": n,
+                    "successes": successes,
+                    "p_hat": p_hat,
+                    "ci_low": ci_low,
+                    "ci_high": ci_high,
+                }
+            )
+        return out
 
 

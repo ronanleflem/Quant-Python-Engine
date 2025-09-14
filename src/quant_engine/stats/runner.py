@@ -12,6 +12,8 @@ from ..core.spec import DataSpec
 from ..core.features import atr
 from ..validate import splitter
 from ..io import artifacts
+from ..persistence import db
+from ..persistence.repo import MarketStatsRepository
 from . import conditions as cond_mod
 from . import events as event_mod
 from . import targets as tgt_mod
@@ -210,6 +212,49 @@ def run_stats(spec: StatsSpec) -> pd.DataFrame:
         out_dir.mkdir(parents=True, exist_ok=True)
         artifacts.write_stats_summary(out_dir / "stats_summary.parquet", out)
         artifacts.write_stats_details(out_dir / "stats_details.parquet", pd.DataFrame())
+
+    if spec.persistence and getattr(spec.persistence, "enabled", False):
+        rows: List[Dict[str, Any]] = []
+        start = spec.data.start
+        end = spec.data.end
+        timeframe = spec.data.timeframe
+        spec_id = getattr(spec.persistence, "spec_id", None)
+        dataset_id = getattr(spec.persistence, "dataset_id", None)
+        for r in out.to_dict("records"):
+            cond_val = r["condition_value"]
+            if pd.isna(cond_val):
+                cond_val = None
+            ci_low = r["ci_low"]
+            if pd.isna(ci_low):
+                ci_low = None
+            ci_high = r["ci_high"]
+            if pd.isna(ci_high):
+                ci_high = None
+            rows.append(
+                {
+                    "symbol": r["symbol"],
+                    "timeframe": timeframe,
+                    "event": r["event"],
+                    "condition_name": r["condition_name"],
+                    "condition_value": cond_val,
+                    "target": r["target"],
+                    "split": r["split"],
+                    "n": int(r["n"]),
+                    "successes": int(r["successes"]),
+                    "p_hat": float(r["p_hat"]),
+                    "ci_low": ci_low,
+                    "ci_high": ci_high,
+                    "lift": float(r["lift"]),
+                    "start": start,
+                    "end": end,
+                    "spec_id": spec_id,
+                    "dataset_id": dataset_id,
+                }
+            )
+        if rows:
+            with db.session() as conn:
+                repo = MarketStatsRepository(conn)
+                repo.bulk_upsert(rows)
 
     return out
 

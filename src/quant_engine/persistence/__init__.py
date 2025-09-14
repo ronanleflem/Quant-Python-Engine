@@ -2,6 +2,7 @@
 
 from .db import connect, init_db, session
 from .repositories import RunsRepository, MetricsRepository, TrialsRepository
+from .repo import MarketStatsRepository
 
 __all__ = [
     "connect",
@@ -10,5 +11,6 @@ __all__ = [
     "RunsRepository",
     "MetricsRepository",
     "TrialsRepository",
+    "MarketStatsRepository",
 ]
 

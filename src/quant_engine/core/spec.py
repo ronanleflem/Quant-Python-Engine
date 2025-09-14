@@ -61,6 +61,8 @@ class PersistenceSpec:
     """Configuration for optional database persistence."""
 
     enabled: bool = False
+    spec_id: str | None = None
+    dataset_id: str | None = None
 
 
 @dataclass
