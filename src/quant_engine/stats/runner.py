@@ -17,7 +17,7 @@ from ..persistence.repo import MarketStatsRepository
 from . import conditions as cond_mod
 from . import events as event_mod
 from . import targets as tgt_mod
-from .estimators import freq_with_wilson, baseline
+from .estimators import freq_with_wilson, aggregate_binary_bayes
 
 N_MIN = 300
 
@@ -117,7 +117,12 @@ def _aggregate(df: pd.DataFrame) -> pd.DataFrame:
         "p_hat",
         "ci_low",
         "ci_high",
-        "lift",
+        "p_mean",
+        "p_map",
+        "hdi_low",
+        "hdi_high",
+        "lift_freq",
+        "lift_bayes",
         "insufficient",
     ]
     if df.empty:
@@ -126,7 +131,21 @@ def _aggregate(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return pd.DataFrame(columns=columns)
 
-    base = baseline(df["outcome_value"])
+    base = (
+        df.groupby(["symbol", "target"], dropna=False)["outcome_value"]
+        .agg(["count", "sum"])
+        .rename(columns={"count": "n", "sum": "successes"})
+        .reset_index()
+    )
+    base["baseline_freq"] = base["successes"] / base["n"]
+    base["baseline_bayes"] = base.apply(
+        lambda r: aggregate_binary_bayes(int(r["successes"]), int(r["n"]))[
+            "p_mean"
+        ],
+        axis=1,
+    )
+    base = base[["symbol", "target", "baseline_freq", "baseline_bayes"]]
+
     grouped = (
         df.groupby(
             ["symbol", "event", "condition_name", "condition_value", "target"],
@@ -137,20 +156,27 @@ def _aggregate(df: pd.DataFrame) -> pd.DataFrame:
         .reset_index()
     )
     if grouped.empty:
-        grouped["p_hat"] = []
-        grouped["ci_low"] = []
-        grouped["ci_high"] = []
-        grouped["lift"] = []
-        grouped["insufficient"] = []
-        return grouped[columns]
+        return pd.DataFrame(columns=columns)
 
     grouped[["p_hat", "ci_low", "ci_high"]] = grouped.apply(
         lambda r: pd.Series(freq_with_wilson(int(r["successes"]), int(r["n"]))),
         axis=1,
     )
-    grouped["lift"] = grouped["p_hat"] - base
+    grouped[["p_mean", "p_map", "hdi_low", "hdi_high"]] = grouped.apply(
+        lambda r: pd.Series(
+            {k: v for k, v in aggregate_binary_bayes(int(r["successes"]), int(r["n"])).items() if k in {"p_mean", "p_map", "hdi_low", "hdi_high"}}
+        ),
+        axis=1,
+    )
+    grouped = grouped.merge(base, on=["symbol", "target"], how="left")
+    grouped["lift_freq"] = grouped["p_hat"] - grouped["baseline_freq"]
+    grouped["lift_bayes"] = grouped["p_mean"] - grouped["baseline_bayes"]
+    grouped.drop(columns=["baseline_freq", "baseline_bayes"], inplace=True)
     grouped["insufficient"] = grouped["n"] < N_MIN
-    grouped.loc[grouped["insufficient"], ["ci_low", "ci_high"]] = pd.NA
+    grouped.loc[
+        grouped["insufficient"],
+        ["ci_low", "ci_high", "hdi_low", "hdi_high"],
+    ] = pd.NA
     return grouped[columns]
 
 
@@ -198,7 +224,12 @@ def run_stats(spec: StatsSpec) -> pd.DataFrame:
         "p_hat",
         "ci_low",
         "ci_high",
-        "lift",
+        "p_mean",
+        "p_map",
+        "hdi_low",
+        "hdi_high",
+        "lift_freq",
+        "lift_bayes",
         "insufficient",
         "split",
     ]
@@ -230,6 +261,12 @@ def run_stats(spec: StatsSpec) -> pd.DataFrame:
             ci_high = r["ci_high"]
             if pd.isna(ci_high):
                 ci_high = None
+            hdi_low = r["hdi_low"]
+            if pd.isna(hdi_low):
+                hdi_low = None
+            hdi_high = r["hdi_high"]
+            if pd.isna(hdi_high):
+                hdi_high = None
             rows.append(
                 {
                     "symbol": r["symbol"],
@@ -244,7 +281,12 @@ def run_stats(spec: StatsSpec) -> pd.DataFrame:
                     "p_hat": float(r["p_hat"]),
                     "ci_low": ci_low,
                     "ci_high": ci_high,
-                    "lift": float(r["lift"]),
+                    "p_mean": float(r["p_mean"]),
+                    "p_map": float(r["p_map"]),
+                    "hdi_low": hdi_low,
+                    "hdi_high": hdi_high,
+                    "lift_freq": float(r["lift_freq"]),
+                    "lift_bayes": float(r["lift_bayes"]),
                     "start": start,
                     "end": end,
                     "spec_id": spec_id,
