@@ -5,6 +5,7 @@ from math import sqrt
 from statistics import NormalDist
 from typing import Dict, Tuple
 
+import math
 import numpy as np
 import pandas as pd
 
@@ -51,6 +52,64 @@ def baseline(outcomes: pd.Series) -> float:
     n = int(outcomes.count())
     successes = int(outcomes.sum()) if n else 0
     return phat(successes, n)
+
+
+def p_value_binomial_onesided_normal(
+    successes: int,
+    n: int,
+    p0: float,
+    direction: str = "greater",
+) -> float:
+    """
+    Approximate one-sided p-value for a binomial test using the normal
+    approximation with continuity correction.
+
+    Parameters
+    ----------
+    successes: int
+        Number of observed successes.
+    n: int
+        Number of trials.
+    p0: float
+        Null hypothesis probability of success.
+    direction: str
+        'greater' for H1: p > p0, 'less' for H1: p < p0.
+    """
+
+    if n == 0:
+        return 1.0
+    mean = n * p0
+    var = n * p0 * (1 - p0)
+    if var == 0:
+        if direction == "greater":
+            return 0.0 if successes > mean else 1.0
+        return 0.0 if successes < mean else 1.0
+    sd = math.sqrt(var)
+    if direction == "greater":
+        z = (successes - mean - 0.5) / sd
+        return NormalDist().sf(z)
+    else:
+        z = (successes - mean + 0.5) / sd
+        return NormalDist().cdf(z)
+
+
+def benjamini_hochberg(pvals: list[float], alpha: float = 0.05) -> list[float]:
+    """Return FDR-adjusted p-values using the Benjamini–Hochberg procedure."""
+
+    m = len(pvals)
+    if m == 0:
+        return []
+    idx = sorted(range(m), key=lambda i: pvals[i])
+    sorted_p = [pvals[i] for i in idx]
+    qvals = [0.0] * m
+    prev = 1.0
+    for rank, p in reversed(list(enumerate(sorted_p, start=1))):
+        q = p * m / rank
+        if q > prev:
+            q = prev
+        prev = q
+        qvals[idx[rank - 1]] = min(q, 1.0)
+    return qvals
 
 
 # Bayesian estimators
@@ -143,6 +202,8 @@ __all__ = [
     "freq_with_wilson",
     "aggregate_binary",
     "baseline",
+    "p_value_binomial_onesided_normal",
+    "benjamini_hochberg",
     "beta_binomial_posterior",
     "posterior_mean",
     "posterior_map",

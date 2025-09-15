@@ -17,7 +17,12 @@ from ..persistence.repo import MarketStatsRepository
 from . import conditions as cond_mod
 from . import events as event_mod
 from . import targets as tgt_mod
-from .estimators import freq_with_wilson, aggregate_binary_bayes
+from .estimators import (
+    freq_with_wilson,
+    aggregate_binary_bayes,
+    p_value_binomial_onesided_normal,
+    benjamini_hochberg,
+)
 
 N_MIN = 300
 
@@ -233,10 +238,35 @@ def run_stats(spec: StatsSpec) -> pd.DataFrame:
         "insufficient",
         "split",
     ]
+    final_columns = columns + ["p_value", "q_value", "significant"]
     if results:
         out = pd.concat(results, ignore_index=True)[columns]
     else:
         out = pd.DataFrame(columns=columns)
+
+    if not out.empty:
+        out["p_value"] = pd.NA
+        out["q_value"] = pd.NA
+        out["significant"] = False
+        group_cols = ["symbol", "target", "split"]
+        for _, idx in out.groupby(group_cols).groups.items():
+            g = out.loc[idx]
+            total_n = int(g["n"].sum())
+            total_successes = int(g["successes"].sum())
+            p0 = total_successes / total_n if total_n else 0.0
+            pvals = []
+            for _, row in g.iterrows():
+                direction = "greater" if row["lift_freq"] >= 0 else "less"
+                pval = p_value_binomial_onesided_normal(
+                    int(row["successes"]), int(row["n"]), p0, direction=direction
+                )
+                pvals.append(pval)
+            qvals = benjamini_hochberg(pvals)
+            out.loc[idx, "p_value"] = pvals
+            out.loc[idx, "q_value"] = qvals
+            out.loc[idx, "significant"] = [q <= 0.05 for q in qvals]
+
+    out = out.reindex(columns=final_columns)
 
     if spec.artifacts and spec.artifacts.out_dir:
         out_dir = Path(spec.artifacts.out_dir)
