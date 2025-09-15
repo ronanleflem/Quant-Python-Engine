@@ -109,7 +109,12 @@ def test_runner_summary():
         'p_hat',
         'ci_low',
         'ci_high',
-        'lift',
+        'p_mean',
+        'p_map',
+        'hdi_low',
+        'hdi_high',
+        'lift_freq',
+        'lift_bayes',
         'insufficient',
         'split',
     ]
@@ -118,6 +123,9 @@ def test_runner_summary():
     row = df.iloc[0]
     assert row['n'] == 3
     assert row['successes'] == 3
-    assert row['lift'] == 0.0
+    assert row['lift_freq'] == 0.0
+    assert row['lift_bayes'] == 0.0
+    assert round(row['p_mean'], 3) == 0.875
+    assert round(row['p_map'], 3) == 0.875
     assert row['insufficient'] == True
     assert row['split'] == 'test'
