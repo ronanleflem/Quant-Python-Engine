@@ -186,16 +186,17 @@ def list_stats(
     condition_name: str | None = None,
     target: str | None = None,
     split: str | None = None,
+    min_n: int | None = None,
+    significant_only: bool = False,
+    method: str = "freq",
+    alpha: float = 0.05,
     page: int = 1,
     page_size: int = 50,
 ) -> List[Dict[str, Any]]:
-    offset = (page - 1) * page_size
+    """Return statistics rows filtered and ordered according to parameters."""
+
     with db.session() as conn:
-        query = (
-            "SELECT symbol, timeframe, event, condition_name, condition_value, "
-            "target, split, n, successes, p_hat, ci_low, ci_high, lift, start, end, "
-            "spec_id, dataset_id, created_at FROM market_stats"
-        )
+        query = "SELECT * FROM market_stats"
         params: List[Any] = []
         clauses: List[str] = []
         if symbol:
@@ -216,12 +217,36 @@ def list_stats(
         if split:
             clauses.append("split = ?")
             params.append(split)
+        if min_n is not None:
+            clauses.append("n >= ?")
+            params.append(min_n)
         if clauses:
             query += " WHERE " + " AND ".join(clauses)
-        query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
-        params.extend([page_size, offset])
+
         rows = conn.execute(query, params).fetchall()
-        return [dict(r) for r in rows]
+
+    out = [dict(r) for r in rows]
+
+    for r in out:
+        if "lift_freq" not in r and "lift" in r:
+            r["lift_freq"] = r.get("lift")
+        if "lift_bayes" not in r:
+            r["lift_bayes"] = r.get("lift_freq")
+
+    if significant_only:
+        out = [
+            r
+            for r in out
+            if r.get("significant")
+            or (r.get("q_value") is not None and r["q_value"] <= alpha)
+        ]
+
+    key = "lift_bayes" if method == "bayes" else "lift_freq"
+    out.sort(key=lambda r: r.get(key, 0), reverse=True)
+
+    start = (page - 1) * page_size
+    end = start + page_size
+    return out[start:end]
 
 
 def stats_summary(
@@ -300,19 +325,39 @@ def stats_heatmap(
     return out
 
 
-def stats_top(symbol: str, timeframe: str, k: int = 10) -> List[Dict[str, Any]]:
-    """Return top-k patterns by absolute lift."""
+def stats_top(
+    symbol: str,
+    timeframe: str,
+    k: int = 10,
+    method: str = "freq",
+    significant_only: bool = False,
+) -> List[Dict[str, Any]]:
+    """Return top-k patterns ordered by lift for the chosen method."""
 
-    base_query = (
-        "SELECT event, condition_name, condition_value, target, p_hat, ci_low, ci_high, n, lift "
-        "FROM market_stats WHERE symbol = ? AND timeframe = ?"
-    )
+    base_query = "SELECT * FROM market_stats WHERE symbol = ? AND timeframe = ?"
     params = [symbol, timeframe]
     with db.session() as conn:
         rows = conn.execute(base_query + " AND split = 'test'", params).fetchall()
         if not rows:
             rows = conn.execute(base_query, params).fetchall()
-    rows_sorted = sorted(rows, key=lambda r: abs(r["lift"]), reverse=True)[:k]
-    return [dict(r) for r in rows_sorted]
+
+    data = [dict(r) for r in rows]
+
+    for r in data:
+        if "lift_freq" not in r and "lift" in r:
+            r["lift_freq"] = r.get("lift")
+        if "lift_bayes" not in r:
+            r["lift_bayes"] = r.get("lift_freq")
+
+    if significant_only:
+        data = [
+            r
+            for r in data
+            if r.get("significant") or (r.get("q_value") is not None and r["q_value"] <= 0.05)
+        ]
+
+    key = "lift_bayes" if method == "bayes" else "lift_freq"
+    rows_sorted = sorted(data, key=lambda r: abs(r.get(key, 0)), reverse=True)[:k]
+    return rows_sorted
 
 

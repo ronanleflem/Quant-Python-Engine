@@ -105,6 +105,10 @@ def stats_show(
     target: str = typer.Option(..., "--target"),
     timeframe: Optional[str] = typer.Option(None, "--timeframe"),
     limit: int = typer.Option(20, "--limit"),
+    method: str = typer.Option("freq", "--method", help="freq or bayes"),
+    significant_only: bool = typer.Option(
+        False, "--significant-only/--no-significant-only"
+    ),
 ) -> None:
     """Fetch persisted stats from the HTTP API and display them."""
 
@@ -116,6 +120,8 @@ def stats_show(
         "target": target,
         "page": 1,
         "page_size": limit,
+        "method": method,
+        "significant_only": str(significant_only).lower(),
     }
     if timeframe is not None:
         params["timeframe"] = timeframe
@@ -136,7 +142,22 @@ def stats_show(
     if df.empty:
         typer.echo("No stats found")
     else:
-        typer.echo(df.to_string(index=False))
+        if method == "bayes":
+            cols = ["p_mean", "hdi_low", "hdi_high", "lift_bayes"]
+        else:
+            cols = ["p_hat", "ci_low", "ci_high", "lift_freq"]
+        display_cols = [
+            "event",
+            "condition_name",
+            "condition_value",
+            "target",
+            "n",
+            "successes",
+            *[c for c in cols if c in df.columns],
+        ]
+        if "q_value" in df.columns:
+            display_cols.append("q_value")
+        typer.echo(df[display_cols].to_string(index=False))
 
 
 @runs_app.command("list")
