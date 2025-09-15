@@ -117,6 +117,9 @@ def test_runner_summary():
         'lift_bayes',
         'insufficient',
         'split',
+        'p_value',
+        'q_value',
+        'significant',
     ]
     assert list(df.columns) == cols
     assert len(df) == 1
