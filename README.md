@@ -107,3 +107,7 @@ poetry run quant-engine stats show --symbol EURUSD --event k_consecutive --targe
 - `GET /stats/result`
 - `GET /stats`
 
+## 📖 Documentation
+
+- [Market Stats – Notes & Garde-fous](docs/market_stats_guidelines.md)
+
