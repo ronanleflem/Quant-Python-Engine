@@ -15,6 +15,7 @@ from ..io import ids
 from ..persistence import db
 from ..stats import runner as stats_runner
 from ..stats.estimators import freq_with_wilson
+from ..seasonality import runner as seasonality_runner
 from . import schemas
 
 _jobs: Dict[str, Dict[str, Any]] = {}
@@ -58,6 +59,17 @@ def stats_result() -> schemas.ResultResponse:
     """Return the last statistics result if available."""
 
     return schemas.ResultResponse(result=_last_stats)
+
+
+# ---------------------------------------------------------------------------
+# Seasonality endpoints
+
+
+def seasonality_run(spec: schemas.SeasonalitySpec) -> schemas.ResultResponse:
+    """Execute a seasonality run synchronously and return its summary."""
+
+    result = seasonality_runner.run(spec)
+    return schemas.ResultResponse(result=result)
 
 
 # ---------------------------------------------------------------------------
