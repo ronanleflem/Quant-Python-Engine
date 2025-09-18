@@ -58,8 +58,11 @@ def run(spec_model: SeasonalitySpec) -> Dict[str, Any]:
             (pl.col("timestamp") >= cfg.start) & (pl.col("timestamp") <= cfg.end)
         )
     artifact_paths: list[str] = []
+    profiles_artifact: Path | None = None
     if cfg.artifacts.out_dir:
-        artifact_paths.append(str(Path(cfg.artifacts.out_dir)))
+        out_dir = Path(cfg.artifacts.out_dir)
+        artifact_paths.append(str(out_dir))
+        profiles_artifact = out_dir / "seasonality_profiles.parquet"
 
     if df.is_empty():
         return {
@@ -70,8 +73,17 @@ def run(spec_model: SeasonalitySpec) -> Dict[str, Any]:
         }
 
     features = compute.prepare_features(df, cfg.profile)
-    profiles_map = compute.compute_profiles(features, cfg.profile)
-    active_bins = profiles.select_active_bins(profiles_map, cfg.signal, cfg.profile)
+    profiles_df = compute.compute_profiles(
+        features,
+        cfg.profile,
+        timeframe=cfg.timeframe,
+        period_start=cfg.start,
+        period_end=cfg.end,
+        artifacts_out_dir=cfg.artifacts.out_dir,
+    )
+    if profiles_artifact is not None:
+        artifact_paths.append(str(profiles_artifact))
+    active_bins = profiles.select_active_bins(profiles_df, cfg.signal, cfg.profile)
     signal_df = build_seasonality_signal(features, active_bins, cfg.signal.combine)
 
     trades = signal_df.filter(pl.col("long") == 1)
@@ -98,7 +110,7 @@ def run(spec_model: SeasonalitySpec) -> Dict[str, Any]:
 
     return {
         "summary": summary,
-        "profiles": profiles.summarise_profiles(profiles_map),
+        "profiles": profiles.summarise_profiles(profiles_df),
         "signal": {"active_bins": summary["best_bins"]},
         "artifacts": artifact_paths,
     }
