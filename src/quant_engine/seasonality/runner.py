@@ -15,9 +15,14 @@ from ..backtest import engine
 from ..core import dataset as core_dataset
 from ..core.features import atr
 from ..core.spec import DataSpec
-from ..io import artifacts
+from ..io import artifacts, ids
 from ..signals.seasonality_signal import make_seasonality_signals
 from ..validate import splitter
+from ..persistence import db
+from ..persistence.repo import (
+    SeasonalityProfilesRepository,
+    SeasonalityRunsRepository,
+)
 from . import compute, profiles, spec
 
 
@@ -94,6 +99,53 @@ class FoldResult:
     equity_path: Path | None
 
 
+def _profiles_to_records(
+    profiles_df: "pl.DataFrame",
+    cfg: spec.NormalisedSeasonalitySpec,
+) -> List[Dict[str, Any]]:
+    """Convert the best profiles dataframe into persistence-ready rows."""
+
+    if profiles_df.is_empty():
+        return []
+
+    measure = cfg.profile.measure
+    timeframe = cfg.timeframe
+    start = cfg.start.date().isoformat()
+    end = cfg.end.date().isoformat()
+    spec_id = cfg.persistence.spec_id
+    dataset_id = cfg.persistence.dataset_id
+
+    records: List[Dict[str, Any]] = []
+    for row in profiles_df.to_dicts():
+        timeframe_value = row.get("timeframe") or timeframe
+        bin_value = row.get("bin")
+        try:
+            bin_int = int(bin_value) if bin_value is not None else None
+        except (TypeError, ValueError):
+            bin_int = None
+        score_value = row.get("p_hat") if measure == "direction" else row.get("ret_mean")
+        baseline_value = row.get("baseline")
+        lift_value = row.get("lift")
+        n_value = row.get("n")
+        record = {
+            "symbol": row.get("symbol"),
+            "timeframe": timeframe_value,
+            "dim": row.get("dim"),
+            "bin": bin_int,
+            "measure": measure,
+            "score": float(score_value) if score_value is not None else None,
+            "n": int(n_value) if n_value is not None else None,
+            "baseline": float(baseline_value) if baseline_value is not None else None,
+            "lift": float(lift_value) if lift_value is not None else None,
+            "start": start,
+            "end": end,
+            "spec_id": spec_id,
+            "dataset_id": dataset_id,
+        }
+        records.append(record)
+    return records
+
+
 def _build_signals(
     rows: List[Dict[str, Any]],
     rules: profiles.SeasonalityRules,
@@ -123,18 +175,23 @@ def run(spec_model: SeasonalitySpec) -> Dict[str, Any]:
     )
     rows = core_dataset.load_dataset(data_spec)
 
-    if not rows:
-        return {
-            "best_metrics": {},
-            "active_bins": {},
-            "artifacts": {},
-            "folds": [],
-        }
-
     artifact_root: Path | None = None
     if cfg.artifacts.out_dir:
         artifact_root = Path(cfg.artifacts.out_dir)
         artifact_root.mkdir(parents=True, exist_ok=True)
+
+    run_id: str | None = None
+    if cfg.persistence.enabled:
+        run_id = ids.generate_id()
+        with db.session() as conn:
+            runs_repo = SeasonalityRunsRepository(conn)
+            runs_repo.create(
+                run_id,
+                spec_id=cfg.persistence.spec_id,
+                dataset_id=cfg.persistence.dataset_id,
+                out_dir=str(artifact_root) if artifact_root is not None else None,
+                status="running",
+            )
 
     if cfg.validation.folds > 1:
         folds = splitter.generate_folds(
@@ -151,116 +208,163 @@ def run(spec_model: SeasonalitySpec) -> Dict[str, Any]:
         folds = [{"train": rows, "test": rows}]
 
     best_result: FoldResult | None = None
+    best_profiles_df: "pl.DataFrame" | None = None
     fold_summaries: List[Dict[str, Any]] = []
     atr_mult, r_mult = _atr_settings(cfg.tp_sl)
+    profiles_records: List[Dict[str, Any]] = []
+    best_summary_for_db: Dict[str, Any] | None = None
+    result_payload: Dict[str, Any] = {}
+    run_status = "completed"
 
-    for idx, fold in enumerate(folds):
-        train_rows = fold.get("train", [])
-        test_rows = fold.get("test", [])
-        if not train_rows or not test_rows:
-            continue
+    try:
+        if not rows:
+            result_payload = {
+                "best_metrics": {},
+                "active_bins": {},
+                "artifacts": {},
+                "folds": [],
+            }
+            best_summary_for_db = dict(result_payload)
+        else:
+            for idx, fold in enumerate(folds):
+                train_rows = fold.get("train", [])
+                test_rows = fold.get("test", [])
+                if not train_rows or not test_rows:
+                    continue
 
-        train_df = _rows_to_polars(train_rows)
-        if train_df.is_empty():
-            continue
+                train_df = _rows_to_polars(train_rows)
+                if train_df.is_empty():
+                    continue
 
-        fold_dir = artifact_root / f"fold_{idx}" if artifact_root is not None else None
-        if fold_dir is not None:
-            fold_dir.mkdir(parents=True, exist_ok=True)
+                fold_dir = artifact_root / f"fold_{idx}" if artifact_root is not None else None
+                if fold_dir is not None:
+                    fold_dir.mkdir(parents=True, exist_ok=True)
 
-        profiles_df = _compute_profiles(train_df, cfg, fold_dir)
-        if profiles_df.is_empty():
-            continue
+                profiles_df = _compute_profiles(train_df, cfg, fold_dir)
+                if profiles_df.is_empty():
+                    continue
 
-        rules = _rules_from_profiles(profiles_df, cfg)
-        signals = _build_signals(test_rows, rules)
-        if not signals:
-            continue
+                rules = _rules_from_profiles(profiles_df, cfg)
+                signals = _build_signals(test_rows, rules)
+                if not signals:
+                    continue
 
-        atr_values = atr.compute(test_rows)
-        trades, equity, metrics = engine.run(
-            test_rows,
-            signals,
-            atr_values,
-            atr_mult,
-            r_mult,
-            cfg.execution.slippage_bps,
-            cfg.execution.commission_bps,
-        )
+                atr_values = atr.compute(test_rows)
+                trades, equity, metrics = engine.run(
+                    test_rows,
+                    signals,
+                    atr_values,
+                    atr_mult,
+                    r_mult,
+                    cfg.execution.slippage_bps,
+                    cfg.execution.commission_bps,
+                )
 
-        metrics = dict(metrics)
-        metrics["fold_index"] = idx
-        metrics["n_trades"] = int(metrics.get("trades", 0))
-        metrics["rules_counts"] = {
-            dim: len(bins) for dim, bins in rules.active_bins.items()
-        }
-        fold_summary = {
-            "fold": idx,
-            "metrics": metrics,
-            "rules": rules.to_serialisable(),
-        }
-        fold_summaries.append(fold_summary)
-
-        meets_min_trades = metrics["n_trades"] >= cfg.validation.min_trades
-        is_better = (
-            meets_min_trades
-            and (
-                best_result is None
-                or metrics.get("sharpe", 0.0) > best_result.metrics.get("sharpe", 0.0)
-            )
-        )
-
-        profiles_path = (
-            fold_dir / "seasonality_profiles.parquet" if fold_dir is not None else None
-        )
-
-        if is_better:
-            summary_path = None
-            trades_path = None
-            equity_path = None
-            if fold_dir is not None:
-                summary_payload = {
+                metrics = dict(metrics)
+                metrics["fold_index"] = idx
+                metrics["n_trades"] = int(metrics.get("trades", 0))
+                metrics["rules_counts"] = {
+                    dim: len(bins) for dim, bins in rules.active_bins.items()
+                }
+                fold_summary = {
+                    "fold": idx,
                     "metrics": metrics,
                     "rules": rules.to_serialisable(),
                 }
-                summary_path = fold_dir / "summary.json"
-                artifacts.write_summary(summary_path, summary_payload)
-                trades_path = fold_dir / "trades.parquet"
-                equity_path = fold_dir / "equity.parquet"
-                artifacts.write_trades(trades_path, trades)
-                artifacts.write_equity(equity_path, equity)
-            best_result = FoldResult(
-                index=idx,
-                metrics=metrics,
-                rules=rules,
-                profiles_path=profiles_path,
-                summary_path=summary_path,
-                trades_path=trades_path,
-                equity_path=equity_path,
-            )
+                fold_summaries.append(fold_summary)
 
-    if best_result is None:
-        return {
-            "best_metrics": {},
-            "active_bins": {},
-            "artifacts": {},
-            "folds": fold_summaries,
-        }
+                meets_min_trades = metrics["n_trades"] >= cfg.validation.min_trades
+                is_better = (
+                    meets_min_trades
+                    and (
+                        best_result is None
+                        or metrics.get("sharpe", 0.0)
+                        > best_result.metrics.get("sharpe", 0.0)
+                    )
+                )
 
-    artifacts_info: Dict[str, Any] = {}
-    if best_result.profiles_path is not None and best_result.profiles_path.exists():
-        artifacts_info["profiles"] = str(best_result.profiles_path)
-    if best_result.summary_path is not None:
-        artifacts_info["summary"] = str(best_result.summary_path)
-    if best_result.trades_path is not None:
-        artifacts_info["trades"] = str(best_result.trades_path)
-    if best_result.equity_path is not None:
-        artifacts_info["equity"] = str(best_result.equity_path)
+                profiles_path = (
+                    fold_dir / "seasonality_profiles.parquet"
+                    if fold_dir is not None
+                    else None
+                )
 
-    return {
-        "best_metrics": best_result.metrics,
-        "active_bins": best_result.rules.to_serialisable()["active_bins"],
-        "rules_metadata": _default_rules_metadata(best_result.rules),
-        "artifacts": artifacts_info,
-        "folds": fold_summaries,
-    }
+                if is_better:
+                    summary_path = None
+                    trades_path = None
+                    equity_path = None
+                    if fold_dir is not None:
+                        summary_payload = {
+                            "metrics": metrics,
+                            "rules": rules.to_serialisable(),
+                        }
+                        summary_path = fold_dir / "summary.json"
+                        artifacts.write_summary(summary_path, summary_payload)
+                        trades_path = fold_dir / "trades.parquet"
+                        equity_path = fold_dir / "equity.parquet"
+                        artifacts.write_trades(trades_path, trades)
+                        artifacts.write_equity(equity_path, equity)
+                    best_result = FoldResult(
+                        index=idx,
+                        metrics=metrics,
+                        rules=rules,
+                        profiles_path=profiles_path,
+                        summary_path=summary_path,
+                        trades_path=trades_path,
+                        equity_path=equity_path,
+                    )
+                    best_profiles_df = profiles_df.clone()
+
+            if best_result is None:
+                result_payload = {
+                    "best_metrics": {},
+                    "active_bins": {},
+                    "artifacts": {},
+                    "folds": fold_summaries,
+                }
+                best_summary_for_db = dict(result_payload)
+            else:
+                artifacts_info: Dict[str, Any] = {}
+                if (
+                    best_result.profiles_path is not None
+                    and best_result.profiles_path.exists()
+                ):
+                    artifacts_info["profiles"] = str(best_result.profiles_path)
+                if best_result.summary_path is not None:
+                    artifacts_info["summary"] = str(best_result.summary_path)
+                if best_result.trades_path is not None:
+                    artifacts_info["trades"] = str(best_result.trades_path)
+                if best_result.equity_path is not None:
+                    artifacts_info["equity"] = str(best_result.equity_path)
+
+                result_payload = {
+                    "best_metrics": best_result.metrics,
+                    "active_bins": best_result.rules.to_serialisable()["active_bins"],
+                    "rules_metadata": _default_rules_metadata(best_result.rules),
+                    "artifacts": artifacts_info,
+                    "folds": fold_summaries,
+                }
+                best_summary_for_db = dict(result_payload)
+                if cfg.persistence.enabled and best_profiles_df is not None:
+                    profiles_records = _profiles_to_records(best_profiles_df, cfg)
+    except Exception:
+        run_status = "failed"
+        raise
+    finally:
+        if cfg.persistence.enabled and run_id is not None:
+            with db.session() as conn:
+                runs_repo = SeasonalityRunsRepository(conn)
+                runs_repo.finish(
+                    run_id,
+                    "completed" if run_status == "completed" else "failed",
+                    best_summary_for_db,
+                )
+                if run_status == "completed" and profiles_records:
+                    profiles_repo = SeasonalityProfilesRepository(conn)
+                    profiles_repo.bulk_upsert(profiles_records)
+
+    if run_id is not None:
+        result_payload = dict(result_payload)
+        result_payload["run_id"] = run_id
+
+    return result_payload

@@ -31,5 +31,40 @@ class MarketStat:
     created_at: str | None = None
 
 
-__all__ = ["MarketStat"]
+@dataclass
+class SeasonalityProfile:
+    """Represents a row in the ``seasonality_profiles`` table."""
+
+    id: Optional[int] = None
+    symbol: str | None = None
+    timeframe: str | None = None
+    dim: str | None = None
+    bin: int | None = None
+    measure: str | None = None
+    score: float | None = None
+    n: int | None = None
+    baseline: float | None = None
+    lift: float | None = None
+    start: str | None = None
+    end: str | None = None
+    spec_id: str | None = None
+    dataset_id: str | None = None
+    created_at: str | None = None
+
+
+@dataclass
+class SeasonalityRun:
+    """Represents a row in the ``seasonality_runs`` table."""
+
+    id: Optional[int] = None
+    run_id: str | None = None
+    spec_id: str | None = None
+    dataset_id: str | None = None
+    out_dir: str | None = None
+    status: str | None = None
+    best_summary: Any = None
+    created_at: str | None = None
+
+
+__all__ = ["MarketStat", "SeasonalityProfile", "SeasonalityRun"]
 

@@ -1,8 +1,9 @@
-"""Repository for market statistics persistence."""
+"""Repository helpers for statistics and seasonality persistence."""
 
 from __future__ import annotations
 
-from typing import Iterable, Dict, Any, List
+import json
+from typing import Dict, Any, List, Optional, Sequence
 
 import sqlite3
 
@@ -61,5 +62,102 @@ class MarketStatsRepository:
         )
 
 
-__all__ = ["MarketStatsRepository"]
+class SeasonalityProfilesRepository:
+    """Operations for the ``seasonality_profiles`` table."""
+
+    def __init__(self, conn: sqlite3.Connection):
+        self.conn = conn
+
+    def bulk_upsert(self, profiles_rows: Sequence[Dict[str, Any]]) -> None:
+        if not profiles_rows:
+            return
+        cur = self.conn.cursor()
+        rows: List[tuple] = []
+        for r in profiles_rows:
+            rows.append(
+                (
+                    r.get("symbol"),
+                    r.get("timeframe"),
+                    r.get("dim"),
+                    r.get("bin"),
+                    r.get("measure"),
+                    r.get("score"),
+                    r.get("n"),
+                    r.get("baseline"),
+                    r.get("lift"),
+                    r.get("start"),
+                    r.get("end"),
+                    r.get("spec_id"),
+                    r.get("dataset_id"),
+                )
+            )
+        cur.executemany(
+            """
+            INSERT INTO seasonality_profiles (
+                symbol, timeframe, dim, bin, measure, score, n, baseline, lift,
+                start, end, spec_id, dataset_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(symbol, timeframe, dim, bin, measure, start, end, spec_id, dataset_id)
+            DO UPDATE SET
+                score = excluded.score,
+                n = excluded.n,
+                baseline = excluded.baseline,
+                lift = excluded.lift
+            """,
+            rows,
+        )
+
+
+class SeasonalityRunsRepository:
+    """Operations for the ``seasonality_runs`` table."""
+
+    def __init__(self, conn: sqlite3.Connection):
+        self.conn = conn
+
+    def create(
+        self,
+        run_id: str,
+        *,
+        spec_id: Optional[str] = None,
+        dataset_id: Optional[str] = None,
+        out_dir: Optional[str] = None,
+        status: str = "running",
+    ) -> None:
+        cur = self.conn.cursor()
+        cur.execute(
+            """
+            INSERT INTO seasonality_runs (run_id, spec_id, dataset_id, out_dir, status)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(run_id) DO UPDATE SET
+                spec_id = excluded.spec_id,
+                dataset_id = excluded.dataset_id,
+                out_dir = excluded.out_dir,
+                status = excluded.status
+            """,
+            (run_id, spec_id, dataset_id, out_dir, status),
+        )
+
+    def finish(
+        self,
+        run_id: str,
+        status: str,
+        best_summary: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        cur = self.conn.cursor()
+        payload = json.dumps(best_summary) if best_summary is not None else None
+        cur.execute(
+            """
+            UPDATE seasonality_runs
+            SET status = ?, best_summary = ?
+            WHERE run_id = ?
+            """,
+            (status, payload, run_id),
+        )
+
+
+__all__ = [
+    "MarketStatsRepository",
+    "SeasonalityProfilesRepository",
+    "SeasonalityRunsRepository",
+]
 
