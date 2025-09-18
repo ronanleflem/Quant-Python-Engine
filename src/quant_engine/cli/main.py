@@ -19,8 +19,10 @@ except Exception:  # pragma: no cover - fallback used when import fails
 app = typer.Typer()
 runs_app = typer.Typer()
 stats_app = typer.Typer()
+seasonality_app = typer.Typer()
 app.add_typer(runs_app, name="runs")
 app.add_typer(stats_app, name="stats")
+app.add_typer(seasonality_app, name="seasonality")
 
 
 class RunStatus(str, Enum):
@@ -158,6 +160,21 @@ def stats_show(
         if "q_value" in df.columns:
             display_cols.append("q_value")
         typer.echo(df[display_cols].to_string(index=False))
+
+
+@seasonality_app.command("run")
+def seasonality_run(
+    spec_path: Path = typer.Option(..., "--spec", exists=True, file_okay=True, dir_okay=False)
+) -> None:
+    """Execute a seasonality specification locally and display the summary."""
+
+    from ..api.schemas import SeasonalitySpec
+    from ..seasonality.runner import run as run_seasonality
+
+    spec_model = SeasonalitySpec.model_validate_json(spec_path.read_text())
+    result = run_seasonality(spec_model)
+    summary = result.get("summary", {})
+    typer.echo(json.dumps(summary, separators=(",", ":")))
 
 
 @runs_app.command("list")

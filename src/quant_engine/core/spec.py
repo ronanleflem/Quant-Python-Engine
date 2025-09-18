@@ -42,7 +42,7 @@ class TPSLSpec:
 class ValidationSpec:
     """Walk-forward validation configuration."""
 
-    min_trades: int
+    min_trades: int = 0
     train_months: int = 0
     test_months: int = 1
     folds: int = 1
