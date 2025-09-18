@@ -4,6 +4,8 @@ from quant_engine.persistence import (
     RunsRepository,
     MetricsRepository,
     TrialsRepository,
+    SeasonalityProfilesRepository,
+    SeasonalityRunsRepository,
     session,
 )
 from quant_engine.api import app
@@ -18,6 +20,8 @@ def test_persistence_and_api(tmp_path):
         runs_repo = RunsRepository(conn)
         metrics_repo = MetricsRepository(conn)
         trials_repo = TrialsRepository(conn)
+        seasonality_runs_repo = SeasonalityRunsRepository(conn)
+        seasonality_profiles_repo = SeasonalityProfilesRepository(conn)
 
         runs_repo.create_or_running(
             run_id="run1",
@@ -47,6 +51,37 @@ def test_persistence_and_api(tmp_path):
         )
         runs_repo.finish("run1", "FINISHED")
 
+        seasonality_runs_repo.create(
+            "season-run",
+            spec_id="spec-season",
+            dataset_id="data-season",
+            out_dir="/tmp/seasonality",
+        )
+        seasonality_profiles_repo.bulk_upsert(
+            [
+                {
+                    "symbol": "BTCUSDT",
+                    "timeframe": "1h",
+                    "dim": "hour",
+                    "bin": 9,
+                    "measure": "direction",
+                    "score": 0.6,
+                    "n": 500,
+                    "baseline": 0.52,
+                    "lift": 0.08,
+                    "start": "2021-01-01",
+                    "end": "2021-06-01",
+                    "spec_id": "spec-season",
+                    "dataset_id": "data-season",
+                }
+            ]
+        )
+        seasonality_runs_repo.finish(
+            "season-run",
+            "completed",
+            {"best_metrics": {"sharpe": 1.5}},
+        )
+
     runs = app.list_runs()
     assert any(r["run_id"] == "run1" for r in runs)
 
@@ -58,3 +93,15 @@ def test_persistence_and_api(tmp_path):
 
     trials = app.get_run_trials("run1")
     assert trials[0]["trial_number"] == 1
+
+    season_runs = app.list_seasonality_runs()
+    assert any(r["run_id"] == "season-run" for r in season_runs)
+
+    season_detail = app.get_seasonality_run("season-run")
+    assert season_detail and season_detail["best_summary"]["best_metrics"]["sharpe"] == 1.5
+
+    profiles = app.list_seasonality_profiles(symbol="BTCUSDT")
+    assert profiles and profiles[0]["measure"] == "direction"
+
+    os.environ.pop("DB_DSN", None)
+    reset_settings_cache()

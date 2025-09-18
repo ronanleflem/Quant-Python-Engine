@@ -7,6 +7,7 @@ contract of the original design.
 """
 from __future__ import annotations
 
+import json
 from typing import Dict, Any, List
 
 from ..core.spec import Spec
@@ -70,6 +71,118 @@ def seasonality_run(spec: schemas.SeasonalitySpec) -> schemas.ResultResponse:
 
     result = seasonality_runner.run(spec)
     return schemas.ResultResponse(result=result)
+
+
+def list_seasonality_profiles(
+    symbol: str | None = None,
+    timeframe: str | None = None,
+    dim: str | None = None,
+    measure: str | None = None,
+    spec_id: str | None = None,
+    dataset_id: str | None = None,
+    page: int = 1,
+    page_size: int = 50,
+) -> List[Dict[str, Any]]:
+    """Return paginated seasonality profiles from persistence."""
+
+    offset = (page - 1) * page_size
+    with db.session() as conn:
+        query = (
+            "SELECT id, symbol, timeframe, dim, bin, measure, score, n, baseline, lift, "
+            "start, end, spec_id, dataset_id, created_at FROM seasonality_profiles"
+        )
+        params: List[Any] = []
+        clauses: List[str] = []
+        if symbol:
+            clauses.append("symbol = ?")
+            params.append(symbol)
+        if timeframe:
+            clauses.append("timeframe = ?")
+            params.append(timeframe)
+        if dim:
+            clauses.append("dim = ?")
+            params.append(dim)
+        if measure:
+            clauses.append("measure = ?")
+            params.append(measure)
+        if spec_id:
+            clauses.append("spec_id = ?")
+            params.append(spec_id)
+        if dataset_id:
+            clauses.append("dataset_id = ?")
+            params.append(dataset_id)
+        if clauses:
+            query += " WHERE " + " AND ".join(clauses)
+        query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
+        params.extend([page_size, offset])
+        rows = conn.execute(query, params).fetchall()
+        return [dict(row) for row in rows]
+
+
+def _decode_best_summary(value: Any) -> Any:
+    if value in (None, ""):
+        return None
+    if isinstance(value, str):
+        try:
+            return json.loads(value)
+        except json.JSONDecodeError:  # pragma: no cover - defensive
+            return value
+    return value
+
+
+def list_seasonality_runs(
+    status: str | None = None,
+    spec_id: str | None = None,
+    dataset_id: str | None = None,
+    page: int = 1,
+    page_size: int = 50,
+) -> List[Dict[str, Any]]:
+    """Return paginated seasonality runs."""
+
+    offset = (page - 1) * page_size
+    with db.session() as conn:
+        query = (
+            "SELECT run_id, spec_id, dataset_id, out_dir, status, best_summary, created_at "
+            "FROM seasonality_runs"
+        )
+        params: List[Any] = []
+        clauses: List[str] = []
+        if status:
+            clauses.append("status = ?")
+            params.append(status)
+        if spec_id:
+            clauses.append("spec_id = ?")
+            params.append(spec_id)
+        if dataset_id:
+            clauses.append("dataset_id = ?")
+            params.append(dataset_id)
+        if clauses:
+            query += " WHERE " + " AND ".join(clauses)
+        query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
+        params.extend([page_size, offset])
+        rows = conn.execute(query, params).fetchall()
+        out: List[Dict[str, Any]] = []
+        for row in rows:
+            payload = dict(row)
+            payload["best_summary"] = _decode_best_summary(payload.get("best_summary"))
+            out.append(payload)
+        return out
+
+
+def get_seasonality_run(run_id: str) -> Dict[str, Any] | None:
+    """Return a single seasonality run if available."""
+
+    with db.session() as conn:
+        row = conn.execute(
+            "SELECT run_id, spec_id, dataset_id, out_dir, status, best_summary, created_at "
+            "FROM seasonality_runs WHERE run_id = ?",
+            (run_id,),
+        ).fetchone()
+        if not row:
+            return None
+        payload = dict(row)
+        payload["best_summary"] = _decode_best_summary(payload.get("best_summary"))
+        return payload
 
 
 # ---------------------------------------------------------------------------

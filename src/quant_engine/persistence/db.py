@@ -168,6 +168,54 @@ def init_db(conn: sqlite3.Connection) -> None:
         )
         """
     )
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS seasonality_profiles (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            symbol TEXT NOT NULL,
+            timeframe TEXT,
+            dim TEXT NOT NULL,
+            bin INTEGER NOT NULL,
+            measure TEXT NOT NULL,
+            score REAL,
+            n INTEGER,
+            baseline REAL,
+            lift REAL,
+            start TEXT,
+            end TEXT,
+            spec_id TEXT,
+            dataset_id TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(symbol, timeframe, dim, bin, measure, start, end, spec_id, dataset_id)
+        )
+        """
+    )
+    cur.execute(
+        """
+        CREATE INDEX IF NOT EXISTS ix_seasonality_profiles_lookup
+        ON seasonality_profiles(symbol, timeframe, dim, measure)
+        """
+    )
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS seasonality_runs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            run_id TEXT NOT NULL UNIQUE,
+            spec_id TEXT,
+            dataset_id TEXT,
+            out_dir TEXT,
+            status TEXT NOT NULL,
+            best_summary TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    cur.execute(
+        """
+        CREATE UNIQUE INDEX IF NOT EXISTS ix_seasonality_runs_run_id
+        ON seasonality_runs(run_id)
+        """
+    )
     conn.commit()
 
 
