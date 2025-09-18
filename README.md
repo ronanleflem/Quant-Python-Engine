@@ -107,6 +107,58 @@ poetry run quant-engine stats show --symbol EURUSD --event k_consecutive --targe
 - `GET /stats/result`
 - `GET /stats`
 
+## Seasonality Backtest
+
+### Exemple de spécification
+
+```json
+{
+  "data": {
+    "dataset_path": "data/eurusd_m1_2025H1.csv",
+    "symbols": ["EURUSD"],
+    "timeframe": "M1",
+    "start": "2025-01-01",
+    "end": "2025-06-30"
+  },
+  "profile": {
+    "by_hour": true,
+    "by_dow": true,
+    "by_month": false,
+    "measure": "direction",
+    "ret_horizon": 1,
+    "min_samples_bin": 300
+  },
+  "signal": {
+    "method": "threshold",
+    "threshold": 0.54,
+    "dims": ["hour", "dow"],
+    "combine": "and"
+  },
+  "execution": { "slippage_bps": 0.5, "fee_bps": 0.2 },
+  "risk": { "position_sizing": "fixed_fraction", "risk_per_trade": 0.005 },
+  "tp_sl": {
+    "stop": { "type": "fixed_atr", "atr_mult": 1.5 },
+    "take_profit": { "type": "r_multiple", "r_values": [1, 2, 3, 4, 5] }
+  },
+  "validation": { "scheme": "walk_forward", "train_months": 2, "test_months": 1, "folds": 3, "embargo_days": 2 },
+  "artifacts": { "out_dir": "runs/seasonality_eurusd_m1_2025H1", "save_equity": true, "save_trades": true },
+  "persistence": { "store_trades_in_db": false, "store_equity_in_db": false }
+}
+```
+
+### CLI
+
+```bash
+poetry run qe seasonality run --spec specs/eurusd_m1_seasonality.json
+```
+
+### Dimensions & signal
+
+- `by_hour`, `by_dow`, `by_month` activent les agrégations par heure, jour de semaine ou mois pour les profils.
+- `measure` choisit la métrique : `direction` (taux de réussite) ou `return` (moyenne des rendements).
+- `threshold` / `topk` contrôlent la sélection des bins : seuil sur la proba ou top-k meilleurs profils.
+- `combine` indique comment combiner plusieurs dimensions (`and`, `or`, `sum`).
+
 ## 📖 Documentation
 
 - [Architecture & Récap Fonctionnel](docs/architecture_overview.md)
