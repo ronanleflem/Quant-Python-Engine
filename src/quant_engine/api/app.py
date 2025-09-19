@@ -17,6 +17,7 @@ from ..persistence import db
 from ..stats import runner as stats_runner
 from ..stats.estimators import freq_with_wilson
 from ..seasonality import runner as seasonality_runner
+from ..seasonality.optimize import run_optimization as seasonality_run_optimization
 from . import schemas
 
 _jobs: Dict[str, Dict[str, Any]] = {}
@@ -70,6 +71,13 @@ def seasonality_run(spec: schemas.SeasonalitySpec) -> schemas.ResultResponse:
     """Execute a seasonality run synchronously and return its summary."""
 
     result = seasonality_runner.run(spec)
+    return schemas.ResultResponse(result=result)
+
+
+def seasonality_optimize(spec: schemas.SeasonalitySpec) -> schemas.ResultResponse:
+    """Launch the seasonality optimisation loop and return its outcome."""
+
+    result = seasonality_run_optimization(spec)
     return schemas.ResultResponse(result=result)
 
 

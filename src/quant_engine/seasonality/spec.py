@@ -9,6 +9,7 @@ from ..api.schemas import (
     SeasonalitySpec,
     SeasonalityProfileSpec,
     SeasonalitySignalSpec,
+    SeasonalityComputeSpec,
     ExecutionSpec,
     RiskSpec,
     TPSSLSpec,
@@ -27,6 +28,7 @@ class NormalisedSeasonalitySpec:
     end: datetime
     profile: SeasonalityProfileSpec
     signal: SeasonalitySignalSpec
+    compute: SeasonalityComputeSpec
     execution: ExecutionSpec
     risk: RiskSpec
     tp_sl: TPSSLSpec
@@ -48,6 +50,7 @@ def normalise(spec: SeasonalitySpec) -> NormalisedSeasonalitySpec:
         end=end,
         profile=spec.profile,
         signal=spec.signal,
+        compute=spec.compute,
         execution=spec.execution,
         risk=spec.risk,
         tp_sl=spec.tp_sl,

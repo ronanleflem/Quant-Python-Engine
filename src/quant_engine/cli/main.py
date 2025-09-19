@@ -177,6 +177,26 @@ def seasonality_run(
     typer.echo(json.dumps(summary, separators=(",", ":")))
 
 
+@seasonality_app.command("optimize")
+def seasonality_optimize(
+    spec_path: Path = typer.Option(..., "--spec", exists=True, file_okay=True, dir_okay=False)
+) -> None:
+    """Run the seasonality Optuna optimisation loop locally."""
+
+    from ..api.schemas import SeasonalitySpec
+    from ..seasonality.optimize import run_optimization
+
+    spec_model = SeasonalitySpec.model_validate_json(spec_path.read_text())
+    result = run_optimization(spec_model)
+    payload = {
+        "best_value": result.get("best_value"),
+        "best_params": result.get("best_params"),
+        "best_metrics": result.get("best_metrics"),
+        "paths": result.get("paths"),
+    }
+    typer.echo(json.dumps(payload, separators=(",", ":")))
+
+
 @runs_app.command("list")
 def list_runs(
     status: Optional[RunStatus] = typer.Option(None, "--status"),

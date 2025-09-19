@@ -144,10 +144,18 @@ class SeasonalitySignalSpec(BaseModel):
     combine: Literal["and", "or", "sum"] = "and"  # combine multi-dims
 
 
+class SeasonalityComputeSpec(BaseModel):
+    """Configuration pour la boucle d'optimisation."""
+
+    max_trials: int = 30
+    search_space: Dict[str, Any] = Field(default_factory=dict)
+
+
 class SeasonalitySpec(BaseModel):
     data: SeasonalityDataSpec
     profile: SeasonalityProfileSpec = SeasonalityProfileSpec()
     signal: SeasonalitySignalSpec = SeasonalitySignalSpec()
+    compute: SeasonalityComputeSpec = SeasonalityComputeSpec()
     execution: ExecutionSpec = ExecutionSpec()
     risk: RiskSpec = RiskSpec()
     tp_sl: TPSSLSpec = TPSSLSpec()
