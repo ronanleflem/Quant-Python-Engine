@@ -197,6 +197,73 @@ def seasonality_optimize(
     typer.echo(json.dumps(payload, separators=(",", ":")))
 
 
+@seasonality_app.command("profiles")
+def seasonality_profiles(
+    symbol: Optional[str] = typer.Option(None, "--symbol"),
+    timeframe: Optional[str] = typer.Option(None, "--timeframe"),
+    dim: Optional[str] = typer.Option(None, "--dim"),
+    measure: Optional[str] = typer.Option(None, "--measure"),
+    metrics: Optional[str] = typer.Option(
+        None,
+        "--metrics",
+        help="Comma-separated conditional metrics required (e.g. run_len_up_mean,p_breakout_up)",
+    ),
+    limit: int = typer.Option(20, "--limit"),
+) -> None:
+    """Fetch persisted seasonality profiles from the HTTP API."""
+
+    import pandas as pd
+
+    params = {"page": 1, "page_size": limit}
+    if symbol:
+        params["symbol"] = symbol
+    if timeframe:
+        params["timeframe"] = timeframe
+    if dim:
+        params["dim"] = dim
+    if measure:
+        params["measure"] = measure
+    if metrics:
+        params["metrics"] = metrics
+    url = "http://127.0.0.1:8000/seasonality/profiles?" + parse.urlencode(params)
+    try:
+        with request.urlopen(url) as resp:
+            if resp.status != 200:
+                typer.echo(f"HTTP {resp.status}: {resp.reason}")
+                raise typer.Exit(1)
+            rows = json.loads(resp.read().decode())
+    except error.HTTPError as e:
+        typer.echo(f"HTTP {e.code}: {e.reason}")
+        raise typer.Exit(1)
+    except error.URLError as e:
+        typer.echo(f"Connection error: {e.reason}")
+        raise typer.Exit(1)
+
+    df = pd.DataFrame(rows)
+    if df.empty:
+        typer.echo("No seasonality profiles found")
+        return
+    display_cols = [
+        "symbol",
+        "timeframe",
+        "dim",
+        "bin",
+        "measure",
+        "score",
+        "n",
+        "baseline",
+        "lift",
+    ]
+    metric_values = df.get("metrics")
+    if metric_values is not None:
+        metrics_df = pd.json_normalize(metric_values).fillna("")
+        df = pd.concat([df.drop(columns=["metrics"]), metrics_df], axis=1)
+        metric_columns = [col for col in metrics_df.columns if col]
+        display_cols.extend(metric_columns)
+    present_cols = [col for col in display_cols if col in df.columns]
+    typer.echo(df[present_cols].to_string(index=False))
+
+
 @runs_app.command("list")
 def list_runs(
     status: Optional[RunStatus] = typer.Option(None, "--status"),

@@ -8,6 +8,7 @@ import pytest
 
 from quant_engine.api import schemas
 from quant_engine.seasonality import runner
+from quant_engine.seasonality.compute import CONDITIONAL_METRIC_NAMES
 
 _ = pytest.importorskip("polars")
 
@@ -87,5 +88,9 @@ def test_seasonality_smoke(tmp_path: Path) -> None:
 
     profiles_path = out_dir / "fold_0" / "seasonality_profiles.parquet"
     assert profiles_path.exists()
+    pl = pytest.importorskip("polars")
+    profiles_df = pl.read_parquet(profiles_path)
+    for col in CONDITIONAL_METRIC_NAMES:
+        assert col in profiles_df.columns
     active_bins = result.get("active_bins", {})
     assert active_bins.get("hour")

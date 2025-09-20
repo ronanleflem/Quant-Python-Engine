@@ -45,6 +45,7 @@ class SeasonalityProfile:
     n: int | None = None
     baseline: float | None = None
     lift: float | None = None
+    metrics: Any = None
     start: str | None = None
     end: str | None = None
     spec_id: str | None = None

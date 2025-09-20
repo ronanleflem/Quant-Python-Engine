@@ -8,7 +8,7 @@ contract of the original design.
 from __future__ import annotations
 
 import json
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Sequence
 
 from ..core.spec import Spec
 from ..optimize.runner import run as run_optimisation
@@ -88,6 +88,7 @@ def list_seasonality_profiles(
     measure: str | None = None,
     spec_id: str | None = None,
     dataset_id: str | None = None,
+    metrics: Sequence[str] | None = None,
     page: int = 1,
     page_size: int = 50,
 ) -> List[Dict[str, Any]]:
@@ -97,7 +98,7 @@ def list_seasonality_profiles(
     with db.session() as conn:
         query = (
             "SELECT id, symbol, timeframe, dim, bin, measure, score, n, baseline, lift, "
-            "start, end, spec_id, dataset_id, created_at FROM seasonality_profiles"
+            "metrics, start, end, spec_id, dataset_id, created_at FROM seasonality_profiles"
         )
         params: List[Any] = []
         clauses: List[str] = []
@@ -124,7 +125,32 @@ def list_seasonality_profiles(
         query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
         params.extend([page_size, offset])
         rows = conn.execute(query, params).fetchall()
-        return [dict(row) for row in rows]
+        metrics_filter = {m.strip() for m in (metrics or []) if m.strip()}
+        results: List[Dict[str, Any]] = []
+        for row in rows:
+            payload = dict(row)
+            metrics_raw = payload.get("metrics")
+            metrics_map: Dict[str, Any]
+            if metrics_raw in (None, ""):
+                metrics_map = {}
+            elif isinstance(metrics_raw, str):
+                try:
+                    metrics_map = json.loads(metrics_raw)
+                except json.JSONDecodeError:
+                    metrics_map = {}
+            else:
+                metrics_map = dict(metrics_raw)
+            if metrics_filter:
+                include = True
+                for metric_name in metrics_filter:
+                    if metrics_map.get(metric_name) is None:
+                        include = False
+                        break
+                if not include:
+                    continue
+            payload["metrics"] = metrics_map
+            results.append(payload)
+        return results
 
 
 def _decode_best_summary(value: Any) -> Any:

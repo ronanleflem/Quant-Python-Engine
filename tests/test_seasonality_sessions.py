@@ -6,6 +6,7 @@ import pytest
 
 from quant_engine.api import schemas
 from quant_engine.seasonality import compute
+from quant_engine.seasonality.compute import CONDITIONAL_METRIC_NAMES
 
 
 def test_assign_session_buckets() -> None:
@@ -72,6 +73,8 @@ def test_compute_profiles_handles_new_dimensions() -> None:
     profiles_df = compute.compute_profiles(features, profile_spec)
     dims = set(profiles_df.get_column("dim").to_list())
     assert {"session", "is_month_start", "is_month_end"}.issubset(dims)
+    for col in CONDITIONAL_METRIC_NAMES:
+        assert col in profiles_df.columns
 
 
 def test_signal_spec_accepts_new_dims() -> None:

@@ -69,6 +69,7 @@ def test_persistence_and_api(tmp_path):
                     "n": 500,
                     "baseline": 0.52,
                     "lift": 0.08,
+                    "metrics": {"p_breakout_up": 0.3, "run_len_up_mean": 2.1},
                     "start": "2021-01-01",
                     "end": "2021-06-01",
                     "spec_id": "spec-season",
@@ -102,6 +103,15 @@ def test_persistence_and_api(tmp_path):
 
     profiles = app.list_seasonality_profiles(symbol="BTCUSDT")
     assert profiles and profiles[0]["measure"] == "direction"
+    assert profiles[0]["metrics"]["p_breakout_up"] == 0.3
+
+    filtered = app.list_seasonality_profiles(
+        symbol="BTCUSDT", metrics=["p_breakout_up", "run_len_up_mean"]
+    )
+    assert filtered and filtered[0]["metrics"]["run_len_up_mean"] == 2.1
+
+    missing = app.list_seasonality_profiles(symbol="BTCUSDT", metrics=["amp_mean"])
+    assert missing == []
 
     os.environ.pop("DB_DSN", None)
     reset_settings_cache()
