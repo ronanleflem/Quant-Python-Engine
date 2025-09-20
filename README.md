@@ -158,6 +158,32 @@ poetry run qe seasonality run --spec specs/eurusd_m1_seasonality.json
 - `measure` choisit la métrique : `direction` (taux de réussite) ou `return` (moyenne des rendements).
 - `threshold` / `topk` contrôlent la sélection des bins : seuil sur la proba ou top-k meilleurs profils.
 - `combine` indique comment combiner plusieurs dimensions (`and`, `or`, `sum`).
+- `by_session` active la dimension `session` (Asia, Europe, EU_US_overlap, US, Other) basée sur l'heure UTC.
+- `by_month_start` et `by_month_end` ajoutent des flags booléens pour le premier et le dernier jour du mois.
+
+### Exemple d'activation sessions & fins de mois
+
+```json
+{
+  "profile": {
+    "by_hour": false,
+    "by_dow": false,
+    "by_month": false,
+    "by_session": true,
+    "by_month_start": false,
+    "by_month_end": true,
+    "measure": "direction",
+    "ret_horizon": 1,
+    "min_samples_bin": 100
+  },
+  "signal": {
+    "method": "threshold",
+    "threshold": 0.55,
+    "dims": ["session", "is_month_end"],
+    "combine": "and"
+  }
+}
+```
 
 ## 📖 Documentation
 

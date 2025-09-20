@@ -129,6 +129,9 @@ class SeasonalityProfileSpec(BaseModel):
     by_hour: bool = True
     by_dow: bool = True
     by_month: bool = False
+    by_session: bool = False
+    by_month_start: bool = False
+    by_month_end: bool = False
     # mesure : 'direction' (P(close_{t+1} > close_t)) ou 'return'
     measure: Literal["direction", "return"] = "direction"
     ret_horizon: int = 1  # nb de barres à regarder
@@ -140,7 +143,16 @@ class SeasonalitySignalSpec(BaseModel):
     method: Literal["threshold", "topk"] = "threshold"
     threshold: float = 0.54  # si measure=direction alors p_hat>=seuil
     topk: int = 3  # si method=topk: prendre K bins les + forts
-    dims: list[Literal["hour", "dow", "month"]] = ["hour", "dow"]
+    dims: list[
+        Literal[
+            "hour",
+            "dow",
+            "month",
+            "session",
+            "is_month_start",
+            "is_month_end",
+        ]
+    ] = ["hour", "dow"]
     combine: Literal["and", "or", "sum"] = "and"  # combine multi-dims
 
 

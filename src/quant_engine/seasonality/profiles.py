@@ -18,7 +18,7 @@ def _require_polars() -> None:
 class SeasonalityRules:
     """Container holding the active bins and metadata for a signal."""
 
-    active_bins: Dict[str, set[int]] = field(default_factory=dict)
+    active_bins: Dict[str, set[Any]] = field(default_factory=dict)
     combine: str = "and"
     metadata: MutableMapping[str, Any] = field(default_factory=dict)
 
@@ -63,7 +63,7 @@ def _select_bins_for_dimension(
     threshold: float | None,
     topk: int,
     score_col: str,
-) -> tuple[set[int], float | None]:
+) -> tuple[set[Any], float | None]:
     """Return the selected bins for a single dimension."""
 
     table = table.filter(pl.col(score_col).is_not_null())
@@ -83,7 +83,7 @@ def _select_bins_for_dimension(
         )
     if filtered.is_empty():
         return set(), cutoff
-    bins = set(int(b) for b in filtered.get_column("bin").to_list())
+    bins = set(filtered.get_column("bin").to_list())
     return bins, cutoff
 
 
@@ -108,7 +108,7 @@ def select_bins(
         requested_dims = profiles.get_column("dim").unique().cast(pl.Utf8).to_list()
 
     normalised_threshold = _normalise_threshold(threshold, measure)
-    active: Dict[str, set[int]] = {}
+    active: Dict[str, set[Any]] = {}
     thresholds_meta: Dict[str, float | None] = {}
     counts_meta: Dict[str, int] = {}
 
