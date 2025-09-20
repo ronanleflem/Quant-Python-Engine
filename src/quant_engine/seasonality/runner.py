@@ -119,10 +119,14 @@ def _profiles_to_records(
     for row in profiles_df.to_dicts():
         timeframe_value = row.get("timeframe") or timeframe
         bin_value = row.get("bin")
-        try:
-            bin_int = int(bin_value) if bin_value is not None else None
-        except (TypeError, ValueError):
-            bin_int = None
+        if isinstance(bin_value, bool):
+            stored_bin = int(bin_value)
+        elif isinstance(bin_value, (int, float)) and bin_value is not None:
+            stored_bin = int(bin_value)
+        elif bin_value is None:
+            stored_bin = None
+        else:
+            stored_bin = str(bin_value)
         score_value = row.get("p_hat") if measure == "direction" else row.get("ret_mean")
         baseline_value = row.get("baseline")
         lift_value = row.get("lift")
@@ -131,7 +135,7 @@ def _profiles_to_records(
             "symbol": row.get("symbol"),
             "timeframe": timeframe_value,
             "dim": row.get("dim"),
-            "bin": bin_int,
+            "bin": stored_bin,
             "measure": measure,
             "score": float(score_value) if score_value is not None else None,
             "n": int(n_value) if n_value is not None else None,

@@ -20,6 +20,9 @@ DIMENSION_TO_COLUMN = {
     "hour": "hour",
     "dow": "dow",
     "month": "month",
+    "session": "session",
+    "is_month_start": "is_month_start",
+    "is_month_end": "is_month_end",
 }
 
 

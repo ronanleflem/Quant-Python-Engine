@@ -1,6 +1,7 @@
 """Computation helpers for seasonality profiles."""
 from __future__ import annotations
 
+import calendar
 from datetime import datetime
 from pathlib import Path
 from typing import Iterable, Sequence
@@ -24,6 +25,30 @@ def _require_polars() -> None:
         raise RuntimeError("polars is required for seasonality computations")
 
 
+def assign_session(ts_utc: datetime | None) -> str | None:
+    """Return the trading session bucket for a UTC timestamp."""
+
+    if ts_utc is None:
+        return None
+    hour = ts_utc.hour
+    if 0 <= hour < 7:
+        return "Asia"
+    if 7 <= hour < 12:
+        return "Europe"
+    if 12 <= hour < 16:
+        return "EU_US_overlap"
+    if 16 <= hour < 21:
+        return "US"
+    return "Other"
+
+
+def _is_month_end(ts_utc: datetime | None) -> bool | None:
+    if ts_utc is None:
+        return None
+    last_day = calendar.monthrange(ts_utc.year, ts_utc.month)[1]
+    return ts_utc.day == last_day
+
+
 def add_time_bins(df: pl.DataFrame) -> pl.DataFrame:
     """Augment the dataset with hour/day-of-week/month calendar bins."""
 
@@ -34,6 +59,13 @@ def add_time_bins(df: pl.DataFrame) -> pl.DataFrame:
         pl.col("timestamp").dt.hour().alias("hour"),
         pl.col("timestamp").dt.weekday().alias("dow"),
         pl.col("timestamp").dt.month().alias("month"),
+        pl.col("timestamp")
+        .map_elements(assign_session, return_dtype=pl.Utf8)
+        .alias("session"),
+        pl.col("timestamp").dt.day().eq(1).alias("is_month_start"),
+        pl.col("timestamp")
+        .map_elements(_is_month_end, return_dtype=pl.Boolean)
+        .alias("is_month_end"),
     )
 
 
@@ -339,6 +371,12 @@ def compute_profiles(
         dims.append("dow")
     if profile.by_month:
         dims.append("month")
+    if profile.by_session:
+        dims.append("session")
+    if profile.by_month_start:
+        dims.append("is_month_start")
+    if profile.by_month_end:
+        dims.append("is_month_end")
 
     tables: list[pl.DataFrame] = []
     for dim in dims:
@@ -419,3 +457,9 @@ def iter_active_bins(profile: SeasonalityProfileSpec) -> Iterable[str]:
         yield "dow"
     if profile.by_month:
         yield "month"
+    if profile.by_session:
+        yield "session"
+    if profile.by_month_start:
+        yield "is_month_start"
+    if profile.by_month_end:
+        yield "is_month_end"
