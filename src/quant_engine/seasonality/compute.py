@@ -100,13 +100,23 @@ def _is_month_end(ts_utc: datetime | None) -> bool | None:
     return ts_utc.day == last_day
 
 
+def _is_third_friday(ts_utc: datetime | None) -> bool | None:
+    """Return whether the timestamp falls on the third Friday of the month."""
+
+    if ts_utc is None:
+        return None
+    if ts_utc.weekday() != calendar.FRIDAY:
+        return False
+    return 15 <= ts_utc.day <= 21
+
+
 def add_time_bins(df: pl.DataFrame) -> pl.DataFrame:
     """Augment the dataset with hour/day-of-week/month calendar bins."""
 
     _require_polars()
     if df.is_empty():
         return df.clone()
-    return df.with_columns(
+    df = df.with_columns(
         pl.col("timestamp").dt.hour().alias("hour"),
         pl.col("timestamp").dt.weekday().alias("dow"),
         pl.col("timestamp").dt.month().alias("month"),
@@ -117,7 +127,24 @@ def add_time_bins(df: pl.DataFrame) -> pl.DataFrame:
         pl.col("timestamp")
         .map_elements(_is_month_end, return_dtype=pl.Boolean)
         .alias("is_month_end"),
+        pl.col("timestamp")
+        .dt.hour()
+        .is_in([13, 14, 20])
+        .alias("is_news_hour"),
+        pl.col("timestamp")
+        .map_elements(_is_third_friday, return_dtype=pl.Boolean)
+        .alias("is_third_friday"),
     )
+
+    if "roll_id" in df.columns:
+        df = df.with_columns(
+            pl.col("roll_id")
+            .ne(pl.col("roll_id").shift(1).over("symbol"))
+            .fill_null(False)
+            .alias("is_rollover_day")
+        )
+
+    return df
 
 
 def outcome_return(df: pl.DataFrame, horizon: int = 1) -> pl.DataFrame:
@@ -603,9 +630,17 @@ def compute_profiles(
         dims.append("is_month_start")
     if profile.by_month_end:
         dims.append("is_month_end")
+    if profile.by_news_hour:
+        dims.append("is_news_hour")
+    if profile.by_third_friday:
+        dims.append("is_third_friday")
+    if profile.by_rollover_day:
+        dims.append("is_rollover_day")
 
     tables: list[pl.DataFrame] = []
     for dim in dims:
+        if dim not in dataset.columns:
+            continue
         group_cols: list[str] = ["symbol", dim]
         if profile.measure == "direction":
             table = profile_direction(dataset, group_cols, horizon, profile.min_samples_bin)
@@ -693,3 +728,9 @@ def iter_active_bins(profile: SeasonalityProfileSpec) -> Iterable[str]:
         yield "is_month_start"
     if profile.by_month_end:
         yield "is_month_end"
+    if profile.by_news_hour:
+        yield "is_news_hour"
+    if profile.by_third_friday:
+        yield "is_third_friday"
+    if profile.by_rollover_day:
+        yield "is_rollover_day"

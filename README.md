@@ -157,6 +157,11 @@ poetry run qe seasonality run --spec specs/eurusd_m1_seasonality.json
 poetry run qe seasonality profiles --symbol EURUSD --metrics run_len_up_mean,p_breakout_up
 ```
 
+```bash
+# Comparer deux symboles sur une dimension et afficher la corrélation des lifts
+poetry run qe seasonality compare --symbols EURUSD DXY --dim hour --timeframe M1
+```
+
 ### Dimensions & signal
 
 - `by_hour`, `by_dow`, `by_month` activent les agrégations par heure, jour de semaine ou mois pour les profils.
@@ -165,6 +170,11 @@ poetry run qe seasonality profiles --symbol EURUSD --metrics run_len_up_mean,p_b
 - `combine` indique comment combiner plusieurs dimensions (`and`, `or`, `sum`).
 - `by_session` active la dimension `session` (Asia, Europe, EU_US_overlap, US, Other) basée sur l'heure UTC.
 - `by_month_start` et `by_month_end` ajoutent des flags booléens pour le premier et le dernier jour du mois.
+- `by_news_hour` ajoute `is_news_hour` (heures macro sensibles 13h, 14h, 20h UTC).
+- `by_third_friday` ajoute `is_third_friday` pour le 3ᵉ vendredi de chaque mois (expiration d'options).
+- `by_rollover_day` expose `is_rollover_day` lorsque la série contient un `roll_id` (changement de contrat).
+
+Les colonnes `is_news_hour`, `is_third_friday` et `is_rollover_day` sont calculées automatiquement dans les features. Elles permettent d'isoler les heures clés des publications économiques, les séances d'expiration d'options mensuelles et les journées de rollover des contrats dérivés.
 
 ### Exemple d'activation sessions & fins de mois
 

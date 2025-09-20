@@ -132,6 +132,9 @@ class SeasonalityProfileSpec(BaseModel):
     by_session: bool = False
     by_month_start: bool = False
     by_month_end: bool = False
+    by_news_hour: bool = False
+    by_rollover_day: bool = False
+    by_third_friday: bool = False
     # mesure : 'direction' (P(close_{t+1} > close_t)) ou 'return'
     measure: Literal["direction", "return"] = "direction"
     ret_horizon: int = 1  # nb de barres à regarder
@@ -151,6 +154,9 @@ class SeasonalitySignalSpec(BaseModel):
             "session",
             "is_month_start",
             "is_month_end",
+            "is_news_hour",
+            "is_rollover_day",
+            "is_third_friday",
         ]
     ] = ["hour", "dow"]
     combine: Literal["and", "or", "sum"] = "and"  # combine multi-dims

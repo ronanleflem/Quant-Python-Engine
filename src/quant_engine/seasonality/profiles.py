@@ -158,3 +158,79 @@ def summarise_profiles(profiles: pl.DataFrame) -> Dict[str, list[Dict[str, objec
         table = profiles.filter(pl.col("dim") == dim)
         serialised[str(dim)] = table.to_dicts()
     return serialised
+
+
+def compare_profiles(
+    df_a: "pl.DataFrame", df_b: "pl.DataFrame", dim: str
+) -> tuple["pl.DataFrame", float | None]:
+    """Compare seasonality lifts between two symbols for a given dimension."""
+
+    _require_polars()
+
+    if df_a.is_empty() or df_b.is_empty():
+        return pl.DataFrame(), None
+
+    def _prepare(table: "pl.DataFrame") -> tuple["pl.DataFrame", str] | None:
+        filtered = table.filter(pl.col("dim") == dim)
+        if "insufficient" in filtered.columns:
+            filtered = filtered.filter(~pl.col("insufficient"))
+        if filtered.is_empty():
+            return None
+        symbols = (
+            filtered.get_column("symbol")
+            .drop_nulls()
+            .unique()
+            .cast(pl.Utf8)
+            .to_list()
+        )
+        label = symbols[0] if symbols else "symbol"
+        aggregations: list[pl.Expr] = []
+        if "lift" in filtered.columns:
+            aggregations.append(pl.col("lift").mean().alias("lift"))
+        if "baseline" in filtered.columns:
+            aggregations.append(pl.col("baseline").mean().alias("baseline"))
+        if "n" in filtered.columns:
+            aggregations.append(pl.col("n").sum().alias("n"))
+        if "p_hat" in filtered.columns:
+            aggregations.append(pl.col("p_hat").mean().alias("p_hat"))
+        if not aggregations:
+            aggregations.append(pl.len().alias("count"))
+        prepared = filtered.group_by("bin").agg(aggregations)
+        rename_map = {
+            col: col if col == "bin" else f"{col}_{label}"
+            for col in prepared.columns
+        }
+        prepared = prepared.rename(rename_map)
+        return prepared, label
+
+    prepared_a = _prepare(df_a)
+    prepared_b = _prepare(df_b)
+    if prepared_a is None or prepared_b is None:
+        return pl.DataFrame(), None
+
+    table_a, label_a = prepared_a
+    table_b, label_b = prepared_b
+    comparison = table_a.join(table_b, on="bin", how="inner")
+    if comparison.is_empty():
+        return pl.DataFrame(), None
+
+    lift_col_a = f"lift_{label_a}"
+    lift_col_b = f"lift_{label_b}"
+    if lift_col_a in comparison.columns and lift_col_b in comparison.columns:
+        comparison = comparison.with_columns(
+            (pl.col(lift_col_a) - pl.col(lift_col_b)).alias("lift_diff")
+        )
+        valid = comparison.filter(
+            pl.col(lift_col_a).is_not_null() & pl.col(lift_col_b).is_not_null()
+        )
+        if valid.is_empty():
+            corr: float | None = None
+        else:
+            corr_value = valid.select(
+                pl.corr(pl.col(lift_col_a), pl.col(lift_col_b))
+            ).to_series()
+            corr = float(corr_value[0]) if corr_value.len() else None
+    else:
+        corr = None
+
+    return comparison.sort("bin"), corr

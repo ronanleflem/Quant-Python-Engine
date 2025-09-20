@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 from urllib import error, parse, request
 
 import typer
@@ -262,6 +262,81 @@ def seasonality_profiles(
         display_cols.extend(metric_columns)
     present_cols = [col for col in display_cols if col in df.columns]
     typer.echo(df[present_cols].to_string(index=False))
+
+
+@seasonality_app.command("compare")
+def seasonality_compare(
+    symbols: List[str] = typer.Option(
+        ..., "--symbols", help="Deux symboles à comparer"
+    ),
+    dim: str = typer.Option(..., "--dim", help="Dimension à comparer (ex: hour)"),
+    timeframe: Optional[str] = typer.Option(None, "--timeframe"),
+    measure: str = typer.Option("direction", "--measure"),
+) -> None:
+    """Comparer les lifts saisonniers de deux symboles pour une dimension."""
+
+    try:
+        import polars as pl
+    except ModuleNotFoundError:  # pragma: no cover - dependency optional
+        typer.echo("polars est requis pour comparer les profils saisonniers")
+        raise typer.Exit(1)
+
+    from ..seasonality import profiles as profiles_module
+
+    if len(symbols) != 2:
+        typer.echo("Veuillez fournir exactement deux symboles via --symbols")
+        raise typer.Exit(1)
+
+    tables: list[pl.DataFrame] = []
+    for symbol in symbols:
+        params: Dict[str, Any] = {
+            "symbol": symbol,
+            "dim": dim,
+            "page": 1,
+            "page_size": 1000,
+            "measure": measure,
+        }
+        if timeframe is not None:
+            params["timeframe"] = timeframe
+        url = "http://127.0.0.1:8000/seasonality/profiles?" + parse.urlencode(params)
+        try:
+            with request.urlopen(url) as resp:
+                if resp.status != 200:
+                    typer.echo(f"HTTP {resp.status}: {resp.reason}")
+                    raise typer.Exit(1)
+                rows = json.loads(resp.read().decode())
+        except error.HTTPError as e:
+            typer.echo(f"HTTP {e.code}: {e.reason}")
+            raise typer.Exit(1)
+        except error.URLError as e:
+            typer.echo(f"Connection error: {e.reason}")
+            raise typer.Exit(1)
+        table = pl.DataFrame(rows)
+        if "metrics" in table.columns:
+            table = table.drop("metrics")
+        tables.append(table)
+
+    if not tables or any(table.is_empty() for table in tables):
+        typer.echo("Profils indisponibles pour l'une des séries")
+        raise typer.Exit(1)
+
+    comparison, corr = profiles_module.compare_profiles(tables[0], tables[1], dim)
+    if comparison.is_empty():
+        typer.echo("Aucune intersection de bins sur cette dimension")
+        raise typer.Exit(0)
+
+    if corr is not None:
+        typer.echo(f"Corrélation des lifts: {corr:.4f}")
+    else:
+        typer.echo("Corrélation des lifts: N/A")
+
+    try:
+        import pandas as pd
+    except ModuleNotFoundError:  # pragma: no cover - affichage dégradé
+        typer.echo(comparison.to_string())
+        return
+
+    typer.echo(pd.DataFrame(comparison.to_dicts()).to_string(index=False))
 
 
 @runs_app.command("list")
