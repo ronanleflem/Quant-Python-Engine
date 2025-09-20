@@ -181,6 +181,7 @@ def init_db(conn: sqlite3.Connection) -> None:
             n INTEGER,
             baseline REAL,
             lift REAL,
+            metrics TEXT,
             start TEXT,
             end TEXT,
             spec_id TEXT,
@@ -190,6 +191,10 @@ def init_db(conn: sqlite3.Connection) -> None:
         )
         """
     )
+    try:
+        cur.execute("ALTER TABLE seasonality_profiles ADD COLUMN metrics TEXT")
+    except sqlite3.OperationalError:
+        pass
     cur.execute(
         """
         CREATE INDEX IF NOT EXISTS ix_seasonality_profiles_lookup

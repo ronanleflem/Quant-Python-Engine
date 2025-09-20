@@ -152,6 +152,11 @@ poetry run quant-engine stats show --symbol EURUSD --event k_consecutive --targe
 poetry run qe seasonality run --spec specs/eurusd_m1_seasonality.json
 ```
 
+```bash
+# Lister les profils saisonnalité persistés en filtrant sur des métriques conditionnelles
+poetry run qe seasonality profiles --symbol EURUSD --metrics run_len_up_mean,p_breakout_up
+```
+
 ### Dimensions & signal
 
 - `by_hour`, `by_dow`, `by_month` activent les agrégations par heure, jour de semaine ou mois pour les profils.
@@ -184,6 +189,24 @@ poetry run qe seasonality run --spec specs/eurusd_m1_seasonality.json
   }
 }
 ```
+
+### Métriques conditionnelles stockées dans `seasonality_profiles.parquet`
+
+| Colonne | Description |
+| --- | --- |
+| `run_len_up_mean` | Longueur moyenne des runs haussiers démarrant dans le bin. |
+| `run_len_down_mean` | Longueur moyenne des runs baissiers démarrant dans le bin. |
+| `n_runs` | Nombre de runs observés dans le bin. |
+| `p_reversal_n` | Probabilité qu'un run se retourne en ≤ `ret_horizon` barres (estimateur Wilson). |
+| `p_reversal_ci_low` / `p_reversal_ci_high` | Intervalle de confiance Wilson 95 % pour `p_reversal_n`. |
+| `p_reversal_lift` | Écart du taux de reversal vs. le baseline du symbole. |
+| `p_reversal_baseline` | Probabilité de reversal globale pour le symbole. |
+| `amp_mean` | Amplitude moyenne (high-low) conditionnelle au bin. |
+| `amp_std` | Écart-type de l'amplitude (high-low). |
+| `atr_mean` | Moyenne de l'ATR si la série contient cette colonne. |
+| `p_breakout_up` | Fréquence de franchissement du plus-haut de la veille. |
+| `p_breakout_down` | Fréquence de cassure du plus-bas de la veille. |
+| `p_in_range` | Probabilité de rester dans le range de la veille. |
 
 ## 📖 Documentation
 

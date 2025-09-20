@@ -15,6 +15,57 @@ from ..api.schemas import SeasonalityProfileSpec
 from ..stats.estimators import freq_with_wilson
 
 
+CONDITIONAL_METRIC_NAMES = [
+    "run_len_up_mean",
+    "run_len_down_mean",
+    "n_runs",
+    "p_reversal_n",
+    "p_reversal_ci_low",
+    "p_reversal_ci_high",
+    "p_reversal_lift",
+    "p_reversal_baseline",
+    "amp_mean",
+    "amp_std",
+    "atr_mean",
+    "p_breakout_up",
+    "p_breakout_down",
+    "p_in_range",
+]
+
+
+def _conditional_metrics_schema() -> list[tuple[str, "pl.PolarsDataType"]]:
+    """Return the schema for conditional seasonality metrics."""
+
+    _require_polars()
+    dtype_map: dict[str, "pl.PolarsDataType"] = {
+        "run_len_up_mean": pl.Float64,
+        "run_len_down_mean": pl.Float64,
+        "n_runs": pl.Int64,
+        "p_reversal_n": pl.Float64,
+        "p_reversal_ci_low": pl.Float64,
+        "p_reversal_ci_high": pl.Float64,
+        "p_reversal_lift": pl.Float64,
+        "p_reversal_baseline": pl.Float64,
+        "amp_mean": pl.Float64,
+        "amp_std": pl.Float64,
+        "atr_mean": pl.Float64,
+        "p_breakout_up": pl.Float64,
+        "p_breakout_down": pl.Float64,
+        "p_in_range": pl.Float64,
+    }
+    return [(name, dtype_map[name]) for name in CONDITIONAL_METRIC_NAMES]
+
+
+def _ensure_metric_columns(table: "pl.DataFrame") -> "pl.DataFrame":
+    """Ensure the conditional metric columns exist in the table."""
+
+    _require_polars()
+    for name, dtype in _conditional_metrics_schema():
+        if name not in table.columns:
+            table = table.with_columns(pl.lit(None).cast(dtype).alias(name))
+    return table
+
+
 # ---------------------------------------------------------------------------
 # Feature preparation helpers
 # ---------------------------------------------------------------------------
@@ -152,6 +203,7 @@ def _empty_profile_frame(
                 ("ret_std", pl.Float64),
             ]
         )
+    schema.extend(_conditional_metrics_schema())
     schema.extend(
         [
             ("baseline", pl.Float64),
@@ -160,6 +212,86 @@ def _empty_profile_frame(
         ]
     )
     return pl.DataFrame(schema=schema)
+
+
+def _aggregate_conditional_metrics(
+    df: pl.DataFrame,
+    group_cols: Sequence[str],
+    horizon: int,
+) -> pl.DataFrame:
+    """Compute run-length, reversal, amplitude and breakout metrics."""
+
+    _require_polars()
+    if df.is_empty():
+        schema = [
+            *[(col, df.schema.get(col, pl.Int64)) for col in group_cols],
+            *_conditional_metrics_schema(),
+        ]
+        return pl.DataFrame(schema=schema)
+
+    base = df.select(group_cols).unique()
+    result = base
+
+    # Run-length and reversal metrics rely on run starts
+    if {"run_start", "run_length", "reversal_within_h"}.issubset(df.columns):
+        run_starts = df.filter(pl.col("run_start"))
+        if not run_starts.is_empty():
+            runs = run_starts.group_by(group_cols).agg(
+                pl.col("run_length_up").mean().alias("run_len_up_mean"),
+                pl.col("run_length_down").mean().alias("run_len_down_mean"),
+                pl.len().alias("n_runs"),
+                pl.col("reversal_within_h").cast(pl.Int64).sum().alias("reversal_successes"),
+            )
+            baseline = run_starts.group_by("symbol").agg(
+                pl.col("reversal_within_h")
+                .cast(pl.Float64)
+                .mean()
+                .alias("p_reversal_baseline")
+            )
+            runs = runs.join(baseline, on="symbol", how="left")
+            runs = runs.with_columns(
+                pl.struct(["reversal_successes", "n_runs"]).map_elements(
+                    lambda s: freq_with_wilson(int(s["reversal_successes"]), int(s["n_runs"]))
+                ).alias("_rev"),
+            )
+            runs = runs.with_columns(
+                pl.col("_rev").struct.field("field_0").alias("p_reversal_n"),
+                pl.col("_rev").struct.field("field_1").alias("p_reversal_ci_low"),
+                pl.col("_rev").struct.field("field_2").alias("p_reversal_ci_high"),
+            ).drop("_rev")
+            runs = runs.with_columns(
+                pl.when(pl.col("n_runs") == 0)
+                .then(None)
+                .otherwise(pl.col("p_reversal_n") - pl.col("p_reversal_baseline"))
+                .alias("p_reversal_lift"),
+            )
+            runs = runs.drop("reversal_successes")
+            result = result.join(runs, on=group_cols, how="left")
+    # Amplitude metrics
+    if "amplitude" in df.columns:
+        amp_stats = df.group_by(group_cols).agg(
+            pl.col("amplitude").mean().alias("amp_mean"),
+            pl.col("amplitude").std().alias("amp_std"),
+        )
+        result = result.join(amp_stats, on=group_cols, how="left")
+    # ATR mean if available
+    if "atr" in df.columns:
+        atr_stats = df.group_by(group_cols).agg(
+            pl.col("atr").mean().alias("atr_mean")
+        )
+        result = result.join(atr_stats, on=group_cols, how="left")
+    # Breakout probabilities
+    breakout_cols = {"breakout_up", "breakout_down", "in_range"}
+    if breakout_cols.issubset(set(df.columns)):
+        breakout_stats = df.group_by(group_cols).agg(
+            pl.col("breakout_up").cast(pl.Float64).mean().alias("p_breakout_up"),
+            pl.col("breakout_down").cast(pl.Float64).mean().alias("p_breakout_down"),
+            pl.col("in_range").cast(pl.Float64).mean().alias("p_in_range"),
+        )
+        result = result.join(breakout_stats, on=group_cols, how="left")
+
+    result = _ensure_metric_columns(result)
+    return result
 
 
 def profile_direction(
@@ -223,6 +355,9 @@ def profile_direction(
         .otherwise(pl.col("p_hat") - pl.col("baseline"))
         .alias("lift")
     )
+    extras = _aggregate_conditional_metrics(filtered, group_cols, horizon)
+    grouped = grouped.join(extras, on=group_cols, how="left")
+    grouped = _ensure_metric_columns(grouped)
     return grouped.sort(group_cols)
 
 
@@ -278,6 +413,9 @@ def profile_return(
         .otherwise(pl.col("ret_mean") - pl.col("baseline"))
         .alias("lift")
     )
+    extras = _aggregate_conditional_metrics(filtered, group_cols, horizon)
+    grouped = grouped.join(extras, on=group_cols, how="left")
+    grouped = _ensure_metric_columns(grouped)
     return grouped.sort(group_cols)
 
 
@@ -298,6 +436,93 @@ def prepare_features(dataset: pl.DataFrame, profile: SeasonalityProfileSpec) -> 
     df = add_time_bins(df)
     df = outcome_return(df, horizon)
     df = outcome_direction(df, horizon)
+
+    if "direction" in df.columns:
+        df = df.with_columns(
+            pl.col("direction")
+            .shift(1)
+            .over("symbol")
+            .alias("_prev_direction")
+        )
+        df = df.with_columns(
+            pl.col("direction")
+            .ne(pl.col("_prev_direction"))
+            .fill_null(True)
+            .alias("_run_start"),
+        )
+        df = df.with_columns(
+            pl.col("_run_start")
+            .cast(pl.Int64)
+            .cumsum()
+            .over("symbol")
+            .alias("_run_id"),
+        )
+        df = df.with_columns(
+            pl.len().over(["symbol", "_run_id"]).alias("run_length"),
+            pl.col("_run_start").alias("run_start"),
+        )
+        df = df.with_columns(
+            pl.when(pl.col("run_start") & (pl.col("direction") == 1))
+            .then(pl.col("run_length"))
+            .otherwise(None)
+            .alias("run_length_up"),
+            pl.when(pl.col("run_start") & (pl.col("direction") == 0))
+            .then(pl.col("run_length"))
+            .otherwise(None)
+            .alias("run_length_down"),
+            pl.when(pl.col("run_start"))
+            .then(pl.col("run_length") <= horizon)
+            .otherwise(None)
+            .alias("reversal_within_h"),
+        )
+        df = df.drop("_prev_direction", "_run_start", "_run_id")
+
+    if {"high", "low"}.issubset(df.columns):
+        df = df.with_columns((pl.col("high") - pl.col("low")).alias("amplitude"))
+
+    if {"timestamp", "high", "low"}.issubset(df.columns):
+        df = df.with_columns(pl.col("timestamp").dt.date().alias("_trade_date"))
+        daily = (
+            df.group_by(["symbol", "_trade_date"])
+            .agg(
+                pl.col("high").max().alias("_day_high"),
+                pl.col("low").min().alias("_day_low"),
+            )
+            .sort(["symbol", "_trade_date"])
+            .with_columns(
+                pl.col("_day_high")
+                .shift(1)
+                .over("symbol")
+                .alias("_prev_day_high"),
+                pl.col("_day_low")
+                .shift(1)
+                .over("symbol")
+                .alias("_prev_day_low"),
+            )
+            .select(["symbol", "_trade_date", "_prev_day_high", "_prev_day_low"])
+        )
+        df = df.join(daily, on=["symbol", "_trade_date"], how="left")
+        df = df.with_columns(
+            pl.when(pl.col("_prev_day_high").is_not_null())
+            .then(pl.col("high") >= pl.col("_prev_day_high"))
+            .otherwise(None)
+            .alias("breakout_up"),
+            pl.when(pl.col("_prev_day_low").is_not_null())
+            .then(pl.col("low") <= pl.col("_prev_day_low"))
+            .otherwise(None)
+            .alias("breakout_down"),
+        )
+        df = df.with_columns(
+            pl.when(
+                pl.col("_prev_day_high").is_not_null()
+                & pl.col("_prev_day_low").is_not_null()
+            )
+            .then(~pl.col("breakout_up") & ~pl.col("breakout_down"))
+            .otherwise(None)
+            .alias("in_range"),
+        )
+        df = df.drop("_trade_date", "_prev_day_high", "_prev_day_low")
+
     return df.filter(pl.col(f"return_h{horizon}").is_not_null())
 
 
@@ -331,6 +556,7 @@ def _empty_profiles_table(
                 ("ret_std", pl.Float64),
             ]
         )
+    base_schema.extend(_conditional_metrics_schema())
     base_schema.extend(
         [
             ("baseline", pl.Float64),
@@ -403,6 +629,8 @@ def compute_profiles(
         pl.lit(horizon, dtype=pl.Int64).alias("horizon"),
     )
 
+    metric_cols = list(CONDITIONAL_METRIC_NAMES)
+
     if profile.measure == "direction":
         ordered_cols = [
             "symbol",
@@ -414,6 +642,7 @@ def compute_profiles(
             "p_hat",
             "ci_low",
             "ci_high",
+            *metric_cols,
             "baseline",
             "lift",
             "insufficient",
@@ -431,6 +660,7 @@ def compute_profiles(
             "ret_mean",
             "ret_median",
             "ret_std",
+            *metric_cols,
             "baseline",
             "lift",
             "insufficient",

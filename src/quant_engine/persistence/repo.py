@@ -74,6 +74,8 @@ class SeasonalityProfilesRepository:
         cur = self.conn.cursor()
         rows: List[tuple] = []
         for r in profiles_rows:
+            metrics = r.get("metrics") or {}
+            metrics_json = json.dumps(metrics)
             rows.append(
                 (
                     r.get("symbol"),
@@ -85,6 +87,7 @@ class SeasonalityProfilesRepository:
                     r.get("n"),
                     r.get("baseline"),
                     r.get("lift"),
+                    metrics_json,
                     r.get("start"),
                     r.get("end"),
                     r.get("spec_id"),
@@ -95,14 +98,15 @@ class SeasonalityProfilesRepository:
             """
             INSERT INTO seasonality_profiles (
                 symbol, timeframe, dim, bin, measure, score, n, baseline, lift,
-                start, end, spec_id, dataset_id
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                metrics, start, end, spec_id, dataset_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(symbol, timeframe, dim, bin, measure, start, end, spec_id, dataset_id)
             DO UPDATE SET
                 score = excluded.score,
                 n = excluded.n,
                 baseline = excluded.baseline,
-                lift = excluded.lift
+                lift = excluded.lift,
+                metrics = excluded.metrics
             """,
             rows,
         )

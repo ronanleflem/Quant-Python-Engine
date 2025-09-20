@@ -131,6 +131,15 @@ def _profiles_to_records(
         baseline_value = row.get("baseline")
         lift_value = row.get("lift")
         n_value = row.get("n")
+        metrics_payload: Dict[str, Any] = {}
+        for key in compute.CONDITIONAL_METRIC_NAMES:
+            value = row.get(key)
+            if value is None:
+                continue
+            if key == "n_runs":
+                metrics_payload[key] = int(value)
+            else:
+                metrics_payload[key] = float(value)
         record = {
             "symbol": row.get("symbol"),
             "timeframe": timeframe_value,
@@ -146,6 +155,7 @@ def _profiles_to_records(
             "spec_id": spec_id,
             "dataset_id": dataset_id,
         }
+        record["metrics"] = metrics_payload
         records.append(record)
     return records
 
