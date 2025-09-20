@@ -173,8 +173,21 @@ poetry run qe seasonality compare --symbols EURUSD DXY --dim hour --timeframe M1
 - `by_news_hour` ajoute `is_news_hour` (heures macro sensibles 13h, 14h, 20h UTC).
 - `by_third_friday` ajoute `is_third_friday` pour le 3ᵉ vendredi de chaque mois (expiration d'options).
 - `by_rollover_day` expose `is_rollover_day` lorsque la série contient un `roll_id` (changement de contrat).
+- `by_week_in_month` agrège par semaine dans le mois (`week_in_month` ∈ [1,5]) pour capturer les effets payroll/FOMC.
+- `by_day_in_month` ajoute le bin exact du jour (`day_in_month`) et les tags `last_5`…`last_1` via `by_month_last_days`.
+- `by_quarter` fournit `quarter` (1 à 4) pour mesurer les effets trimestriels.
+- `by_month` ajoute désormais les dims `month` et `month_of_year` afin d'empiler plusieurs années.
+- `by_month_flags` expose les indicateurs `is_january`…`is_december` pour isoler un mois précis.
 
 Les colonnes `is_news_hour`, `is_third_friday` et `is_rollover_day` sont calculées automatiquement dans les features. Elles permettent d'isoler les heures clés des publications économiques, les séances d'expiration d'options mensuelles et les journées de rollover des contrats dérivés.
+
+### Cycles intra-mois
+
+Les features enrichies ajoutent `day_in_month`, `week_in_month` et les tags `last_5`…`last_1` pour identifier les cinq derniers jours ouvrés du mois. Activez-les via `by_day_in_month`, `by_week_in_month` et `by_month_last_days` afin de comparer, par exemple, la perf du 1ᵉʳ trading day vs. la fin de mois comptable.
+
+### Saisons annuelles
+
+Outre `month` / `month_of_year`, vous pouvez analyser `quarter` (1–4) et les flags `is_january`…`is_december`. Ces indicateurs permettent d'empiler plusieurs années et d'isoler des effets spécifiques (rallye de janvier, sell-in-may, clôtures trimestrielles, etc.).
 
 ### Exemple d'activation sessions & fins de mois
 
@@ -200,6 +213,26 @@ Les colonnes `is_news_hour`, `is_third_friday` et `is_rollover_day` sont calcul�
 }
 ```
 
+### Exemple `dims` intra-mois + trimestre
+
+```json
+{
+  "profile": {
+    "by_week_in_month": true,
+    "by_quarter": true,
+    "measure": "return",
+    "ret_horizon": 4,
+    "min_samples_bin": 50
+  },
+  "signal": {
+    "method": "topk",
+    "topk": 5,
+    "dims": ["week_in_month", "quarter"],
+    "combine": "sum"
+  }
+}
+```
+
 ### Métriques conditionnelles stockées dans `seasonality_profiles.parquet`
 
 | Colonne | Description |
@@ -213,10 +246,12 @@ Les colonnes `is_news_hour`, `is_third_friday` et `is_rollover_day` sont calcul�
 | `p_reversal_baseline` | Probabilité de reversal globale pour le symbole. |
 | `amp_mean` | Amplitude moyenne (high-low) conditionnelle au bin. |
 | `amp_std` | Écart-type de l'amplitude (high-low). |
+| `amp_p25` / `amp_p50` / `amp_p75` / `amp_p90` | Quantiles conditionnels de l'amplitude high-low. |
 | `atr_mean` | Moyenne de l'ATR si la série contient cette colonne. |
 | `p_breakout_up` | Fréquence de franchissement du plus-haut de la veille. |
 | `p_breakout_down` | Fréquence de cassure du plus-bas de la veille. |
 | `p_in_range` | Probabilité de rester dans le range de la veille. |
+| `ret_p25` / `ret_p50` / `ret_p75` / `ret_p90` | Quantiles conditionnels du rendement `ret_horizon`. |
 
 ## 📖 Documentation
 

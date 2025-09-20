@@ -15,6 +15,27 @@ from ..api.schemas import SeasonalityProfileSpec
 from ..stats.estimators import freq_with_wilson
 
 
+LAST_DAY_COLUMNS = [f"last_{idx}" for idx in range(1, 6)]
+
+MONTH_FLAG_COLUMNS = [
+    "is_january",
+    "is_february",
+    "is_march",
+    "is_april",
+    "is_may",
+    "is_june",
+    "is_july",
+    "is_august",
+    "is_september",
+    "is_october",
+    "is_november",
+    "is_december",
+]
+
+AMPLITUDE_QUANTILE_COLUMNS = ["amp_p25", "amp_p50", "amp_p75", "amp_p90"]
+RETURN_QUANTILE_COLUMNS = ["ret_p25", "ret_p50", "ret_p75", "ret_p90"]
+
+
 CONDITIONAL_METRIC_NAMES = [
     "run_len_up_mean",
     "run_len_down_mean",
@@ -26,10 +47,12 @@ CONDITIONAL_METRIC_NAMES = [
     "p_reversal_baseline",
     "amp_mean",
     "amp_std",
+    *AMPLITUDE_QUANTILE_COLUMNS,
     "atr_mean",
     "p_breakout_up",
     "p_breakout_down",
     "p_in_range",
+    *RETURN_QUANTILE_COLUMNS,
 ]
 
 
@@ -48,10 +71,18 @@ def _conditional_metrics_schema() -> list[tuple[str, "pl.PolarsDataType"]]:
         "p_reversal_baseline": pl.Float64,
         "amp_mean": pl.Float64,
         "amp_std": pl.Float64,
+        "amp_p25": pl.Float64,
+        "amp_p50": pl.Float64,
+        "amp_p75": pl.Float64,
+        "amp_p90": pl.Float64,
         "atr_mean": pl.Float64,
         "p_breakout_up": pl.Float64,
         "p_breakout_down": pl.Float64,
         "p_in_range": pl.Float64,
+        "ret_p25": pl.Float64,
+        "ret_p50": pl.Float64,
+        "ret_p75": pl.Float64,
+        "ret_p90": pl.Float64,
     }
     return [(name, dtype_map[name]) for name in CONDITIONAL_METRIC_NAMES]
 
@@ -93,13 +124,6 @@ def assign_session(ts_utc: datetime | None) -> str | None:
     return "Other"
 
 
-def _is_month_end(ts_utc: datetime | None) -> bool | None:
-    if ts_utc is None:
-        return None
-    last_day = calendar.monthrange(ts_utc.year, ts_utc.month)[1]
-    return ts_utc.day == last_day
-
-
 def _is_third_friday(ts_utc: datetime | None) -> bool | None:
     """Return whether the timestamp falls on the third Friday of the month."""
 
@@ -116,17 +140,35 @@ def add_time_bins(df: pl.DataFrame) -> pl.DataFrame:
     _require_polars()
     if df.is_empty():
         return df.clone()
+    month_expr = pl.col("timestamp").dt.month()
+    day_expr = pl.col("timestamp").dt.day()
+    month_end_expr = pl.col("timestamp").dt.month_end().dt.day()
+    days_from_end_expr = month_end_expr - day_expr
+    week_in_month_expr = (
+        ((day_expr - 1) / 7).floor() + 1
+    ).cast(pl.Int64)
+    quarter_expr = (((month_expr - 1) / 3).floor() + 1).cast(pl.Int64)
+    month_flag_exprs = [
+        month_expr.eq(idx).alias(name)
+        for idx, name in enumerate(MONTH_FLAG_COLUMNS, start=1)
+    ]
+    last_day_exprs = [
+        days_from_end_expr.eq(offset - 1).alias(name)
+        for offset, name in enumerate(LAST_DAY_COLUMNS, start=1)
+    ]
     df = df.with_columns(
         pl.col("timestamp").dt.hour().alias("hour"),
         pl.col("timestamp").dt.weekday().alias("dow"),
-        pl.col("timestamp").dt.month().alias("month"),
+        month_expr.alias("month"),
+        month_expr.alias("month_of_year"),
+        day_expr.cast(pl.Int64).alias("day_in_month"),
+        week_in_month_expr.alias("week_in_month"),
+        quarter_expr.alias("quarter"),
         pl.col("timestamp")
         .map_elements(assign_session, return_dtype=pl.Utf8)
         .alias("session"),
-        pl.col("timestamp").dt.day().eq(1).alias("is_month_start"),
-        pl.col("timestamp")
-        .map_elements(_is_month_end, return_dtype=pl.Boolean)
-        .alias("is_month_end"),
+        day_expr.eq(1).alias("is_month_start"),
+        days_from_end_expr.eq(0).alias("is_month_end"),
         pl.col("timestamp")
         .dt.hour()
         .is_in([13, 14, 20])
@@ -134,6 +176,8 @@ def add_time_bins(df: pl.DataFrame) -> pl.DataFrame:
         pl.col("timestamp")
         .map_elements(_is_third_friday, return_dtype=pl.Boolean)
         .alias("is_third_friday"),
+        *last_day_exprs,
+        *month_flag_exprs,
     )
 
     if "roll_id" in df.columns:
@@ -299,6 +343,22 @@ def _aggregate_conditional_metrics(
         amp_stats = df.group_by(group_cols).agg(
             pl.col("amplitude").mean().alias("amp_mean"),
             pl.col("amplitude").std().alias("amp_std"),
+            pl.col("amplitude")
+            .drop_nulls()
+            .quantile(0.25)
+            .alias("amp_p25"),
+            pl.col("amplitude")
+            .drop_nulls()
+            .quantile(0.50)
+            .alias("amp_p50"),
+            pl.col("amplitude")
+            .drop_nulls()
+            .quantile(0.75)
+            .alias("amp_p75"),
+            pl.col("amplitude")
+            .drop_nulls()
+            .quantile(0.90)
+            .alias("amp_p90"),
         )
         result = result.join(amp_stats, on=group_cols, how="left")
     # ATR mean if available
@@ -307,6 +367,28 @@ def _aggregate_conditional_metrics(
             pl.col("atr").mean().alias("atr_mean")
         )
         result = result.join(atr_stats, on=group_cols, how="left")
+    # Return quantiles
+    return_col = f"return_h{horizon}"
+    if return_col in df.columns:
+        ret_quantiles = df.group_by(group_cols).agg(
+            pl.col(return_col)
+            .drop_nulls()
+            .quantile(0.25)
+            .alias("ret_p25"),
+            pl.col(return_col)
+            .drop_nulls()
+            .quantile(0.50)
+            .alias("ret_p50"),
+            pl.col(return_col)
+            .drop_nulls()
+            .quantile(0.75)
+            .alias("ret_p75"),
+            pl.col(return_col)
+            .drop_nulls()
+            .quantile(0.90)
+            .alias("ret_p90"),
+        )
+        result = result.join(ret_quantiles, on=group_cols, how="left")
     # Breakout probabilities
     breakout_cols = {"breakout_up", "breakout_down", "in_range"}
     if breakout_cols.issubset(set(df.columns)):
@@ -598,6 +680,39 @@ def _empty_profiles_table(
     return pl.DataFrame(schema=base_schema)
 
 
+def _collect_profile_dimensions(profile: SeasonalityProfileSpec) -> list[str]:
+    dims: list[str] = []
+    if profile.by_hour:
+        dims.append("hour")
+    if profile.by_dow:
+        dims.append("dow")
+    if profile.by_month:
+        dims.extend(["month", "month_of_year"])
+    if profile.by_session:
+        dims.append("session")
+    if profile.by_month_start:
+        dims.append("is_month_start")
+    if profile.by_month_end:
+        dims.append("is_month_end")
+    if profile.by_news_hour:
+        dims.append("is_news_hour")
+    if profile.by_third_friday:
+        dims.append("is_third_friday")
+    if profile.by_rollover_day:
+        dims.append("is_rollover_day")
+    if profile.by_week_in_month:
+        dims.append("week_in_month")
+    if profile.by_day_in_month:
+        dims.append("day_in_month")
+    if profile.by_month_last_days:
+        dims.extend(LAST_DAY_COLUMNS)
+    if profile.by_quarter:
+        dims.append("quarter")
+    if profile.by_month_flags:
+        dims.extend(MONTH_FLAG_COLUMNS)
+    return list(dict.fromkeys(dims))
+
+
 def compute_profiles(
     dataset: pl.DataFrame,
     profile: SeasonalityProfileSpec,
@@ -617,25 +732,7 @@ def compute_profiles(
     if period_end is None and "timestamp" in dataset.columns and not dataset.is_empty():
         period_end = dataset.get_column("timestamp").max()
 
-    dims: list[str] = []
-    if profile.by_hour:
-        dims.append("hour")
-    if profile.by_dow:
-        dims.append("dow")
-    if profile.by_month:
-        dims.append("month")
-    if profile.by_session:
-        dims.append("session")
-    if profile.by_month_start:
-        dims.append("is_month_start")
-    if profile.by_month_end:
-        dims.append("is_month_end")
-    if profile.by_news_hour:
-        dims.append("is_news_hour")
-    if profile.by_third_friday:
-        dims.append("is_third_friday")
-    if profile.by_rollover_day:
-        dims.append("is_rollover_day")
+    dims = _collect_profile_dimensions(profile)
 
     tables: list[pl.DataFrame] = []
     for dim in dims:
@@ -716,21 +813,4 @@ def compute_profiles(
 def iter_active_bins(profile: SeasonalityProfileSpec) -> Iterable[str]:
     """Yield the dimensions enabled by the profile specification."""
 
-    if profile.by_hour:
-        yield "hour"
-    if profile.by_dow:
-        yield "dow"
-    if profile.by_month:
-        yield "month"
-    if profile.by_session:
-        yield "session"
-    if profile.by_month_start:
-        yield "is_month_start"
-    if profile.by_month_end:
-        yield "is_month_end"
-    if profile.by_news_hour:
-        yield "is_news_hour"
-    if profile.by_third_friday:
-        yield "is_third_friday"
-    if profile.by_rollover_day:
-        yield "is_rollover_day"
+    yield from _collect_profile_dimensions(profile)
