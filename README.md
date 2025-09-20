@@ -10,6 +10,9 @@ Moteur d’optimisation et de backtest basé sur une spécification JSON, prenan
 poetry install
 ```
 
+## 📖 Documentation
+- [Seasonality – Dimensions & Métriques](docs/seasonality_reference.md)
+
 ## Lancer l'API
 ```bash
 poetry run uvicorn quant_engine.api.app:app --reload
@@ -108,6 +111,8 @@ poetry run quant-engine stats show --symbol EURUSD --event k_consecutive --targe
 - `GET /stats`
 
 ## Seasonality Backtest
+
+➡️ Voir [Seasonality – Dimensions & Métriques](docs/seasonality_reference.md) pour la liste complète des dimensions et métriques disponibles.
 
 ### Exemple de spécification
 
