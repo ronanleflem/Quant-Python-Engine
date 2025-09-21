@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Sequence
 
+import pandas as pd
+
 try:  # pragma: no cover - optional dependency
     import polars as pl
 except ModuleNotFoundError:  # pragma: no cover - used when dependency missing
@@ -12,9 +14,8 @@ except ModuleNotFoundError:  # pragma: no cover - used when dependency missing
 
 from ..api.schemas import SeasonalitySpec
 from ..backtest import engine
-from ..core import dataset as core_dataset
+from ..core.dataset import load_ohlcv
 from ..core.features import atr
-from ..core.spec import DataSpec
 from ..io import artifacts, ids
 from ..signals.seasonality_signal import make_seasonality_signals
 from ..validate import splitter
@@ -181,13 +182,16 @@ def run(spec_model: SeasonalitySpec) -> Dict[str, Any]:
 
     _require_polars()
     cfg = spec.normalise(spec_model)
-    data_spec = DataSpec(
-        path=str(cfg.dataset_path),
-        symbols=list(cfg.symbols),
-        start=cfg.start.date(),
-        end=cfg.end.date(),
-    )
-    rows = core_dataset.load_dataset(data_spec)
+    df_source = load_ohlcv(spec_model.data)
+    rows: List[Dict[str, Any]] = []
+    for record in df_source.to_dict("records"):
+        rec = dict(record)
+        ts = rec.pop("ts", None)
+        if ts is not None:
+            ts_value = pd.to_datetime(ts, utc=True)
+            rec["timestamp"] = ts_value.isoformat()
+        rows.append(rec)
+    rows.sort(key=lambda r: r.get("timestamp", ""))
 
     artifact_root: Path | None = None
     if cfg.artifacts.out_dir:

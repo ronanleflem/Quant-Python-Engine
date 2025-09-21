@@ -2,9 +2,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Literal
+from typing import Any, Dict, List, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 from ..core.spec import (
     ValidationSpec as CoreValidationSpec,
@@ -28,14 +28,42 @@ class ResultResponse:
     result: Dict[str, Any] | None
 
 
-class StatsDataSpec(BaseModel):
-    """Dataset location and window for statistics runs."""
+class MySQLDataSpec(BaseModel):
+    """MySQL data feed configuration."""
 
-    dataset_path: str
+    model_config = ConfigDict(protected_namespaces=())
+
+    connection_url: Optional[str] = None
+    env_var: Optional[str] = "QE_MARKETDATA_MYSQL_URL"
+    schema_: Optional[str] = Field("marketdata", alias="schema")
+    table: str = "ohlcv"
+    symbol_col: str = "symbol"
+    ts_col: str = "ts"
+    open_col: str = "open"
+    high_col: str = "high"
+    low_col: str = "low"
+    close_col: str = "close"
+    volume_col: str = "volume"
+    timeframe_col: Optional[str] = "timeframe"
+    extra_where: Optional[str] = None
+    chunk_minutes: int = 0
+
+    @property
+    def schema(self) -> Optional[str]:
+        return self.schema_
+
+
+class DataInputSpec(BaseModel):
+    dataset_path: Optional[str] = None
+    mysql: Optional[MySQLDataSpec] = None
     symbols: List[str]
     timeframe: str
     start: str
     end: str
+
+
+class StatsDataSpec(DataInputSpec):
+    """Dataset location and window for statistics runs."""
 
 
 class StatsEventSpec(BaseModel):
@@ -116,12 +144,8 @@ class PersistenceSpec(BaseModel):
     dataset_id: str | None = None
 
 
-class SeasonalityDataSpec(BaseModel):
-    dataset_path: str
-    symbols: list[str]
-    timeframe: str
-    start: str
-    end: str
+class SeasonalityDataSpec(DataInputSpec):
+    pass
 
 
 class SeasonalityProfileSpec(BaseModel):

@@ -14,6 +14,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Any
 
+import pandas as pd
+
+from quant_engine.datafeeds.mysql_feed import load_ohlcv_mysql
+
 from .spec import DataSpec
 
 
@@ -80,4 +84,53 @@ def load_dataset(spec: DataSpec) -> List[Dict]:
         out.append(row)
     out.sort(key=lambda r: r["timestamp"])
     return out
+
+
+def load_ohlcv(spec_data) -> pd.DataFrame:
+    """Load OHLCV data from CSV or MySQL."""
+
+    dataset_path = getattr(spec_data, "dataset_path", None)
+    if dataset_path:
+        path = Path(dataset_path)
+        if path.suffix.lower() == ".json":
+            raw = json.loads(path.read_text())
+            df = pd.DataFrame(raw)
+        else:
+            df = pd.read_csv(str(path))
+        if "ts" in df.columns:
+            df["ts"] = pd.to_datetime(df["ts"], utc=True)
+        elif "timestamp" in df.columns:
+            df.rename(columns={"timestamp": "ts"}, inplace=True)
+            df["ts"] = pd.to_datetime(df["ts"], utc=True)
+        else:
+            raise RuntimeError("CSV must contain a 'ts' or 'timestamp' column.")
+        return df.sort_values(["symbol", "ts"]).reset_index(drop=True)
+
+    mysql_spec = getattr(spec_data, "mysql", None)
+    if mysql_spec:
+        cols = {
+            "ts": mysql_spec.ts_col,
+            "symbol": mysql_spec.symbol_col,
+            "open": mysql_spec.open_col,
+            "high": mysql_spec.high_col,
+            "low": mysql_spec.low_col,
+            "close": mysql_spec.close_col,
+            "volume": mysql_spec.volume_col,
+        }
+        return load_ohlcv_mysql(
+            connection_url=mysql_spec.connection_url,
+            env_var=mysql_spec.env_var,
+            schema=mysql_spec.schema,
+            table=mysql_spec.table,
+            symbols=list(spec_data.symbols),
+            timeframe=spec_data.timeframe,
+            start=spec_data.start,
+            end=spec_data.end,
+            cols=cols,
+            timeframe_col=mysql_spec.timeframe_col,
+            extra_where=mysql_spec.extra_where,
+            chunk_minutes=mysql_spec.chunk_minutes,
+        )
+
+    raise RuntimeError("Aucune source data fournie : dataset_path ou data.mysql requis.")
 

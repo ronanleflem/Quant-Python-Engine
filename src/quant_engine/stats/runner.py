@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-from datetime import date
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
 import pandas as pd
 
 from ..api.schemas import StatsSpec
-from ..core.dataset import load_dataset
-from ..core.spec import DataSpec
+from ..core.dataset import load_ohlcv
 from ..core.features import atr
 from ..validate import splitter
 from ..io import artifacts
@@ -186,13 +184,16 @@ def _aggregate(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def run_stats(spec: StatsSpec) -> pd.DataFrame:
-    data_spec = DataSpec(
-        path=spec.data.dataset_path,
-        symbols=spec.data.symbols,
-        start=date.fromisoformat(spec.data.start),
-        end=date.fromisoformat(spec.data.end),
-    )
-    dataset = load_dataset(data_spec)
+    df_source = load_ohlcv(spec.data)
+    dataset: List[Dict[str, Any]] = []
+    for row in df_source.to_dict("records"):
+        rec = dict(row)
+        ts = rec.pop("ts", None)
+        if ts is not None:
+            ts_value = pd.to_datetime(ts, utc=True)
+            rec["timestamp"] = ts_value.isoformat()
+        dataset.append(rec)
+    dataset.sort(key=lambda r: r.get("timestamp", ""))
 
     splits: List[Tuple[str, List[Dict[str, Any]]]] = []
     if spec.validation is not None:
