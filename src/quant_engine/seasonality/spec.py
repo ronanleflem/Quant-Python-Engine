@@ -21,7 +21,7 @@ from ..api.schemas import (
 
 @dataclass
 class NormalisedSeasonalitySpec:
-    dataset_path: Path
+    dataset_path: Path | None
     symbols: list[str]
     timeframe: str
     start: datetime
@@ -43,7 +43,7 @@ def normalise(spec: SeasonalitySpec) -> NormalisedSeasonalitySpec:
     start = datetime.fromisoformat(spec.data.start)
     end = datetime.fromisoformat(spec.data.end)
     return NormalisedSeasonalitySpec(
-        dataset_path=Path(spec.data.dataset_path),
+        dataset_path=Path(spec.data.dataset_path) if spec.data.dataset_path else None,
         symbols=list(spec.data.symbols),
         timeframe=spec.data.timeframe,
         start=start,

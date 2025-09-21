@@ -97,6 +97,48 @@ pre-commit run --all-files
 }
 ```
 
+### Charger OHLCV depuis MySQL (schéma marketdata)
+
+```json
+{
+  "data": {
+    "mysql": {
+      "env_var": "QE_MARKETDATA_MYSQL_URL",
+      "schema": "marketdata",
+      "table": "ohlcv_m1",
+      "symbol_col": "symbol",
+      "ts_col": "ts_utc",
+      "open_col": "open",
+      "high_col": "high",
+      "low_col": "low",
+      "close_col": "close",
+      "volume_col": "volume",
+      "timeframe_col": null,
+      "extra_where": null,
+      "chunk_minutes": 0
+    },
+    "symbols": ["EURUSD"],
+    "timeframe": "M1",
+    "start": "2025-01-01T00:00:00Z",
+    "end": "2025-01-10T23:59:00Z"
+  }
+}
+```
+
+Variables d’environnement à définir :
+
+```bash
+export QE_MARKETDATA_MYSQL_URL='mysql+pymysql://py_user:***@mysql-host:3306/marketdata'  # READ (schema marketdata)
+export QE_DB_URL='mysql+pymysql://py_user:***@mysql-host:3306/quant'                     # WRITE (schema quant)
+```
+
+Index recommandés dans `marketdata` :
+
+- `(symbol, ts)` lorsque la table est partitionnée par timeframe (ex. `ohlcv_m1`).
+- `(symbol, timeframe, ts)` lorsqu’une table unique regroupe plusieurs timeframes.
+
+Les timestamps (`ts`) doivent être en UTC.
+
 ### CLI
 
 ```bash
