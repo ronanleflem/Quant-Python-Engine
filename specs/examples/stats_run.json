@@ -1,0 +1,40 @@
+{
+  "data": {
+    "dataset_path": "specs/examples/data/eurusd_m1_sample.json",
+    "symbols": [
+      "EURUSD"
+    ],
+    "timeframe": "M1",
+    "start": "2024-01-01T00:00:00Z",
+    "end": "2024-01-05T23:59:00Z"
+  },
+  "events": [
+    {
+      "name": "k_consecutive",
+      "params": {
+        "k": 2,
+        "direction": "up"
+      }
+    }
+  ],
+  "conditions": [],
+  "targets": [
+    {
+      "name": "up_next_bar"
+    },
+    {
+      "name": "continuation_n",
+      "params": {
+        "n": 3,
+        "direction": "up"
+      }
+    }
+  ],
+  "validation": null,
+  "artifacts": {
+    "out_dir": "runs/stats_demo"
+  },
+  "persistence": {
+    "enabled": false
+  }
+}

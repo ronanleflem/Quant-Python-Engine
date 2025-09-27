@@ -1,0 +1,38 @@
+{
+  "data": {
+    "path": "specs/examples/data/eurusd_m1_sample.json",
+    "symbols": [
+      "EURUSD"
+    ],
+    "start": "2024-01-01",
+    "end": "2024-01-31"
+  },
+  "strategy": {
+    "filters": {
+      "ema_fast": 9,
+      "ema_slow": 26
+    },
+    "tpsl": {
+      "atr_k": 2.0
+    },
+    "validation": {
+      "train_months": 0,
+      "test_months": 1,
+      "folds": 1,
+      "embargo_days": 0
+    },
+    "objective": "sharpe",
+    "search_space": {
+      "ema_fast": [
+        9,
+        12,
+        15
+      ],
+      "ema_slow": [
+        26,
+        35,
+        55
+      ]
+    }
+  }
+}

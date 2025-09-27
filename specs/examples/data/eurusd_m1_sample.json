@@ -1,0 +1,12 @@
+[
+  {"timestamp": "2024-01-01T00:00:00", "symbol": "EURUSD", "open": 1.10, "high": 1.11, "low": 1.09, "close": 1.105, "volume": 1200},
+  {"timestamp": "2024-01-01T00:01:00", "symbol": "EURUSD", "open": 1.105, "high": 1.112, "low": 1.101, "close": 1.108, "volume": 980},
+  {"timestamp": "2024-01-01T00:02:00", "symbol": "EURUSD", "open": 1.108, "high": 1.110, "low": 1.103, "close": 1.104, "volume": 860},
+  {"timestamp": "2024-01-01T00:03:00", "symbol": "EURUSD", "open": 1.104, "high": 1.107, "low": 1.100, "close": 1.101, "volume": 910},
+  {"timestamp": "2024-01-01T00:04:00", "symbol": "EURUSD", "open": 1.101, "high": 1.106, "low": 1.099, "close": 1.104, "volume": 950},
+  {"timestamp": "2024-01-01T00:05:00", "symbol": "EURUSD", "open": 1.104, "high": 1.109, "low": 1.102, "close": 1.108, "volume": 1020},
+  {"timestamp": "2024-01-01T00:06:00", "symbol": "EURUSD", "open": 1.108, "high": 1.113, "low": 1.107, "close": 1.110, "volume": 870},
+  {"timestamp": "2024-01-01T00:07:00", "symbol": "EURUSD", "open": 1.110, "high": 1.115, "low": 1.108, "close": 1.114, "volume": 990},
+  {"timestamp": "2024-01-01T00:08:00", "symbol": "EURUSD", "open": 1.114, "high": 1.116, "low": 1.112, "close": 1.113, "volume": 880},
+  {"timestamp": "2024-01-01T00:09:00", "symbol": "EURUSD", "open": 1.113, "high": 1.117, "low": 1.110, "close": 1.116, "volume": 940}
+]

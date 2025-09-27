@@ -93,6 +93,38 @@ pre-commit run --all-files
 - `GET /runs/{id}/trials`
 - `GET /runs/{id}/metrics`
 
+### Tests rapides de l'API
+
+Prerequis:
+- API lancee localement (`poetry run uvicorn quant_engine.api.app:app --reload --app-dir src`).
+- Exemples de specifications accessibles dans `specs/examples`.
+- Sous PowerShell, conserver les commandes `curl` sur une seule ligne ou utiliser l'accent grave `` ` `` pour un retour chariot.
+
+```bash
+# 1. Declencher un run d'optimisation
+curl -X POST http://127.0.0.1:8000/submit -H "Content-Type: application/json" --data-binary @specs/examples/submit_local.json
+# -> {"id":"RUN_ID"}
+```
+
+> Windows / PowerShell : utilisez une seule ligne comme ci-dessus ou remplacez `\` par un accent grave `` ` `` pour la continuation.
+
+```bash
+# 2. Verifier le run
+curl http://127.0.0.1:8000/status/RUN_ID
+curl http://127.0.0.1:8000/result/RUN_ID
+```
+
+```bash
+# 3. Explorer l'historique des runs
+curl "http://127.0.0.1:8000/runs?page=1&page_size=5"
+curl http://127.0.0.1:8000/runs/RUN_ID
+curl http://127.0.0.1:8000/runs/RUN_ID/trials
+curl http://127.0.0.1:8000/runs/RUN_ID/metrics
+```
+
+Note: `specs/examples/submit_local.json` référence le mini jeu de données `specs/examples/data/eurusd_m1_sample.json` fourni pour les tests rapides. Les paramètres de validation (`train_months=0`, `test_months=1`, `folds=1`) sont volontairement minimalistes pour produire un fold sur ce jeu réduit. Remplacez-les (et les données) pour vos tests avancés et veillez à enregistrer vos JSON en UTF-8 sans BOM (PowerShell: `-Encoding utf8NoBOM`).
+
+
 ## Market Stats
 
 ### Exemple de spécification
@@ -179,6 +211,24 @@ poetry run quant-engine stats show --symbol EURUSD --event k_consecutive --targe
 - `GET /stats/result`
 - `GET /stats`
 
+Tests (curl):
+```bash
+# 1. Lancer un run statistiques
+curl -X POST http://127.0.0.1:8000/stats/run -H "Content-Type: application/json" --data-binary @specs/examples/stats_run.json
+```
+
+```bash
+# 2. Recuperer le dernier resultat en memoire
+curl http://127.0.0.1:8000/stats/result
+```
+
+```bash
+# 3. Interroger les stats persistees
+curl "http://127.0.0.1:8000/stats?symbol=EURUSD&event=k_consecutive&target=up_next_bar&limit=5"
+```
+
+Note: `/stats/result` renvoie le resultat de la derniere execution locale, tandis que `/stats` lit les donnees persistees en base. La spec d'exemple (`specs/examples/stats_run.json`) supprime la validation multi-fen0tre et n'utilise pas de conditions pour rester compatible avec le mini dataset; adaptez validation/conditions 0 votre cas r0el.
+
 ## Seasonality Backtest
 
 ➡️ Voir [Seasonality – Dimensions & Métriques](docs/seasonality_reference.md) pour la liste complète des dimensions et métriques disponibles.
@@ -223,7 +273,7 @@ poetry run quant-engine stats show --symbol EURUSD --event k_consecutive --targe
 ### CLI
 
 ```bash
-poetry run qe seasonality run --spec specs/eurusd_m1_seasonality.json
+poetry run qe seasonality run --spec specs/eurusd_m1_seasonality.json  # spec complète
 ```
 
 ```bash
@@ -235,6 +285,27 @@ poetry run qe seasonality profiles --symbol EURUSD --metrics run_len_up_mean,p_b
 # Comparer deux symboles sur une dimension et afficher la corrélation des lifts
 poetry run qe seasonality compare --symbols EURUSD DXY --dim hour --timeframe M1
 ```
+
+### API
+
+- `POST /seasonality/run`
+- `POST /seasonality/optimize`
+- `GET /seasonality/profiles`
+- `GET /seasonality/runs`
+- `GET /seasonality/runs/{run_id}`
+
+Tests (curl):
+```bash
+# 1. Lancer un backtest saisonnalite
+curl -X POST http://127.0.0.1:8000/seasonality/run -H "Content-Type: application/json" --data-binary @specs/examples/seasonality_run.json
+```
+
+```bash
+# 2. Consulter les profils stockes
+curl "http://127.0.0.1:8000/seasonality/profiles?symbol=EURUSD&page_size=5"
+```
+
+Note: l'exemple rapide utilise `specs/examples/seasonality_run.json`, calibré pour le mini dataset JSON (et nécessite `polars`). Les routes `/seasonality/profiles` et `/seasonality/runs*` supposent une base renseignee via Alembic.
 
 ### Dimensions & signal
 

@@ -87,7 +87,7 @@ def p_value_binomial_onesided_normal(
     sd = math.sqrt(var)
     if direction == "greater":
         z = (successes - mean - 0.5) / sd
-        return NormalDist().sf(z)
+        return 1 - NormalDist().cdf(z)
     else:
         z = (successes - mean + 0.5) / sd
         return NormalDist().cdf(z)

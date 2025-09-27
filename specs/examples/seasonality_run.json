@@ -1,29 +1,27 @@
 {
   "data": {
-    "dataset_path": "data/eurusd_m1_2025H1.csv",
-    "symbols": [
-      "EURUSD"
-    ],
+    "dataset_path": "specs/examples/data/eurusd_m1_sample.json",
+    "symbols": ["EURUSD"],
     "timeframe": "M1",
-    "start": "2025-01-01",
-    "end": "2025-06-30"
+    "start": "2024-01-01T00:00:00Z",
+    "end": "2024-01-01T00:09:00Z"
   },
   "profile": {
     "by_hour": true,
     "by_dow": true,
-    "by_month": false,
     "measure": "direction",
     "ret_horizon": 1,
-    "min_samples_bin": 300
+    "min_samples_bin": 2
   },
   "signal": {
     "method": "threshold",
-    "threshold": 0.54,
-    "dims": [
-      "hour",
-      "dow"
-    ],
+    "threshold": 0.55,
+    "dims": ["hour"],
     "combine": "and"
+  },
+  "compute": {
+    "max_trials": 5,
+    "search_space": {}
   },
   "execution": {
     "slippage_bps": 0.5,
@@ -35,21 +33,18 @@
   },
   "tp_sl": {
     "stop_loss": 1.5,
-    "take_profit": 2.0
+    "take_profit": 1.5
   },
   "validation": {
-    "min_trades": 0,
-    "train_months": 2,
+    "train_months": 0,
     "test_months": 1,
-    "folds": 3,
-    "embargo_days": 2
+    "folds": 1,
+    "embargo_days": 0
   },
   "artifacts": {
-    "out_dir": "runs/seasonality_eurusd_m1_2025H1"
+    "out_dir": "runs/seasonality_demo"
   },
   "persistence": {
-    "enabled": false,
-    "spec_id": null,
-    "dataset_id": null
+    "enabled": false
   }
 }
