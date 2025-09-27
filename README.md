@@ -6,8 +6,35 @@
 Moteur d’optimisation et de backtest basé sur une spécification JSON, prenant en charge EMA/VWAP, TP/SL, Walk Forward Analysis, Optuna, MySQL et MLflow.
 
 ## Installation
-```bash
+```bash 
+# Installer les dépendances nécessaires
+sudo apt update
+sudo apt install -y make build-essential libssl-dev zlib1g-dev \
+libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm \
+libncurses5-dev libncursesw5-dev xz-utils tk-dev libffi-dev liblzma-dev git
+
+# Installer pyenv (via curl)
+curl https://pyenv.run | bash
+
+export PATH="$HOME/.pyenv/bin:$PATH"
+eval "$(pyenv init --path)"
+eval "$(pyenv virtualenv-init -)"
+
+source ~/.bashrc
+# ou
+source ~/.zshrc
+
+pyenv install 3.11.9
+pyenv global 3.11.9
+
+python --version
+# Doit afficher Python 3.11.9
+
+pyenv local 3.11.9
+poetry env use python3.11
 poetry install
+
+export $(grep -v '^#' .env | xargs)
 ```
 
 ## 📖 Documentation
@@ -15,7 +42,7 @@ poetry install
 
 ## Lancer l'API
 ```bash
-poetry run uvicorn quant_engine.api.app:app --reload
+poetry run uvicorn quant_engine.api.app:app --reload --app-dir src
 ```
 
 ## CLI

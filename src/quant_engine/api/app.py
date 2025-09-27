@@ -1,15 +1,16 @@
-"""Tiny in-memory API resembling the FastAPI specification.
+"""In-memory orchestration helpers and their FastAPI wrappers.
 
-The implementation exposes three functions ``submit``, ``status`` and
-``result`` that mimic the behaviour of REST endpoints.  They can be called
-synchronously which keeps the tests lightweight while preserving the public
-contract of the original design.
+The synchronous helpers keep the test suite light-weight while the
+FastAPI application exposes the same capabilities over HTTP for local
+development.
 """
 from __future__ import annotations
 
 import json
-from typing import Dict, Any, List, Sequence
+from fastapi import FastAPI, HTTPException, Query
+from typing import Dict, Any, List, Sequence, Optional
 
+from ..core import spec as spec_module
 from ..core.spec import Spec
 from ..optimize.runner import run as run_optimisation
 from ..io import ids
@@ -60,7 +61,20 @@ def stats_run(spec: schemas.StatsSpec) -> schemas.StatusResponse:
 def stats_result() -> schemas.ResultResponse:
     """Return the last statistics result if available."""
 
-    return schemas.ResultResponse(result=_last_stats)
+    if _last_stats is None:
+        return schemas.ResultResponse(result=None)
+
+    try:
+        import pandas as pd  # type: ignore
+    except Exception:  # pragma: no cover - pandas is an install dependency
+        df = _last_stats
+    else:
+        df = _last_stats.where(pd.notna(_last_stats), None)
+    payload = {
+        "columns": list(df.columns),
+        "rows": df.to_dict(orient="records"),
+    }
+    return schemas.ResultResponse(result=payload)
 
 
 # ---------------------------------------------------------------------------
@@ -520,3 +534,238 @@ def stats_top(
     return rows_sorted
 
 
+
+
+fastapi_app = FastAPI(title="Quant Engine API", version="0.1.0")
+
+
+@fastapi_app.post('/submit', response_model=schemas.SubmitResponse)
+def submit_endpoint(payload: Dict[str, Any]) -> schemas.SubmitResponse:
+    """HTTP endpoint wrapping :func:`submit`."""
+
+    try:
+        spec_obj = spec_module.spec_from_dict(payload)
+    except (KeyError, TypeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid spec: {exc}") from exc
+    return submit(spec_obj)
+
+
+@fastapi_app.get('/status/{job_id}', response_model=schemas.StatusResponse)
+def status_endpoint(job_id: str) -> schemas.StatusResponse:
+    """Return the status for a submitted job."""
+
+    return status(job_id)
+
+
+@fastapi_app.get('/result/{job_id}', response_model=schemas.ResultResponse)
+def result_endpoint(job_id: str) -> schemas.ResultResponse:
+    """Return the optimisation result for a job if available."""
+
+    return result(job_id)
+
+
+@fastapi_app.post('/stats/run', response_model=schemas.StatusResponse)
+def stats_run_endpoint(spec: schemas.StatsSpec) -> schemas.StatusResponse:
+    """Kick off a statistics computation synchronously."""
+
+    return stats_run(spec)
+
+
+@fastapi_app.get('/stats/result', response_model=schemas.ResultResponse)
+def stats_result_endpoint() -> schemas.ResultResponse:
+    """Return the result of the last statistics computation."""
+
+    return stats_result()
+
+
+@fastapi_app.get('/stats', response_model=List[Dict[str, Any]])
+def stats_list_endpoint(
+    symbol: Optional[str] = None,
+    timeframe: Optional[str] = None,
+    event: Optional[str] = None,
+    condition_name: Optional[str] = None,
+    target: Optional[str] = None,
+    split: Optional[str] = None,
+    min_n: Optional[int] = Query(None, ge=0),
+    significant_only: bool = False,
+    method: str = Query('freq', pattern='^(freq|bayes)$'),
+    alpha: float = Query(0.05, ge=0.0, le=1.0),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=500),
+) -> List[Dict[str, Any]]:
+    """List persisted statistics with optional filters."""
+
+    return list_stats(
+        symbol=symbol,
+        timeframe=timeframe,
+        event=event,
+        condition_name=condition_name,
+        target=target,
+        split=split,
+        min_n=min_n,
+        significant_only=significant_only,
+        method=method,
+        alpha=alpha,
+        page=page,
+        page_size=page_size,
+    )
+
+
+@fastapi_app.get('/stats/summary', response_model=List[Dict[str, Any]])
+def stats_summary_endpoint(
+    symbol: Optional[str] = None,
+    timeframe: Optional[str] = None,
+    event: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    """Return aggregated statistics summary."""
+
+    return stats_summary(symbol=symbol, timeframe=timeframe, event=event)
+
+
+@fastapi_app.get('/stats/heatmap', response_model=List[Dict[str, Any]])
+def stats_heatmap_endpoint(
+    symbol: str,
+    timeframe: str,
+    event: str,
+    target: str,
+    condition_name: str,
+) -> List[Dict[str, Any]]:
+    """Return heatmap-style bins for a condition."""
+
+    return stats_heatmap(symbol, timeframe, event, target, condition_name)
+
+
+@fastapi_app.get('/stats/top', response_model=List[Dict[str, Any]])
+def stats_top_endpoint(
+    symbol: str,
+    timeframe: str,
+    k: int = Query(10, ge=1, le=100),
+    method: str = Query('freq', pattern='^(freq|bayes)$'),
+    significant_only: bool = False,
+) -> List[Dict[str, Any]]:
+    """Return top patterns ordered by lift."""
+
+    return stats_top(symbol, timeframe, k=k, method=method, significant_only=significant_only)
+
+
+@fastapi_app.post('/seasonality/run', response_model=schemas.ResultResponse)
+def seasonality_run_endpoint(spec: schemas.SeasonalitySpec) -> schemas.ResultResponse:
+    """Execute a seasonality run synchronously."""
+
+    return seasonality_run(spec)
+
+
+@fastapi_app.post('/seasonality/optimize', response_model=schemas.ResultResponse)
+def seasonality_optimize_endpoint(spec: schemas.SeasonalitySpec) -> schemas.ResultResponse:
+    """Execute the seasonality optimisation loop."""
+
+    return seasonality_optimize(spec)
+
+
+@fastapi_app.get('/seasonality/profiles', response_model=List[Dict[str, Any]])
+def seasonality_profiles_endpoint(
+    symbol: Optional[str] = None,
+    timeframe: Optional[str] = None,
+    dim: Optional[str] = None,
+    measure: Optional[str] = None,
+    spec_id: Optional[str] = None,
+    dataset_id: Optional[str] = None,
+    metrics: Optional[List[str]] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=500),
+) -> List[Dict[str, Any]]:
+    """List persisted seasonality profiles."""
+
+    return list_seasonality_profiles(
+        symbol=symbol,
+        timeframe=timeframe,
+        dim=dim,
+        measure=measure,
+        spec_id=spec_id,
+        dataset_id=dataset_id,
+        metrics=metrics,
+        page=page,
+        page_size=page_size,
+    )
+
+
+@fastapi_app.get('/seasonality/runs', response_model=List[Dict[str, Any]])
+def seasonality_runs_endpoint(
+    status: Optional[str] = None,
+    spec_id: Optional[str] = None,
+    dataset_id: Optional[str] = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=500),
+) -> List[Dict[str, Any]]:
+    """List persisted seasonality runs."""
+
+    return list_seasonality_runs(
+        status=status,
+        spec_id=spec_id,
+        dataset_id=dataset_id,
+        page=page,
+        page_size=page_size,
+    )
+
+
+@fastapi_app.get('/seasonality/runs/{run_id}', response_model=Dict[str, Any])
+def seasonality_run_detail_endpoint(run_id: str) -> Dict[str, Any]:
+    """Return details for a specific seasonality run."""
+
+    payload = get_seasonality_run(run_id)
+    if payload is None:
+        raise HTTPException(status_code=404, detail='Run not found')
+    return payload
+
+
+@fastapi_app.get('/runs', response_model=List[Dict[str, Any]])
+def runs_list_endpoint(
+    status: Optional[str] = None,
+    symbol: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=500),
+) -> List[Dict[str, Any]]:
+    """List optimisation runs."""
+
+    return list_runs(
+        status=status,
+        symbol=symbol,
+        date_from=date_from,
+        date_to=date_to,
+        page=page,
+        page_size=page_size,
+    )
+
+
+@fastapi_app.get('/runs/{run_id}', response_model=Dict[str, Any])
+def run_detail_endpoint(run_id: str) -> Dict[str, Any]:
+    """Return a single run and aggregated metrics."""
+
+    payload = get_run(run_id)
+    if payload is None:
+        raise HTTPException(status_code=404, detail='Run not found')
+    return payload
+
+
+@fastapi_app.get('/runs/{run_id}/trials', response_model=List[Dict[str, Any]])
+def run_trials_endpoint(
+    run_id: str,
+    order_by: str = 'objective_value.desc',
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=500),
+) -> List[Dict[str, Any]]:
+    """Return leaderboard of trials for a run."""
+
+    return get_run_trials(run_id, order_by=order_by, page=page, page_size=page_size)
+
+
+@fastapi_app.get('/runs/{run_id}/metrics', response_model=Dict[str, Any])
+def run_metrics_endpoint(run_id: str) -> Dict[str, Any]:
+    """Return metrics for a run."""
+
+    return get_run_metrics(run_id)
+
+
+app = fastapi_app

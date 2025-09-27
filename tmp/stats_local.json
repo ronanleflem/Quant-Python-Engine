@@ -1,0 +1,21 @@
+{
+  "data": {
+    "dataset_path": "tests/data/ohlcv.json",
+    "symbols": ["ABC"],
+    "timeframe": "D1",
+    "start": "2020-01-01",
+    "end": "2020-01-05"
+  },
+  "events": [
+    { "name": "k_consecutive", "params": { "k": 2, "direction": "up" } }
+  ],
+  "conditions": [
+    { "name": "session", "params": { "col": "session_id" } }
+  ],
+  "targets": [
+    { "name": "up_next_bar", "params": {} }
+  ],
+  "validation": null,
+  "artifacts": null,
+  "persistence": null
+}

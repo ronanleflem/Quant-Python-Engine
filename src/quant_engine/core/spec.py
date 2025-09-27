@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from datetime import date
 import json
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Mapping
 
 
 @dataclass
@@ -87,9 +87,9 @@ def _parse_date(value: str) -> date:
     return date.fromisoformat(value)
 
 
-def load_spec(path: str | Path) -> Spec:
-    """Load a :class:`Spec` instance from a JSON file."""
-    raw = json.loads(Path(path).read_text())
+def _parse_spec(raw: Mapping[str, Any]) -> Spec:
+    """Build a :class:`Spec` from an in-memory mapping."""
+
     data_raw = raw["data"]
     strat_raw = raw["strategy"]
 
@@ -117,4 +117,17 @@ def load_spec(path: str | Path) -> Spec:
         search_space={k: list(v) for k, v in strat_raw["search_space"].items()},
     )
     return Spec(data=data, strategy=strategy)
+
+
+def load_spec(path: str | Path) -> Spec:
+    """Load a :class:`Spec` instance from a JSON file."""
+
+    raw = json.loads(Path(path).read_text())
+    return _parse_spec(raw)
+
+
+def spec_from_dict(raw: Mapping[str, Any]) -> Spec:
+    """Public helper to build a :class:`Spec` from a JSON-compatible dict."""
+
+    return _parse_spec(raw)
 
