@@ -47,6 +47,9 @@ class MySQLDataSpec(BaseModel):
     timeframe_col: Optional[str] = "timeframe"
     extra_where: Optional[str] = None
     chunk_minutes: int = 0
+    symbol_lookup_table: Optional[str] = None
+    symbol_lookup_symbol_col: str = "symbol"
+    symbol_lookup_id_col: str = "id"
 
     @property
     def schema(self) -> Optional[str]:
@@ -149,7 +152,7 @@ class SeasonalityDataSpec(DataInputSpec):
 
 
 class SeasonalityProfileSpec(BaseModel):
-    # quelles dimensions de saisonnalité calculer
+    # quelles dimensions de saisonnalitÃ© calculer
     by_hour: bool = True
     by_dow: bool = True
     by_month: bool = False
@@ -166,7 +169,7 @@ class SeasonalityProfileSpec(BaseModel):
     by_month_flags: bool = False
     # mesure : 'direction' (P(close_{t+1} > close_t)) ou 'return'
     measure: Literal["direction", "return"] = "direction"
-    ret_horizon: int = 1  # nb de barres à regarder
+    ret_horizon: int = 1  # nb de barres Ã  regarder
     min_samples_bin: int = 300  # n_min par bin
 
 

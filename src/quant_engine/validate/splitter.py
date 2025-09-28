@@ -23,7 +23,12 @@ def generate_folds(
     """Return a list of ``{"train": [], "test": []}`` splits."""
     if not dataset:
         return []
-    dates = [datetime.fromisoformat(r["timestamp"]) for r in dataset]
+    dates = []
+    for row in dataset:
+        dt = datetime.fromisoformat(row["timestamp"])
+        if dt.tzinfo is not None:
+            dt = dt.replace(tzinfo=None)
+        dates.append(dt)
     start = dates[0]
     out: List[Dict[str, List[Dict[str, Any]]]] = []
     for f in range(folds):

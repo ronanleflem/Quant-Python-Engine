@@ -5,6 +5,7 @@
 ## Présentation
 Moteur d’optimisation et de backtest basé sur une spécification JSON, prenant en charge EMA/VWAP, TP/SL, Walk Forward Analysis, Optuna, MySQL et MLflow.
 
+Affichage Markdown :  Ctrl + Shift + V
 ## Installation
 ```bash 
 # Installer les dépendances nécessaires
@@ -66,10 +67,12 @@ poetry run uvicorn quant_engine.api.app:app --reload --app-dir src
 ## Configuration `.env`
 Copier `.env.example` vers `.env` et ajuster :
 ```env
-DB_DSN=mysql+pymysql://quant:quant@localhost:3306/quant?charset=utf8mb4
+DB_DSN=sqlite:///.db/quant.db
 DB_ECHO=false
 MLFLOW_TRACKING_URI=http://localhost:5000
 ```
+Pour les tests rapides, la persistance locale utilise SQLite (`.db/quant.db`). Configure les accès MySQL via `QE_MARKETDATA_MYSQL_URL` lorsque tu veux lire les OHLCV depuis ton instance Spring.
+
 
 ## Docker Compose
 ```bash
@@ -113,6 +116,8 @@ curl.exe http://127.0.0.1:8000/result/RUN_ID | python -m json.tool
 
 ```bash
 python -m json.tool summary.json
+
+> Exemple MySQL : `specs/examples/submit_mysql.json` (requiert `QE_MARKETDATA_MYSQL_URL`).
 ```
 
 #### Statistiques (in-memory + SQLite)
@@ -162,6 +167,18 @@ python -m json.tool runs/seasonality_demo/fold_0/summary.json
 python -m json.tool runs/seasonality_opt_demo/fold_0/summary.json
 ```
 
+
+
+### Recap par module
+
+| Module | Commandes curl (README) | Variables a exporter | Notes |
+| --- | --- | --- | --- |
+| Optimisation (`/submit`) | bloc Optimisation (`curl -X POST .../submit`, `status`, `result`) | `DB_DSN=sqlite:///.db/quant.db` (persistance) ; `QE_MARKETDATA_MYSQL_URL` si lecture MySQL | Prend en charge `dataset_path` (JSON/CSV) ou `data.mysql`. Persistance locale = fichiers `summary.json`/`trials.parquet`. |
+| Statistiques (`/stats/*`) | bloc Statistiques (`/stats/run`, `result`, `stats`, `stats/top`, `stats/summary`, `stats/heatmap`) | `DB_DSN=sqlite:///.db/quant.db` (obligatoire) ; `QE_MARKETDATA_MYSQL_URL` si lecture MySQL | Résultats écrits dans `.db/quant.db` (`market_stats`). Prévoir `session_id` si condition `session`. |
+| Saisonalite (`/seasonality/*`) | bloc Saisonalite (`/seasonality/run`, `/seasonality/optimize`, `/seasonality/runs`, `/seasonality/profiles`) | `DB_DSN=sqlite:///.db/quant.db` ; `QE_MARKETDATA_MYSQL_URL` si lecture MySQL ; `polars` installé | Persistance dans `.db/quant.db` (`seasonality_*`) + artefacts `runs/`. `seasonality_optimize` s'appuie sur Optuna. |
+
+Pense a exporter `DB_DSN=sqlite:///.db/quant.db` avant de lancer l'API, puis `QE_MARKETDATA_MYSQL_URL` vers `mysql+pymysql://restadmin:ronanronan77@127.0.0.1:3306/restdb?charset=utf8mb4` si tu veux lire tes OHLCV MySQL.
+
 #### Nettoyage des artefacts
 - Les API statistiques et saisonnalité écrivent dans `.db/quant.db`. Supprimer ce fichier pour repartir de zéro (`rm .db/quant.db` ou `Remove-Item .db/quant.db`).
 - Les artefacts locaux sont générés dans `runs/` et les fichiers `summary.json` / `trials.parquet` à la racine. Supprimer ces éléments si nécessaire.
@@ -210,32 +227,43 @@ Note: `specs/examples/submit_local.json` référence le mini jeu de données `sp
   "data": {
     "mysql": {
       "env_var": "QE_MARKETDATA_MYSQL_URL",
-      "schema": "marketdata",
-      "table": "ohlcv_m1",
-      "symbol_col": "symbol",
-      "ts_col": "ts_utc",
+      "schema": "restdb",
+      "table": "candle",
+      "symbol_col": "symbol_id",
+      "ts_col": "date",
       "open_col": "open",
       "high_col": "high",
       "low_col": "low",
       "close_col": "close",
       "volume_col": "volume",
-      "timeframe_col": null,
+      "timeframe_col": "timeframe",
       "extra_where": null,
-      "chunk_minutes": 0
+      "chunk_minutes": 0,
+      "symbol_lookup_table": "symbol",
+      "symbol_lookup_symbol_col": "symbol",
+      "symbol_lookup_id_col": "id"
     },
     "symbols": ["EURUSD"],
     "timeframe": "M1",
-    "start": "2025-01-01T00:00:00Z",
-    "end": "2025-01-10T23:59:00Z"
+    "start": "2024-01-01T00:00:00Z",
+    "end": "2024-01-31T23:59:59Z"
   }
 }
 ```
 
+> Exemple complet à adapter : `specs/examples/stats_run_mysql.json` (lecture `restdb` via `symbol_lookup_table`).
+
+
 Variables d’environnement à définir :
 
 ```bash
-export QE_MARKETDATA_MYSQL_URL='mysql+pymysql://py_user:***@mysql-host:3306/marketdata'  # READ (schema marketdata)
-export QE_DB_URL='mysql+pymysql://py_user:***@mysql-host:3306/quant'                     # WRITE (schema quant)
+export DB_DSN='sqlite:///.db/quant.db'                                  # Persistance locale
+export QE_MARKETDATA_MYSQL_URL='mysql+pymysql://restadmin:ronanronan77@127.0.0.1:3306/restdb?charset=utf8mb4'  # Lecture OHLCV
+
+# sous PowerShell
+$env:DB_DSN='sqlite:///.db/quant.db'
+$env:QE_MARKETDATA_MYSQL_URL='mysql+pymysql://restadmin:ronanronan77@127.0.0.1:3306/restdb?charset=utf8mb4'
+poetry run uvicorn quant_engine.api.app:app --reload --app-dir src
 ```
 
 Index recommandés dans `marketdata` :
@@ -261,7 +289,7 @@ poetry run quant-engine stats show --symbol EURUSD --event k_consecutive --targe
 Tests (curl):
 ```bash
 # 1. Lancer un run statistiques
-curl -X POST http://127.0.0.1:8000/stats/run -H "Content-Type: application/json" --data-binary @specs/examples/stats_run.json
+curl.exe -X POST http://127.0.0.1:8000/stats/run -H "Content-Type: application/json" --data-binary @specs/examples/stats_run.json
 ```
 
 ```bash
@@ -322,6 +350,9 @@ Note: `/stats/result` renvoie le resultat de la derniere execution locale, tandi
 ```bash
 poetry run qe seasonality run --spec specs/eurusd_m1_seasonality.json  # spec complète
 ```
+
+> Exemple MySQL prêt à l'emploi (à adapter) : `specs/examples/seasonality_run_mysql.json`.
+
 
 ```bash
 # Lister les profils saisonnalité persistés en filtrant sur des métriques conditionnelles

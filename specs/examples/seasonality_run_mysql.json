@@ -1,0 +1,74 @@
+{
+  "data": {
+    "mysql": {
+      "env_var": "QE_MARKETDATA_MYSQL_URL",
+      "schema": "restdb",
+      "table": "candle",
+      "symbol_col": "symbol_id",
+      "ts_col": "date",
+      "open_col": "open",
+      "high_col": "high",
+      "low_col": "low",
+      "close_col": "close",
+      "volume_col": "volume",
+      "timeframe_col": "timeframe",
+      "extra_where": null,
+      "chunk_minutes": 0,
+      "symbol_lookup_table": "symbol",
+      "symbol_lookup_symbol_col": "symbol",
+      "symbol_lookup_id_col": "id"
+    },
+    "symbols": [
+      "APTUSDT"
+    ],
+    "timeframe": "1min",
+    "start": "2024-01-01 00:00:00",
+    "end": "2024-01-31 23:59:59"
+  },
+  "profile": {
+    "by_hour": true,
+    "by_dow": true,
+    "measure": "direction",
+    "ret_horizon": 1,
+    "min_samples_bin": 200
+  },
+  "signal": {
+    "method": "threshold",
+    "threshold": 0.55,
+    "dims": [
+      "hour",
+      "dow"
+    ],
+    "combine": "and"
+  },
+  "compute": {
+    "max_trials": 20,
+    "search_space": {}
+  },
+  "execution": {
+    "slippage_bps": 0.5,
+    "commission_bps": 0.2
+  },
+  "risk": {
+    "max_positions": 1,
+    "max_allocation": 1.0
+  },
+  "tp_sl": {
+    "stop_loss": 1.5,
+    "take_profit": 1.5
+  },
+  "validation": {
+    "train_months": 0,
+    "test_months": 1,
+    "folds": 1,
+    "embargo_days": 0
+  },
+  "artifacts": {
+    "out_dir": "runs/seasonality_mysql_demo"
+  },
+  "persistence": {
+    "enabled": true,
+    "spec_id": "seasonality_mysql_demo",
+    "dataset_id": "restdb_eurusd_m1"
+  }
+}

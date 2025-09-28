@@ -1,11 +1,11 @@
 {
   "data": {
-    "path": "specs/examples/data/eurusd_m1_sample.json",
     "symbols": [
       "EURUSD"
     ],
     "start": "2024-01-01",
-    "end": "2024-01-31"
+    "end": "2024-01-31",
+    "dataset_path": "specs/examples/data/eurusd_m1_sample.json"
   },
   "strategy": {
     "filters": {

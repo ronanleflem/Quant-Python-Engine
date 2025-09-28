@@ -1,0 +1,56 @@
+{
+  "data": {
+    "mysql": {
+      "env_var": "QE_MARKETDATA_MYSQL_URL",
+      "schema": "restdb",
+      "table": "candle",
+      "symbol_col": "symbol_id",
+      "ts_col": "date",
+      "open_col": "open",
+      "high_col": "high",
+      "low_col": "low",
+      "close_col": "close",
+      "volume_col": "volume",
+      "timeframe_col": "timeframe",
+      "extra_where": null,
+      "chunk_minutes": 0,
+      "symbol_lookup_table": "symbol",
+      "symbol_lookup_symbol_col": "symbol",
+      "symbol_lookup_id_col": "id"
+    },
+    "symbols": [
+      "APTUSDT"
+    ],
+    "timeframe": "1min",
+    "start": "2024-01-01 00:00:00",
+    "end": "2024-01-31 23:59:59"
+  },
+  "strategy": {
+    "filters": {
+      "ema_fast": 9,
+      "ema_slow": 26
+    },
+    "tpsl": {
+      "atr_k": 2.0
+    },
+    "validation": {
+      "train_months": 0,
+      "test_months": 1,
+      "folds": 1,
+      "embargo_days": 0
+    },
+    "objective": "sharpe",
+    "search_space": {
+      "ema_fast": [
+        9,
+        12,
+        15
+      ],
+      "ema_slow": [
+        26,
+        35,
+        55
+      ]
+    }
+  }
+}

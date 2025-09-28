@@ -1,0 +1,59 @@
+{
+  "data": {
+    "mysql": {
+      "env_var": "QE_MARKETDATA_MYSQL_URL",
+      "schema": "restdb",
+      "table": "candle",
+      "symbol_col": "symbol_id",
+      "ts_col": "date",
+      "open_col": "open",
+      "high_col": "high",
+      "low_col": "low",
+      "close_col": "close",
+      "volume_col": "volume",
+      "timeframe_col": "timeframe",
+      "extra_where": null,
+      "chunk_minutes": 0,
+      "symbol_lookup_table": "symbol",
+      "symbol_lookup_symbol_col": "symbol",
+      "symbol_lookup_id_col": "id"
+    },
+    "symbols": [
+      "APTUSDT"
+    ],
+    "timeframe": "1min",
+    "start": "2024-01-01 00:00:00",
+    "end": "2024-01-07 23:59:59"
+  },
+  "events": [
+    {
+      "name": "k_consecutive",
+      "params": {
+        "k": 2,
+        "direction": "up"
+      }
+    }
+  ],
+  "conditions": [
+    {
+      "name": "session",
+      "params": {
+        "col": "session_id"
+      }
+    }
+  ],
+  "targets": [
+    {
+      "name": "up_next_bar"
+    }
+  ],
+  "validation": null,
+  "artifacts": {
+    "out_dir": null
+  },
+  "persistence": {
+    "enabled": true,
+    "spec_id": "stats_mysql_demo",
+    "dataset_id": "restdb_eurusd_m1"
+  }
+}

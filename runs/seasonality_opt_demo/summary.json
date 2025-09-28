@@ -2,26 +2,26 @@
   "best_value": -1000000000.0,
   "best_params": {
     "dims": [
-      "hour"
+      "dow"
     ],
     "method": "threshold",
     "combine": "and",
     "ret_horizon": 1,
     "min_samples_bin": 2,
-    "threshold": 0.52
+    "threshold": 0.58
   },
   "best_metrics": {
     "sharpe": 0.0,
     "sortino": 0.0,
     "max_drawdown": 0.0,
-    "cagr": 0.31233891215608245,
-    "hit_rate": 1.0,
-    "avg_R": 0.46643139784946824,
-    "trades": 1.0,
+    "cagr": 0.0,
+    "hit_rate": 0.0,
+    "avg_R": 0.0,
+    "trades": 0.0,
     "fold_index": 0,
-    "n_trades": 1,
+    "n_trades": 0,
     "rules_counts": {
-      "hour": 1
+      "dow": 0
     }
   },
   "n_trials": 4
