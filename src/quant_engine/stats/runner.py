@@ -298,6 +298,13 @@ def run_stats(spec: StatsSpec) -> pd.DataFrame:
             hdi_high = r["hdi_high"]
             if pd.isna(hdi_high):
                 hdi_high = None
+            lift_freq_val = r.get("lift_freq")
+            if pd.isna(lift_freq_val):
+                lift_freq_val = 0.0
+            lift_bayes_val = r.get("lift_bayes")
+            if pd.isna(lift_bayes_val):
+                lift_bayes_val = lift_freq_val
+
             rows.append(
                 {
                     "symbol": r["symbol"],
@@ -316,8 +323,9 @@ def run_stats(spec: StatsSpec) -> pd.DataFrame:
                     "p_map": float(r["p_map"]),
                     "hdi_low": hdi_low,
                     "hdi_high": hdi_high,
-                    "lift_freq": float(r["lift_freq"]),
-                    "lift_bayes": float(r["lift_bayes"]),
+                    "lift_freq": float(lift_freq_val),
+                    "lift_bayes": float(lift_bayes_val),
+                    "lift": float(lift_freq_val),
                     "start": start,
                     "end": end,
                     "spec_id": spec_id,

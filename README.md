@@ -96,33 +96,80 @@ pre-commit run --all-files
 ### Tests rapides de l'API
 
 Prerequis:
-- API lancee localement (`poetry run uvicorn quant_engine.api.app:app --reload --app-dir src`).
-- Exemples de specifications accessibles dans `specs/examples`.
-- Sous PowerShell, conserver les commandes `curl` sur une seule ligne ou utiliser l'accent grave `` ` `` pour un retour chariot.
+- API lancée localement (`poetry run uvicorn quant_engine.api.app:app --reload --app-dir src`).
+- Exemples de spécifications accessibles dans `specs/examples`.
+- Sous PowerShell, conserver les commandes `curl` sur une seule ligne ou utiliser l'accent grave `` ` `` pour un retour chariot. Sous Bash/Zsh, les continuations `\` fonctionnent comme d'habitude.
 
+#### Optimisation (EMA cross demo)
 ```bash
-# 1. Declencher un run d'optimisation
-curl -X POST http://127.0.0.1:8000/submit -H "Content-Type: application/json" --data-binary @specs/examples/submit_local.json
+curl.exe -X POST http://127.0.0.1:8000/submit -H "Content-Type: application/json" --data-binary @specs/examples/submit_local.json
 # -> {"id":"RUN_ID"}
 ```
 
-> Windows / PowerShell : utilisez une seule ligne comme ci-dessus ou remplacez `\` par un accent grave `` ` `` pour la continuation.
-
 ```bash
-# 2. Verifier le run
-curl http://127.0.0.1:8000/status/RUN_ID
-curl http://127.0.0.1:8000/result/RUN_ID
+curl.exe http://127.0.0.1:8000/status/RUN_ID
+curl.exe http://127.0.0.1:8000/result/RUN_ID | python -m json.tool
 ```
 
 ```bash
-# 3. Explorer l'historique des runs
-curl "http://127.0.0.1:8000/runs?page=1&page_size=5"
-curl http://127.0.0.1:8000/runs/RUN_ID
-curl http://127.0.0.1:8000/runs/RUN_ID/trials
-curl http://127.0.0.1:8000/runs/RUN_ID/metrics
+python -m json.tool summary.json
 ```
 
-Note: `specs/examples/submit_local.json` référence le mini jeu de données `specs/examples/data/eurusd_m1_sample.json` fourni pour les tests rapides. Les paramètres de validation (`train_months=0`, `test_months=1`, `folds=1`) sont volontairement minimalistes pour produire un fold sur ce jeu réduit. Remplacez-les (et les données) pour vos tests avancés et veillez à enregistrer vos JSON en UTF-8 sans BOM (PowerShell: `-Encoding utf8NoBOM`).
+#### Statistiques (in-memory + SQLite)
+```bash
+curl.exe -X POST http://127.0.0.1:8000/stats/run -H "Content-Type: application/json" --data-binary @specs/examples/stats_run.json
+```
+
+```bash
+curl.exe http://127.0.0.1:8000/stats/result | python -m json.tool
+```
+
+```bash
+curl.exe "http://127.0.0.1:8000/stats?symbol=EURUSD&timeframe=M1&target=up_next_bar&page_size=20" | python -m json.tool
+```
+
+```bash
+curl.exe "http://127.0.0.1:8000/stats/top?symbol=EURUSD&timeframe=M1&k=5" | python -m json.tool
+```
+
+```bash
+curl.exe "http://127.0.0.1:8000/stats/summary?symbol=EURUSD&timeframe=M1" | python -m json.tool
+```
+
+```bash
+curl.exe "http://127.0.0.1:8000/stats/heatmap?symbol=EURUSD&timeframe=M1&event=k_consecutive&target=up_next_bar&condition_name=session" | python -m json.tool
+```
+
+#### Saisonalité (profil + optimisation Optuna)
+```bash
+curl.exe -X POST http://127.0.0.1:8000/seasonality/run -H "Content-Type: application/json" --data-binary @specs/examples/seasonality_run.json | python -m json.tool
+```
+
+```bash
+curl.exe -X POST http://127.0.0.1:8000/seasonality/optimize -H "Content-Type: application/json" --data-binary @specs/examples/seasonality_optimize.json | python -m json.tool
+```
+
+```bash
+curl.exe "http://127.0.0.1:8000/seasonality/runs?spec_id=demo_seasonality_run&page_size=5" | python -m json.tool
+```
+
+```bash
+curl.exe "http://127.0.0.1:8000/seasonality/profiles?symbol=EURUSD&spec_id=demo_seasonality_run&page_size=5" | python -m json.tool
+```
+
+```bash
+python -m json.tool runs/seasonality_demo/fold_0/summary.json
+python -m json.tool runs/seasonality_opt_demo/fold_0/summary.json
+```
+
+#### Nettoyage des artefacts
+- Les API statistiques et saisonnalité écrivent dans `.db/quant.db`. Supprimer ce fichier pour repartir de zéro (`rm .db/quant.db` ou `Remove-Item .db/quant.db`).
+- Les artefacts locaux sont générés dans `runs/` et les fichiers `summary.json` / `trials.parquet` à la racine. Supprimer ces éléments si nécessaire.
+- `seasonality_run` et `seasonality_optimize` requièrent `polars` (installé via Poetry) et utilisent les scénarios réduits fournis.
+
+Note: `specs/examples/submit_local.json` référence le mini jeu de données `specs/examples/data/eurusd_m1_sample.json`. Les paramètres de validation (`train_months=0`, `test_months=1`, `folds=1`) sont volontairement minimalistes pour produire un fold sur ce jeu réduit. Remplacez-les (et les données) pour vos tests avancés et veillez à enregistrer vos JSON en UTF-8 sans BOM (PowerShell: `-Encoding utf8NoBOM`).
+
+
 
 
 ## Market Stats

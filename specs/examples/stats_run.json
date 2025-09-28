@@ -17,7 +17,14 @@
       }
     }
   ],
-  "conditions": [],
+  "conditions": [
+    {
+      "name": "session",
+      "params": {
+        "col": "session_id"
+      }
+    }
+  ],
   "targets": [
     {
       "name": "up_next_bar"
@@ -32,9 +39,11 @@
   ],
   "validation": null,
   "artifacts": {
-    "out_dir": "runs/stats_demo"
+    "out_dir": null
   },
   "persistence": {
-    "enabled": false
+    "enabled": true,
+    "spec_id": "demo_stats",
+    "dataset_id": "eurusd_m1_sample"
   }
 }

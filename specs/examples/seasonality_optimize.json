@@ -10,7 +10,7 @@
   },
   "profile": {
     "by_hour": true,
-    "by_dow": true,
+    "by_dow": false,
     "measure": "direction",
     "ret_horizon": 1,
     "min_samples_bin": 2
@@ -24,8 +24,41 @@
     "combine": "and"
   },
   "compute": {
-    "max_trials": 5,
-    "search_space": {}
+    "max_trials": 4,
+    "search_space": {
+      "dims": [
+        [
+          "hour"
+        ],
+        [
+          "dow"
+        ]
+      ],
+      "method": [
+        "threshold"
+      ],
+      "combine": [
+        "and"
+      ],
+      "threshold": {
+        "values": [
+          0.52,
+          0.55,
+          0.58
+        ]
+      },
+      "ret_horizon": {
+        "values": [
+          1
+        ]
+      },
+      "min_samples_bin": {
+        "values": [
+          2,
+          3
+        ]
+      }
+    }
   },
   "execution": {
     "slippage_bps": 0.5,
@@ -46,11 +79,11 @@
     "embargo_days": 0
   },
   "artifacts": {
-    "out_dir": "runs/seasonality_demo"
+    "out_dir": "runs/seasonality_opt_demo"
   },
   "persistence": {
     "enabled": true,
-    "spec_id": "demo_seasonality_run",
+    "spec_id": "demo_seasonality_opt",
     "dataset_id": "eurusd_m1_sample"
   }
 }

@@ -87,6 +87,17 @@ def _conditional_metrics_schema() -> list[tuple[str, "pl.PolarsDataType"]]:
     return [(name, dtype_map[name]) for name in CONDITIONAL_METRIC_NAMES]
 
 
+def _wilson_dict(successes: int, trials: int) -> dict[str, float]:
+    """Return Wilson interval payload as a dict for Polars struct mapping."""
+
+    p_hat, ci_low, ci_high = freq_with_wilson(successes, trials)
+    return {
+        "p_hat": float(p_hat),
+        "ci_low": float(ci_low),
+        "ci_high": float(ci_high),
+    }
+
+
 def _ensure_metric_columns(table: "pl.DataFrame") -> "pl.DataFrame":
     """Ensure the conditional metric columns exist in the table."""
 
@@ -322,13 +333,13 @@ def _aggregate_conditional_metrics(
             runs = runs.join(baseline, on="symbol", how="left")
             runs = runs.with_columns(
                 pl.struct(["reversal_successes", "n_runs"]).map_elements(
-                    lambda s: freq_with_wilson(int(s["reversal_successes"]), int(s["n_runs"]))
-                ).alias("_rev"),
+                    lambda s: _wilson_dict(int(s["reversal_successes"]), int(s["n_runs"]))
+                ).alias("_rev")
             )
             runs = runs.with_columns(
-                pl.col("_rev").struct.field("field_0").alias("p_reversal_n"),
-                pl.col("_rev").struct.field("field_1").alias("p_reversal_ci_low"),
-                pl.col("_rev").struct.field("field_2").alias("p_reversal_ci_high"),
+                pl.col("_rev").struct.field("p_hat").alias("p_reversal_n"),
+                pl.col("_rev").struct.field("ci_low").alias("p_reversal_ci_low"),
+                pl.col("_rev").struct.field("ci_high").alias("p_reversal_ci_high"),
             ).drop("_rev")
             runs = runs.with_columns(
                 pl.when(pl.col("n_runs") == 0)
@@ -435,13 +446,13 @@ def profile_direction(
     grouped = grouped.join(baseline, on="symbol", how="left")
     grouped = grouped.with_columns(
         pl.struct(["successes", "n"]).map_elements(
-            lambda s: freq_with_wilson(int(s["successes"]), int(s["n"]))
+            lambda s: _wilson_dict(int(s["successes"]), int(s["n"]))
         ).alias("wilson")
     )
     grouped = grouped.with_columns(
-        pl.col("wilson").struct.field("field_0").alias("p_hat"),
-        pl.col("wilson").struct.field("field_1").alias("ci_low"),
-        pl.col("wilson").struct.field("field_2").alias("ci_high"),
+        pl.col("wilson").struct.field("p_hat"),
+        pl.col("wilson").struct.field("ci_low"),
+        pl.col("wilson").struct.field("ci_high"),
     ).drop("wilson")
     grouped = grouped.with_columns((pl.col("n") < min_samples).alias("insufficient"))
     grouped = grouped.with_columns(
