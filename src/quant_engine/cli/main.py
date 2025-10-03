@@ -20,9 +20,11 @@ app = typer.Typer()
 runs_app = typer.Typer()
 stats_app = typer.Typer()
 seasonality_app = typer.Typer()
+levels_app = typer.Typer()
 app.add_typer(runs_app, name="runs")
 app.add_typer(stats_app, name="stats")
 app.add_typer(seasonality_app, name="seasonality")
+app.add_typer(levels_app, name="levels")
 
 
 class RunStatus(str, Enum):
@@ -398,6 +400,20 @@ def show_run(run_id: str) -> None:
     best_params = run.get("best_params") or detail.get("best_params")
     if best_params:
         typer.echo("best_params: " + json.dumps(best_params, separators=(",", ":")))
+
+
+@levels_app.command("build")
+def levels_build(
+    spec: Path = typer.Option(..., "--spec", exists=True, file_okay=True, dir_okay=False)
+) -> None:
+    """Compute and persist slow levels defined in a JSON specification."""
+
+    from ..levels.schemas import LevelsBuildSpec
+    from ..levels.runner import run_levels_build
+
+    spec_model = LevelsBuildSpec.model_validate_json(Path(spec).read_text())
+    result = run_levels_build(spec_model)
+    typer.echo(json.dumps(result, separators=(",", ":")))
 
 
 if __name__ == "__main__":

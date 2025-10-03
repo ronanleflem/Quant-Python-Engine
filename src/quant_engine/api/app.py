@@ -7,11 +7,17 @@ development.
 from __future__ import annotations
 
 import json
+import os
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional, Sequence
+
 from fastapi import FastAPI, HTTPException, Query
-from typing import Dict, Any, List, Sequence, Optional
+from sqlalchemy import create_engine, text
 
 from ..core import spec as spec_module
 from ..core.spec import Spec
+from ..levels.runner import run_levels_build
+from ..levels.schemas import LevelsBuildSpec
 from ..optimize.runner import run as run_optimisation
 from ..io import ids
 from ..persistence import db
@@ -75,6 +81,175 @@ def stats_result() -> schemas.ResultResponse:
         "rows": df.to_dict(orient="records"),
     }
     return schemas.ResultResponse(result=payload)
+
+
+# ---------------------------------------------------------------------------
+# Levels helpers
+
+
+LEVELS_TABLE = "marketdata.levels"
+
+
+def _resolve_levels_engine():
+    url = os.environ.get("QE_LEVELS_MYSQL_URL") or os.environ.get("QE_MARKETDATA_MYSQL_URL")
+    if not url:
+        raise HTTPException(status_code=500, detail="MySQL URL not configured for levels module")
+    return create_engine(url)
+
+
+def _parse_iso_ts(value: str | None, field: str) -> datetime | None:
+    if value in (None, ""):
+        return None
+    try:
+        dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as exc:  # pragma: no cover - defensive validation
+        raise HTTPException(status_code=400, detail=f"Invalid datetime for {field}") from exc
+    if dt.tzinfo is None:
+        return dt
+    return dt.astimezone(timezone.utc).replace(tzinfo=None)
+
+
+def _format_ts(value: datetime | None) -> str | None:
+    if value is None:
+        return None
+    dt = value
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    else:
+        dt = dt.astimezone(timezone.utc)
+    return dt.isoformat().replace("+00:00", "Z")
+
+
+def _serialise_row(row) -> Dict[str, Any]:
+    if hasattr(row, "_mapping"):
+        data = dict(row._mapping)
+    elif isinstance(row, dict):
+        data = dict(row)
+    else:  # pragma: no cover - legacy tuples from DB-API
+        keys = getattr(row, "keys", None)
+        if callable(keys):
+            data = dict(zip(keys(), row))
+        else:
+            data = dict(row)
+    for key in ("anchor_ts", "valid_from_ts", "valid_to_ts"):
+        if key in data:
+            data[key] = _format_ts(data.get(key))
+    return data
+
+
+def _fetch_levels(
+    symbol: str,
+    level_type: str | None = None,
+    start: str | None = None,
+    end: str | None = None,
+    limit: int = 200,
+) -> List[Dict[str, Any]]:
+    engine = _resolve_levels_engine()
+    clauses = ["symbol = :symbol"]
+    params: Dict[str, Any] = {"symbol": symbol, "limit": limit}
+    if level_type:
+        clauses.append("level_type = :level_type")
+        params["level_type"] = level_type
+    start_dt = _parse_iso_ts(start, "from")
+    if start_dt is not None:
+        clauses.append("anchor_ts >= :start")
+        params["start"] = start_dt
+    end_dt = _parse_iso_ts(end, "to")
+    if end_dt is not None:
+        clauses.append("anchor_ts <= :end")
+        params["end"] = end_dt
+    query = (
+        f"SELECT symbol, timeframe, level_type, price, price_lo, price_hi, anchor_ts, "
+        f"valid_from_ts, valid_to_ts, params_hash, source FROM {LEVELS_TABLE} "
+        "WHERE " + " AND ".join(clauses) + " ORDER BY anchor_ts DESC LIMIT :limit"
+    )
+    with engine.connect() as conn:
+        rows = conn.execute(text(query), params).fetchall()
+    return [_serialise_row(row) for row in rows]
+
+
+def _distance_to_price(price: float, payload: Dict[str, Any]) -> float:
+    price_val = payload.get("price")
+    if price_val is not None:
+        return abs(float(price_val) - price)
+    lo = payload.get("price_lo")
+    hi = payload.get("price_hi")
+    if lo is None or hi is None:
+        return float("inf")
+    lo_f = float(lo)
+    hi_f = float(hi)
+    if lo_f <= price <= hi_f:
+        return 0.0
+    if price < lo_f:
+        return lo_f - price
+    return price - hi_f
+
+
+def _nearest_levels(
+    symbol: str,
+    price: float,
+    level_type: str | None = None,
+    window: float | None = None,
+    limit: int = 20,
+) -> List[Dict[str, Any]]:
+    fetch_limit = max(limit * 5, 200)
+    engine = _resolve_levels_engine()
+    clauses = ["symbol = :symbol"]
+    params: Dict[str, Any] = {"symbol": symbol, "limit": fetch_limit}
+    if level_type:
+        clauses.append("level_type = :level_type")
+        params["level_type"] = level_type
+    if window is not None and window > 0:
+        params["price_lo"] = price - window
+        params["price_hi"] = price + window
+        clauses.append(
+            "((price IS NOT NULL AND price BETWEEN :price_lo AND :price_hi) OR "
+            "(price_lo IS NOT NULL AND price_hi IS NOT NULL AND price_hi >= :price_lo AND price_lo <= :price_hi))"
+        )
+    query = (
+        f"SELECT symbol, timeframe, level_type, price, price_lo, price_hi, anchor_ts, "
+        f"valid_from_ts, valid_to_ts, params_hash, source FROM {LEVELS_TABLE} "
+        "WHERE " + " AND ".join(clauses) + " ORDER BY anchor_ts DESC LIMIT :limit"
+    )
+    with engine.connect() as conn:
+        rows = conn.execute(text(query), params).fetchall()
+    payloads = [_serialise_row(row) for row in rows]
+    for payload in payloads:
+        distance = _distance_to_price(price, payload)
+        payload["distance"] = distance
+    filtered = [p for p in payloads if p.get("distance", float("inf")) != float("inf")]
+    filtered.sort(key=lambda p: p.get("distance", float("inf")))
+    return filtered[:limit]
+
+
+def levels_build(spec: LevelsBuildSpec) -> Dict[str, Any]:
+    """Execute a levels build request synchronously."""
+
+    return run_levels_build(spec)
+
+
+def levels_list(
+    symbol: str,
+    level_type: str | None = None,
+    start: str | None = None,
+    end: str | None = None,
+    limit: int = 200,
+) -> List[Dict[str, Any]]:
+    """Return persisted levels filtered by the provided criteria."""
+
+    return _fetch_levels(symbol=symbol, level_type=level_type, start=start, end=end, limit=limit)
+
+
+def levels_nearest(
+    symbol: str,
+    price: float,
+    level_type: str | None = None,
+    window: float | None = None,
+    limit: int = 20,
+) -> List[Dict[str, Any]]:
+    """Return the nearest levels around a target price."""
+
+    return _nearest_levels(symbol=symbol, price=price, level_type=level_type, window=window, limit=limit)
 
 
 # ---------------------------------------------------------------------------
@@ -576,6 +751,39 @@ def stats_result_endpoint() -> schemas.ResultResponse:
     """Return the result of the last statistics computation."""
 
     return stats_result()
+
+
+@fastapi_app.post('/levels/build', response_model=Dict[str, Any])
+def levels_build_endpoint(spec: LevelsBuildSpec) -> Dict[str, Any]:
+    """Trigger a synchronous levels build run."""
+
+    return levels_build(spec)
+
+
+@fastapi_app.get('/levels', response_model=List[Dict[str, Any]])
+def levels_list_endpoint(
+    symbol: str,
+    level_type: Optional[str] = None,
+    from_: Optional[str] = Query(None, alias="from"),
+    to: Optional[str] = Query(None, alias="to"),
+    limit: int = Query(200, ge=1, le=1000),
+) -> List[Dict[str, Any]]:
+    """Return persisted levels."""
+
+    return levels_list(symbol=symbol, level_type=level_type, start=from_, end=to, limit=limit)
+
+
+@fastapi_app.get('/levels/nearest', response_model=List[Dict[str, Any]])
+def levels_nearest_endpoint(
+    symbol: str,
+    price: float = Query(..., description="Reference price used to rank levels"),
+    level_type: Optional[str] = None,
+    window: Optional[float] = Query(None, description="Optional +/- window to pre-filter levels"),
+    limit: int = Query(20, ge=1, le=200),
+) -> List[Dict[str, Any]]:
+    """Return levels closest to the requested price."""
+
+    return levels_nearest(symbol=symbol, price=price, level_type=level_type, window=window, limit=limit)
 
 
 @fastapi_app.get('/stats', response_model=List[Dict[str, Any]])
