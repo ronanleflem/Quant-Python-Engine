@@ -8,7 +8,7 @@ from typing import Dict, Iterable, List
 import pandas as pd
 
 from . import detectors
-from .schemas import LevelRecord, LevelsBuildSpec
+from .schemas import LevelRecord, LevelsBuildSpec, SessionWindows
 
 
 def _compute_hash(level_type: str, params: Dict[str, object]) -> str:
@@ -30,6 +30,10 @@ def build_levels(spec: LevelsBuildSpec, ohlcv: pd.DataFrame) -> List[LevelRecord
     timeframe = spec.data.timeframe.upper()
 
     results: List[LevelRecord] = []
+    default_sessions = spec.session_windows or SessionWindows()
+    or_minutes_default = spec.orib.or_minutes if spec.orib else 30
+    ib_minutes_default = spec.orib.ib_minutes if spec.orib else 60
+
     for symbol in spec.symbols:
         sym_df = df[df["symbol"] == symbol]
         if sym_df.empty:
@@ -44,6 +48,35 @@ def build_levels(spec: LevelsBuildSpec, ohlcv: pd.DataFrame) -> List[LevelRecord
                 detector_records = detectors.detect_previous_high_low(sym_df, symbol=symbol, period="W")
             elif level_type in {"PMH", "PML"}:
                 detector_records = detectors.detect_previous_high_low(sym_df, symbol=symbol, period="M")
+            elif level_type in {"SESSION_HIGH", "SESSION_LOW"}:
+                custom_windows = params.get("session_windows")
+                if custom_windows:
+                    session_windows = SessionWindows(**custom_windows)
+                else:
+                    session_windows = default_sessions
+                detector_records = detectors.detect_session_high_low(
+                    sym_df,
+                    session_windows=session_windows,
+                )
+            elif level_type in {"ORH", "ORL"}:
+                minutes = int(params.get("minutes", or_minutes_default))
+                detector_records = detectors.detect_opening_range(sym_df, minutes=minutes)
+            elif level_type in {"IBH", "IBL"}:
+                minutes = int(params.get("minutes", ib_minutes_default))
+                detector_records = detectors.detect_initial_balance(sym_df, minutes=minutes)
+            elif level_type in {"PDO", "PDC", "PWO", "PWC", "PMO", "PMC"}:
+                period_map = {
+                    "PDO": "D",
+                    "PDC": "D",
+                    "PWO": "W",
+                    "PWC": "W",
+                    "PMO": "M",
+                    "PMC": "M",
+                }
+                detector_records = detectors.detect_previous_open_close(
+                    sym_df,
+                    period=period_map[level_type],
+                )
             elif level_type == "GAP_D":
                 detector_records = detectors.detect_gaps(sym_df, symbol=symbol, period="D")
             elif level_type == "GAP_W":

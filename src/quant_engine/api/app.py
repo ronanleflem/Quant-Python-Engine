@@ -16,7 +16,8 @@ from sqlalchemy import create_engine, text
 
 from ..core import spec as spec_module
 from ..core.spec import Spec
-from ..levels.runner import run_levels_build
+from ..levels.runner import run_levels_build, run_levels_fill
+from ..levels.repo import select_levels as repo_select_levels
 from ..levels.schemas import LevelsBuildSpec
 from ..optimize.runner import run as run_optimisation
 from ..io import ids
@@ -228,6 +229,12 @@ def levels_build(spec: LevelsBuildSpec) -> Dict[str, Any]:
     return run_levels_build(spec)
 
 
+def levels_fill(spec: LevelsBuildSpec) -> Dict[str, Any]:
+    """Refresh fills for GAP and FVG levels."""
+
+    return run_levels_fill(spec)
+
+
 def levels_list(
     symbol: str,
     level_type: str | None = None,
@@ -238,6 +245,32 @@ def levels_list(
     """Return persisted levels filtered by the provided criteria."""
 
     return _fetch_levels(symbol=symbol, level_type=level_type, start=start, end=end, limit=limit)
+
+
+def levels_active(
+    symbol: str,
+    level_types: Optional[List[str]] | None = None,
+    start: Optional[str] = None,
+    end: Optional[str] = None,
+    limit: int = 200,
+) -> List[Dict[str, Any]]:
+    """Return currently active levels filtered by type."""
+
+    engine = _resolve_levels_engine()
+    df = repo_select_levels(
+        engine,
+        LEVELS_TABLE,
+        symbol=symbol,
+        level_types=level_types or [],
+        active_only=True,
+        start=start,
+        end=end,
+        limit=limit,
+    )
+    if df.empty:
+        return []
+    rows = df.to_dict(orient="records")
+    return [_serialise_row(row) for row in rows]
 
 
 def levels_nearest(
@@ -760,6 +793,13 @@ def levels_build_endpoint(spec: LevelsBuildSpec) -> Dict[str, Any]:
     return levels_build(spec)
 
 
+@fastapi_app.post('/levels/fill', response_model=Dict[str, Any])
+def levels_fill_endpoint(spec: LevelsBuildSpec) -> Dict[str, Any]:
+    """Refresh fills for active FVG/GAP levels."""
+
+    return levels_fill(spec)
+
+
 @fastapi_app.get('/levels', response_model=List[Dict[str, Any]])
 def levels_list_endpoint(
     symbol: str,
@@ -771,6 +811,19 @@ def levels_list_endpoint(
     """Return persisted levels."""
 
     return levels_list(symbol=symbol, level_type=level_type, start=from_, end=to, limit=limit)
+
+
+@fastapi_app.get('/levels/active', response_model=List[Dict[str, Any]])
+def levels_active_endpoint(
+    symbol: str,
+    level_type: Optional[List[str]] = Query(None),
+    from_: Optional[str] = Query(None, alias="from"),
+    to: Optional[str] = Query(None, alias="to"),
+    limit: int = Query(200, ge=1, le=10000),
+) -> List[Dict[str, Any]]:
+    """Return currently active levels."""
+
+    return levels_active(symbol=symbol, level_types=level_type, start=from_, end=to, limit=limit)
 
 
 @fastapi_app.get('/levels/nearest', response_model=List[Dict[str, Any]])

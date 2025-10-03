@@ -24,6 +24,18 @@ class LevelType(str, Enum):
     FVG = "FVG"
     POC = "POC"
     RN = "RN"
+    SESSION_HIGH = "SESSION_HIGH"
+    SESSION_LOW = "SESSION_LOW"
+    ORH = "ORH"
+    ORL = "ORL"
+    IBH = "IBH"
+    IBL = "IBL"
+    PDO = "PDO"
+    PDC = "PDC"
+    PWO = "PWO"
+    PWC = "PWC"
+    PMO = "PMO"
+    PMC = "PMC"
 
 
 class LevelRecord(BaseModel):
@@ -45,6 +57,18 @@ class LevelRecord(BaseModel):
         "FVG",
         "POC",
         "RN",
+        "SESSION_HIGH",
+        "SESSION_LOW",
+        "ORH",
+        "ORL",
+        "IBH",
+        "IBL",
+        "PDO",
+        "PDC",
+        "PWO",
+        "PWC",
+        "PMO",
+        "PMC",
     ]
     price: Optional[float] = None
     price_lo: Optional[float] = None
@@ -54,6 +78,26 @@ class LevelRecord(BaseModel):
     valid_to_ts: Optional[datetime] = None
     params_hash: Optional[str] = None
     source: str = "python-levels"
+
+
+class SessionWindows(BaseModel):
+    """UTC session windows described by inclusive hour bounds."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    asia: tuple[int, int] = (0, 7)
+    europe: tuple[int, int] = (8, 12)
+    overlap: tuple[int, int] = (13, 16)
+    us: tuple[int, int] = (17, 21)
+
+
+class ORIBSpec(BaseModel):
+    """Opening range and initial balance configuration."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    or_minutes: int = 30
+    ib_minutes: int = 60
 
 
 class LevelsBuildItem(BaseModel):
@@ -74,6 +118,8 @@ class LevelsBuildSpec(BaseModel):
     output_schema: str = "marketdata"
     output_table: str = "levels"
     upsert: bool = True
+    session_windows: Optional[SessionWindows] = None
+    orib: Optional[ORIBSpec] = None
 
 
 __all__ = [
@@ -81,4 +127,6 @@ __all__ = [
     "LevelsBuildSpec",
     "LevelsBuildItem",
     "LevelType",
+    "SessionWindows",
+    "ORIBSpec",
 ]

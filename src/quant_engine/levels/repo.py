@@ -4,8 +4,9 @@ from __future__ import annotations
 import os
 from datetime import datetime, timezone
 from hashlib import sha256
-from typing import Iterable, List
+from typing import Iterable, List, Optional
 
+import pandas as pd
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 
@@ -62,6 +63,14 @@ def _normalise_ts(value: datetime | None) -> datetime | None:
     if value.tzinfo is None:
         return value
     return value.astimezone(timezone.utc).replace(tzinfo=None)
+
+
+def _ensure_datetime(value: datetime | pd.Timestamp | None) -> datetime | None:
+    if value is None or pd.isna(value):  # type: ignore[arg-type]
+        return None
+    if isinstance(value, pd.Timestamp):
+        return value.to_pydatetime()
+    return value
 
 
 def _build_row(record: LevelRecord) -> dict:
@@ -138,4 +147,120 @@ def upsert_levels(engine: Engine, table_fqn: str, records: List[LevelRecord]) ->
     return {"inserted": inserted, "updated": updated}
 
 
-__all__ = ["get_engine", "ensure_table", "upsert_levels"]
+def _compute_row_hash(row: dict) -> str:
+    symbol = row.get("symbol")
+    timeframe = row.get("timeframe")
+    level_type = row.get("level_type")
+    anchor_ts = _ensure_datetime(row.get("anchor_ts"))
+    if anchor_ts is None:
+        raise ValueError("anchor_ts is required to compute uniq_hash")
+    anchor_norm = _normalise_ts(anchor_ts)
+    payload = f"{symbol}|{timeframe}|{level_type}|{anchor_norm.isoformat()}|"
+    payload += "|".join(
+        str(x if x is not None else "")
+        for x in (row.get("price"), row.get("price_lo"), row.get("price_hi"), row.get("params_hash"))
+    )
+    return sha256(payload.encode()).hexdigest()
+
+
+def _parse_optional_ts(value: Optional[str | datetime | pd.Timestamp]) -> Optional[datetime]:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    elif isinstance(value, pd.Timestamp):
+        dt = value.to_pydatetime()
+    else:
+        dt = value
+    return _normalise_ts(dt)
+
+
+def select_levels(
+    engine: Engine,
+    table_fqn: str,
+    symbol: str,
+    level_types: List[str],
+    active_only: bool,
+    start: Optional[str | datetime] = None,
+    end: Optional[str | datetime] = None,
+    limit: int = 10000,
+) -> pd.DataFrame:
+    """Return levels filtered by symbol, type and validity flags."""
+
+    clauses = ["symbol = :symbol"]
+    params: dict = {"symbol": symbol, "limit": limit}
+    if level_types:
+        placeholders = ",".join(f":lt{i}" for i in range(len(level_types)))
+        clauses.append(f"level_type IN ({placeholders})")
+        params.update({f"lt{i}": lvl for i, lvl in enumerate(level_types)})
+    if active_only:
+        clauses.append("valid_to_ts IS NULL")
+    start_norm = _parse_optional_ts(start)
+    if start_norm is not None:
+        clauses.append("anchor_ts >= :start")
+        params["start"] = start_norm
+    end_norm = _parse_optional_ts(end)
+    if end_norm is not None:
+        clauses.append("anchor_ts <= :end")
+        params["end"] = end_norm
+    query = (
+        f"SELECT symbol, timeframe, level_type, price, price_lo, price_hi, anchor_ts, "
+        f"valid_from_ts, valid_to_ts, params_hash FROM {table_fqn} "
+        "WHERE " + " AND ".join(clauses) + " ORDER BY anchor_ts DESC LIMIT :limit"
+    )
+    with engine.connect() as conn:
+        rows = conn.execute(text(query), params).fetchall()
+    records: List[dict] = []
+    for row in rows:
+        if hasattr(row, "_mapping"):
+            records.append(dict(row._mapping))
+        elif hasattr(row, "keys"):
+            records.append(dict(zip(row.keys(), row)))
+        else:  # pragma: no cover - defensive fallback
+            records.append(dict(row))
+    return pd.DataFrame(records)
+
+
+def upsert_valid_to_ts(engine: Engine, table_fqn: str, df_updates: pd.DataFrame) -> int:
+    """Update ``valid_to_ts`` for the specified rows and return affected count."""
+
+    if df_updates.empty:
+        return 0
+    df = df_updates.dropna(subset=["valid_to_ts"])
+    if df.empty:
+        return 0
+    updates: List[dict] = []
+    for _, row in df.iterrows():
+        payload = row.to_dict()
+        try:
+            uniq_hash = _compute_row_hash(payload)
+        except ValueError:
+            continue
+        valid_to_ts = _ensure_datetime(payload.get("valid_to_ts"))
+        if valid_to_ts is None:
+            continue
+        updates.append({
+            "uniq_hash": uniq_hash,
+            "valid_to_ts": _normalise_ts(valid_to_ts),
+        })
+    if not updates:
+        return 0
+    update_sql = text(
+        f"UPDATE {table_fqn} SET valid_to_ts = :valid_to_ts "
+        "WHERE uniq_hash = :uniq_hash"
+    )
+    affected = 0
+    with engine.begin() as conn:
+        for chunk in _chunk(updates, 500):
+            result = conn.execute(update_sql, chunk)
+            affected += max(result.rowcount or 0, 0)
+    return affected
+
+
+__all__ = [
+    "get_engine",
+    "ensure_table",
+    "upsert_levels",
+    "select_levels",
+    "upsert_valid_to_ts",
+]
