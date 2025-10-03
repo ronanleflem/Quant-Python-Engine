@@ -2,47 +2,11 @@
 from __future__ import annotations
 
 from datetime import datetime
-from enum import Enum
-from typing import Dict, List, Literal, Optional
+from typing import Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..api.schemas import DataInputSpec
-
-
-class LevelType(str, Enum):
-    """Supported logical level categories."""
-
-    PDH = "PDH"
-    PDL = "PDL"
-    PWH = "PWH"
-    PWL = "PWL"
-    PMH = "PMH"
-    PML = "PML"
-    GAP_D = "GAP_D"
-    GAP_W = "GAP_W"
-    FVG = "FVG"
-    POC = "POC"
-    RN = "RN"
-    SESSION_HIGH = "SESSION_HIGH"
-    SESSION_LOW = "SESSION_LOW"
-    ORH = "ORH"
-    ORL = "ORL"
-    IBH = "IBH"
-    IBL = "IBL"
-    PDO = "PDO"
-    PDC = "PDC"
-    PWO = "PWO"
-    PWC = "PWC"
-    PMO = "PMO"
-    PMC = "PMC"
-    SWING_H = "SWING_H"
-    SWING_L = "SWING_L"
-    EQH = "EQH"
-    EQL = "EQL"
-    BOS_H = "BOS_H"
-    BOS_L = "BOS_L"
-    MSS = "MSS"
 
 
 class LevelRecord(BaseModel):
@@ -52,38 +16,7 @@ class LevelRecord(BaseModel):
 
     symbol: str
     timeframe: str
-    level_type: Literal[
-        "PDH",
-        "PDL",
-        "PWH",
-        "PWL",
-        "PMH",
-        "PML",
-        "GAP_D",
-        "GAP_W",
-        "FVG",
-        "POC",
-        "RN",
-        "SESSION_HIGH",
-        "SESSION_LOW",
-        "ORH",
-        "ORL",
-        "IBH",
-        "IBL",
-        "PDO",
-        "PDC",
-        "PWO",
-        "PWC",
-        "PMO",
-        "PMC",
-        "SWING_H",
-        "SWING_L",
-        "EQH",
-        "EQL",
-        "BOS_H",
-        "BOS_L",
-        "MSS",
-    ]
+    level_type: str
     price: Optional[float] = None
     price_lo: Optional[float] = None
     price_hi: Optional[float] = None
@@ -140,7 +73,6 @@ __all__ = [
     "LevelRecord",
     "LevelsBuildSpec",
     "LevelsBuildItem",
-    "LevelType",
     "SessionWindows",
     "ORIBSpec",
 ]

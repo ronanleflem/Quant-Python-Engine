@@ -15,6 +15,8 @@ The current detectors cover the following level types:
   aggregate.
 * **FVG** – three-candle fair value gaps (bullish and bearish) on the base
   timeframe.
+* **FVG_HTF** – higher-timeframe fair value gaps built from resampled H1/H4/D1
+  candles while keeping the anchor on the centre bar.
 * **POC** – simplified point-of-control using histogram counts.
 * **SWING_H / SWING_L** – n-bar fractal pivots capturing market structure
   swings.
@@ -22,6 +24,12 @@ The current detectors cover the following level types:
   bands on recent extremes.
 * **BOS_H / BOS_L / MSS** – Break of Structure and Market Structure Shift events
   triggered when closes breach the latest swing.
+* **VWAP_SESSION / VWAP_DAY / VWAP_WEEK** – anchored VWAP curves (developing
+  and fixed) with optional sigma bands `VWAP_BAND_{k}+`.
+* **ADR_BAND_k** – daily Average Daily Range envelopes around the current
+  session open.
+* **PIVOT_P / PIVOT_R1..R3 / PIVOT_S1..S3** – classic floor pivot levels derived
+  from the previous session’s range.
 
 Round numbers (RN) can also be generated statically for convenience.
 
@@ -38,6 +46,8 @@ Round numbers (RN) can also be generated statically for convenience.
 * **New levels:** session highs/lows, opening range (ORH/ORL), initial balance
   (IBH/IBL) and previous open/close levels for daily/weekly/monthly periods
   (PDO/PDC, PWO/PWC, PMO/PMC).
+* **Phase 2B additions:** anchored VWAP (session/day/week) with sigma bands,
+  higher-timeframe FVGs via resampling, ADR envelopes and daily floor pivots.
 * **Configuration:** session windows and Opening Range/Initial Balance durations
   are configurable via the `session_windows` and `orib` sections of the
   `LevelsBuildSpec`.
