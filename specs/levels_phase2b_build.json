@@ -1,0 +1,74 @@
+{
+  "data": {
+    "dataset_path": "specs/examples/data/eurusd_m1_sample.json",
+    "symbols": ["EURUSD"],
+    "timeframe": "M1",
+    "start": "2024-01-01T00:00:00Z",
+    "end": "2024-01-03T23:59:00Z"
+  },
+  "symbols": ["EURUSD"],
+  "range_start": "2024-01-01T00:00:00Z",
+  "range_end": "2024-01-03T23:59:00Z",
+  "targets": [
+    {
+      "type": "VWAP_DAY",
+      "params": {
+        "anchor": "day",
+        "bands_sigma": [1.0, 2.0],
+        "use_tpo": true
+      }
+    },
+    {
+      "type": "VWAP_BAND_1+",
+      "params": {
+        "anchor": "day",
+        "bands_sigma": [1.0, 2.0],
+        "use_tpo": true
+      }
+    },
+    {
+      "type": "VWAP_BAND_2+",
+      "params": {
+        "anchor": "day",
+        "bands_sigma": [1.0, 2.0],
+        "use_tpo": true
+      }
+    },
+    {
+      "type": "FVG_HTF",
+      "params": {
+        "htf": "H1",
+        "min_size_ticks": 1,
+        "price_increment": 0.0001
+      }
+    },
+    {
+      "type": "FVG_HTF",
+      "params": {
+        "htf": "H4",
+        "min_size_ticks": 1,
+        "price_increment": 0.0001
+      }
+    },
+    {
+      "type": "ADR_BAND_1",
+      "params": {
+        "adr_window": 14,
+        "k_list": [1.0, 2.0]
+      }
+    },
+    {
+      "type": "ADR_BAND_2",
+      "params": {
+        "adr_window": 14,
+        "k_list": [1.0, 2.0]
+      }
+    },
+    { "type": "PIVOT_P", "params": {} },
+    { "type": "PIVOT_R1", "params": {} },
+    { "type": "PIVOT_S1", "params": {} }
+  ],
+  "output_schema": "marketdata",
+  "output_table": "levels",
+  "upsert": true
+}

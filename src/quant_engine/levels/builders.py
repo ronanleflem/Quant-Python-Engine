@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from typing import Dict, Iterable, List
+from typing import Dict, Iterable, List, Optional, Tuple
 
 import pandas as pd
 
@@ -39,6 +39,9 @@ def build_levels(spec: LevelsBuildSpec, ohlcv: pd.DataFrame) -> List[LevelRecord
         sym_df.attrs["timeframe"] = timeframe
         if sym_df.empty:
             continue
+        vwap_cache: Dict[Tuple[str, Tuple[float, ...], str, bool], List[LevelRecord]] = {}
+        adr_cache: Dict[Tuple[int, Tuple[float, ...]], List[LevelRecord]] = {}
+        pivot_cache: Optional[List[LevelRecord]] = None
         for target in spec.targets:
             params = dict(target.params)
             level_type = target.type.upper()
@@ -93,6 +96,16 @@ def build_levels(spec: LevelsBuildSpec, ohlcv: pd.DataFrame) -> List[LevelRecord
                     min_size_ticks=int(params.get("min_size_ticks", 1)),
                     price_increment=price_increment,
                 )
+            elif level_type == "FVG_HTF":
+                price_increment = params.get("price_increment")
+                if price_increment is not None:
+                    price_increment = float(price_increment)
+                detector_records = detectors.detect_fvg_htf(
+                    sym_df,
+                    htf=str(params.get("htf", "H1")).upper(),
+                    min_size_ticks=int(params.get("min_size_ticks", 1)),
+                    price_increment=price_increment,
+                )
             elif level_type == "POC":
                 detector_records = detectors.detect_poc(
                     sym_df,
@@ -141,6 +154,63 @@ def build_levels(spec: LevelsBuildSpec, ohlcv: pd.DataFrame) -> List[LevelRecord
                     left=int(params.get("left", 2)),
                     right=int(params.get("right", 2)),
                 )
+            elif level_type.startswith("VWAP"):
+                anchor = str(params.get("anchor", "day"))
+                bands_param = params.get("bands_sigma", [1.0, 2.0])
+                if isinstance(bands_param, (int, float)):
+                    bands_list = [float(bands_param)]
+                elif isinstance(bands_param, str):
+                    bands_list = [float(bands_param)]
+                else:
+                    bands_list = [float(x) for x in bands_param]
+                price_col = str(params.get("price_col", "close"))
+                use_tpo_raw = params.get("use_tpo", False)
+                if isinstance(use_tpo_raw, str):
+                    use_tpo = use_tpo_raw.strip().lower() not in {"false", "0", "no"}
+                else:
+                    use_tpo = bool(use_tpo_raw)
+                cache_key = (
+                    anchor.lower(),
+                    tuple(sorted(set(float(x) for x in bands_list))),
+                    price_col,
+                    use_tpo,
+                )
+                if cache_key not in vwap_cache:
+                    vwap_cache[cache_key] = detectors.detect_anchored_vwap(
+                        sym_df,
+                        anchor=anchor,
+                        bands_sigma=bands_list,
+                        price_col=price_col,
+                        use_tpo=use_tpo,
+                    )
+                detector_records = [
+                    record for record in vwap_cache[cache_key] if record.level_type == level_type
+                ]
+            elif level_type.startswith("ADR_BAND"):
+                k_param = params.get("k_list", [1.0])
+                if isinstance(k_param, (int, float)):
+                    k_values = [float(k_param)]
+                elif isinstance(k_param, str):
+                    k_values = [float(k_param)]
+                else:
+                    k_values = [float(x) for x in k_param]
+                adr_window = int(params.get("adr_window", 14))
+                cache_key = (adr_window, tuple(sorted(set(float(x) for x in k_values))))
+                if cache_key not in adr_cache:
+                    adr_cache[cache_key] = detectors.detect_adr_bands(
+                        sym_df,
+                        adr_window=adr_window,
+                        k_list=k_values,
+                    )
+                detector_records = [
+                    record for record in adr_cache[cache_key] if record.level_type == level_type
+                ]
+            elif level_type.startswith("PIVOT_"):
+                if pivot_cache is None:
+                    pivot_cache = detectors.detect_floor_pivots(sym_df)
+                detector_records = [
+                    record for record in pivot_cache if record.level_type == level_type
+                ]
             else:
                 raise ValueError(f"Unsupported level target: {level_type}")
             params_hash = _compute_hash(level_type, params)

@@ -4,6 +4,8 @@ from __future__ import annotations
 from datetime import timezone
 from typing import Iterable, List, Optional, Sequence, Set
 
+import math
+
 import numpy as np
 import pandas as pd
 
@@ -58,6 +60,362 @@ def _resample_ohlc(df: pd.DataFrame, period: str) -> pd.DataFrame:
     resampled = resampled.reset_index(drop=False)
     resampled.rename(columns={"ts": "period_end"}, inplace=True)
     return resampled
+
+
+def _format_float_suffix(value: float) -> str:
+    if math.isclose(value, round(value)):
+        return str(int(round(value)))
+    text = f"{value:.4f}".rstrip("0").rstrip(".")
+    return text.replace(".", "p")
+
+
+def detect_anchored_vwap(
+    df_symbol: pd.DataFrame,
+    anchor: str = "day",
+    bands_sigma: Optional[Sequence[float]] = None,
+    price_col: str = "close",
+    use_tpo: bool = False,
+) -> List[LevelRecord]:
+    """Compute anchored VWAP and associated sigma bands."""
+
+    if df_symbol.empty:
+        return []
+    df_prep = _prepare_ohlcv(df_symbol)
+    if "symbol" not in df_prep.columns:
+        raise ValueError("Anchored VWAP detection requires a symbol column")
+    if price_col not in df_prep.columns:
+        raise ValueError(f"Column '{price_col}' is required for VWAP detection")
+
+    anchor_key = anchor.lower()
+    if anchor_key not in {"session", "day", "week"}:
+        raise ValueError("anchor must be one of 'session', 'day' or 'week'")
+
+    sigmas: List[float] = []
+    sigma_source = bands_sigma if bands_sigma is not None else (1.0, 2.0)
+    for sigma in sigma_source:
+        try:
+            value = abs(float(sigma))
+        except (TypeError, ValueError):
+            continue
+        if value <= 0:
+            continue
+        sigmas.append(value)
+    sigmas = sorted(set(sigmas))
+
+    symbol = str(df_prep["symbol"].iloc[0])
+    base_timeframe = str(df_symbol.attrs.get("timeframe", "SESSION"))
+    timeframe_map = {
+        "session": base_timeframe or "SESSION",
+        "day": "D1",
+        "week": "W1",
+    }
+    level_type_map = {
+        "session": "VWAP_SESSION",
+        "day": "VWAP_DAY",
+        "week": "VWAP_WEEK",
+    }
+
+    groups: Iterable
+    if anchor_key == "session" and "session" in df_prep.columns:
+        session_series = df_prep["session"].astype("object")
+        if session_series.notna().any():
+            df_prep["_session_date"] = df_prep["ts"].dt.floor("D")
+            groups = df_prep.groupby(["_session_date", "session"], sort=True)
+        else:
+            df_prep["_anchor_key"] = df_prep["ts"].dt.floor("D")
+            groups = df_prep.groupby("_anchor_key", sort=True)
+    elif anchor_key == "week":
+        df_prep["_anchor_key"] = df_prep["ts"].dt.to_period("W-MON")
+        groups = df_prep.groupby("_anchor_key", sort=True)
+    else:
+        df_prep["_anchor_key"] = df_prep["ts"].dt.floor("D")
+        groups = df_prep.groupby("_anchor_key", sort=True)
+
+    records: List[LevelRecord] = []
+    for key, group in groups:
+        group_sorted = group.sort_values("ts").dropna(subset=[price_col])
+        if group_sorted.empty:
+            continue
+        if "volume" in group_sorted.columns:
+            weights = group_sorted["volume"].astype(float).fillna(0.0)
+        else:
+            weights = pd.Series(0.0, index=group_sorted.index, dtype="float64")
+        weights = weights.clip(lower=0.0)
+        if float(weights.sum()) <= 0.0:
+            if not use_tpo:
+                continue
+            weights = pd.Series(1.0, index=group_sorted.index, dtype="float64")
+        prices = group_sorted[price_col].astype(float)
+
+        cum_weight = 0.0
+        mean = 0.0
+        m2 = 0.0
+        last_std = 0.0
+
+        first_ts = pd.Timestamp(group_sorted["ts"].iloc[0])
+        if first_ts.tzinfo is None:
+            first_ts = first_ts.tz_localize("UTC")
+        else:
+            first_ts = first_ts.tz_convert("UTC")
+        valid_from_ts = first_ts.to_pydatetime().astimezone(timezone.utc)
+
+        for idx, (row_idx, row) in enumerate(group_sorted.iterrows()):
+            weight = float(weights.loc[row_idx])
+            price_val = float(prices.loc[row_idx])
+            if weight > 0:
+                cum_weight += weight
+                if cum_weight <= 0:
+                    continue
+                delta = price_val - mean
+                mean += (weight / cum_weight) * delta
+                delta2 = price_val - mean
+                m2 += weight * delta * delta2
+                variance = m2 / cum_weight if cum_weight > 0 else 0.0
+                last_std = math.sqrt(max(variance, 0.0))
+            elif cum_weight <= 0:
+                continue
+
+            anchor_ts = pd.Timestamp(row["ts"])
+            if anchor_ts.tzinfo is None:
+                anchor_ts = anchor_ts.tz_localize("UTC")
+            else:
+                anchor_ts = anchor_ts.tz_convert("UTC")
+            anchor_dt = anchor_ts.to_pydatetime().astimezone(timezone.utc)
+
+            level_price = mean if cum_weight > 0 else price_val
+            records.append(
+                LevelRecord(
+                    symbol=symbol,
+                    timeframe=timeframe_map[anchor_key],
+                    level_type=level_type_map[anchor_key],
+                    price=float(level_price),
+                    anchor_ts=anchor_dt,
+                    valid_from_ts=valid_from_ts,
+                )
+            )
+            for sigma in sigmas:
+                band_offset = sigma * last_std
+                price_lo = float(level_price - band_offset)
+                price_hi = float(level_price + band_offset)
+                suffix = _format_float_suffix(sigma)
+                band_type = f"VWAP_BAND_{suffix}+"
+                records.append(
+                    LevelRecord(
+                        symbol=symbol,
+                        timeframe=timeframe_map[anchor_key],
+                        level_type=band_type,
+                        price=float(level_price),
+                        price_lo=min(price_lo, price_hi),
+                        price_hi=max(price_lo, price_hi),
+                        anchor_ts=anchor_dt,
+                        valid_from_ts=valid_from_ts,
+                    )
+                )
+
+    return records
+
+
+def detect_fvg_htf(
+    df_symbol: pd.DataFrame,
+    htf: str = "H1",
+    min_size_ticks: int = 1,
+    price_increment: Optional[float] = None,
+) -> List[LevelRecord]:
+    """Resample to a higher timeframe and reuse the base FVG detector."""
+
+    if df_symbol.empty:
+        return []
+    df_prep = _prepare_ohlcv(df_symbol)
+    if "symbol" not in df_prep.columns:
+        raise ValueError("FVG HTF detection requires a symbol column")
+
+    freq_map = {"H1": "1h", "H4": "4h", "D1": "1d"}
+    htf_key = htf.upper()
+    if htf_key not in freq_map:
+        raise ValueError("htf must be one of 'H1', 'H4' or 'D1'")
+
+    symbol = str(df_prep["symbol"].iloc[0])
+    resampled = (
+        df_prep.set_index("ts")
+        .resample(freq_map[htf_key], label="right", closed="right")
+        .agg(
+            open=("open", "first"),
+            high=("high", "max"),
+            low=("low", "min"),
+            close=("close", "last"),
+            ts_copy=("ts_copy", "last"),
+        )
+        .dropna(subset=["open", "high", "low", "close", "ts_copy"])
+        .reset_index(drop=True)
+    )
+    if resampled.empty:
+        return []
+    resampled.rename(columns={"ts_copy": "ts"}, inplace=True)
+    resampled["symbol"] = symbol
+    resampled["ts"] = pd.to_datetime(resampled["ts"], utc=True)
+
+    records = detect_fvg(
+        resampled,
+        symbol=symbol,
+        timeframe=htf_key,
+        min_size_ticks=int(min_size_ticks),
+        price_increment=price_increment,
+    )
+    for record in records:
+        record.level_type = "FVG_HTF"
+        record.timeframe = htf_key
+    return records
+
+
+def detect_adr_bands(
+    df_symbol: pd.DataFrame,
+    adr_window: int = 14,
+    k_list: Optional[Sequence[float]] = None,
+) -> List[LevelRecord]:
+    """Generate ADR-based zones around the daily open."""
+
+    if df_symbol.empty:
+        return []
+    df_prep = _prepare_ohlcv(df_symbol)
+    if "symbol" not in df_prep.columns:
+        raise ValueError("ADR detection requires a symbol column")
+
+    k_source = k_list if k_list is not None else (1.0,)
+    multipliers: List[float] = []
+    for k_val in k_source:
+        try:
+            value = abs(float(k_val))
+        except (TypeError, ValueError):
+            continue
+        if value <= 0:
+            continue
+        multipliers.append(value)
+    multipliers = sorted(set(multipliers))
+    if not multipliers:
+        return []
+
+    daily = _resample_ohlc(df_prep, "D")
+    if daily.empty:
+        return []
+
+    daily["range"] = daily["high"].astype(float) - daily["low"].astype(float)
+    adr_series = (
+        daily["range"].rolling(window=int(adr_window), min_periods=int(adr_window)).mean().shift(1)
+    )
+
+    symbol = str(df_prep["symbol"].iloc[0])
+    records: List[LevelRecord] = []
+    for idx, row in daily.iterrows():
+        adr_value = adr_series.iloc[idx]
+        if pd.isna(adr_value) or adr_value <= 0:
+            continue
+        open_price = row.get("open")
+        open_ts_raw = row.get("open_ts")
+        if pd.isna(open_price) or pd.isna(open_ts_raw):
+            continue
+        open_ts = pd.Timestamp(open_ts_raw)
+        if open_ts.tzinfo is None:
+            open_ts = open_ts.tz_localize("UTC")
+        else:
+            open_ts = open_ts.tz_convert("UTC")
+        anchor_dt = open_ts.to_pydatetime().astimezone(timezone.utc)
+        for multiplier in multipliers:
+            offset = float(adr_value) * multiplier
+            lo = float(open_price) - offset
+            hi = float(open_price) + offset
+            suffix = _format_float_suffix(multiplier)
+            level_type = f"ADR_BAND_{suffix}"
+            records.append(
+                LevelRecord(
+                    symbol=symbol,
+                    timeframe="D1",
+                    level_type=level_type,
+                    price=float(open_price),
+                    price_lo=min(lo, hi),
+                    price_hi=max(lo, hi),
+                    anchor_ts=anchor_dt,
+                    valid_from_ts=anchor_dt,
+                )
+            )
+    return records
+
+
+def detect_floor_pivots(df_symbol: pd.DataFrame) -> List[LevelRecord]:
+    """Compute classic floor pivots based on the previous day."""
+
+    if df_symbol.empty:
+        return []
+    df_prep = _prepare_ohlcv(df_symbol)
+    if "symbol" not in df_prep.columns:
+        raise ValueError("Pivot detection requires a symbol column")
+
+    daily = _resample_ohlc(df_prep, "D")
+    if len(daily) < 2:
+        return []
+
+    symbol = str(df_prep["symbol"].iloc[0])
+    records: List[LevelRecord] = []
+
+    for idx in range(1, len(daily)):
+        prev_row = daily.iloc[idx - 1]
+        curr_row = daily.iloc[idx]
+
+        high_prev = prev_row.get("high")
+        low_prev = prev_row.get("low")
+        close_prev = prev_row.get("close")
+        anchor_raw = prev_row.get("close_ts")
+        valid_from_raw = curr_row.get("open_ts")
+        if any(pd.isna(val) for val in (high_prev, low_prev, close_prev, anchor_raw, valid_from_raw)):
+            continue
+
+        high_prev = float(high_prev)
+        low_prev = float(low_prev)
+        close_prev = float(close_prev)
+        pivot = (high_prev + low_prev + close_prev) / 3.0
+        range_prev = high_prev - low_prev
+        r1 = 2 * pivot - low_prev
+        s1 = 2 * pivot - high_prev
+        r2 = pivot + range_prev
+        s2 = pivot - range_prev
+        r3 = high_prev + 2 * (pivot - low_prev)
+        s3 = low_prev - 2 * (high_prev - pivot)
+
+        anchor_ts = pd.Timestamp(anchor_raw)
+        if anchor_ts.tzinfo is None:
+            anchor_ts = anchor_ts.tz_localize("UTC")
+        else:
+            anchor_ts = anchor_ts.tz_convert("UTC")
+        valid_from_ts = pd.Timestamp(valid_from_raw)
+        if valid_from_ts.tzinfo is None:
+            valid_from_ts = valid_from_ts.tz_localize("UTC")
+        else:
+            valid_from_ts = valid_from_ts.tz_convert("UTC")
+
+        anchor_dt = anchor_ts.to_pydatetime().astimezone(timezone.utc)
+        valid_from_dt = valid_from_ts.to_pydatetime().astimezone(timezone.utc)
+
+        pivot_values = {
+            "PIVOT_P": pivot,
+            "PIVOT_R1": r1,
+            "PIVOT_S1": s1,
+            "PIVOT_R2": r2,
+            "PIVOT_S2": s2,
+            "PIVOT_R3": r3,
+            "PIVOT_S3": s3,
+        }
+        for level_type, price in pivot_values.items():
+            records.append(
+                LevelRecord(
+                    symbol=symbol,
+                    timeframe="D1",
+                    level_type=level_type,
+                    price=float(price),
+                    anchor_ts=anchor_dt,
+                    valid_from_ts=valid_from_dt,
+                )
+            )
+
+    return records
 
 
 def detect_session_high_low(df_symbol: pd.DataFrame, session_windows: SessionWindows) -> List[LevelRecord]:
@@ -878,6 +1236,10 @@ def detect_bos_mss(
 
 
 __all__ = [
+    "detect_anchored_vwap",
+    "detect_fvg_htf",
+    "detect_adr_bands",
+    "detect_floor_pivots",
     "detect_previous_high_low",
     "detect_gaps",
     "detect_fvg",
