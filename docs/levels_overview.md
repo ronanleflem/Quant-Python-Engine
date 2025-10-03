@@ -19,6 +19,23 @@ The current detectors cover the following level types:
 
 Round numbers (RN) can also be generated statically for convenience.
 
+## Phase 1.5 additions
+
+* **Fills:** `valid_to_ts` is populated on the first closing price that touches
+  the gap or fair value gap zone (MVP logic). Future iterations will add a full
+  intrabar overlap mode.
+* **Endpoints:**
+  * `POST /levels/fill` refreshes FVG/GAP fills. The body is a
+    `LevelsBuildSpec` providing the data source and date range.
+  * `GET /levels/active` returns open zones (`valid_to_ts IS NULL`) filtered by
+    symbol, level types and optional date window.
+* **New levels:** session highs/lows, opening range (ORH/ORL), initial balance
+  (IBH/IBL) and previous open/close levels for daily/weekly/monthly periods
+  (PDO/PDC, PWO/PWC, PMO/PMC).
+* **Configuration:** session windows and Opening Range/Initial Balance durations
+  are configurable via the `session_windows` and `orib` sections of the
+  `LevelsBuildSpec`.
+
 ## Running detections
 
 ### CLI

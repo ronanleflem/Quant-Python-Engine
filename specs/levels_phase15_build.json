@@ -1,0 +1,43 @@
+{
+  "data": {
+    "mysql": {
+      "env_var": "QE_MARKETDATA_MYSQL_URL",
+      "schema": "marketdata",
+      "table": "ohlcv_m1",
+      "symbol_col": "symbol",
+      "ts_col": "ts_utc",
+      "open_col": "open",
+      "high_col": "high",
+      "low_col": "low",
+      "close_col": "close",
+      "volume_col": "volume",
+      "timeframe_col": null
+    },
+    "symbols": ["EURUSD"],
+    "timeframe": "M1",
+    "start": "2025-01-01T00:00:00Z",
+    "end": "2025-01-07T23:59:00Z"
+  },
+  "symbols": ["EURUSD"],
+  "range_start": "2025-01-01T00:00:00Z",
+  "range_end": "2025-01-07T23:59:00Z",
+  "session_windows": { "asia": [0, 7], "europe": [8, 12], "overlap": [13, 16], "us": [17, 21] },
+  "orib": { "or_minutes": 30, "ib_minutes": 60 },
+  "targets": [
+    { "type": "SESSION_HIGH", "params": {} },
+    { "type": "SESSION_LOW",  "params": {} },
+    { "type": "ORH", "params": {} },
+    { "type": "ORL", "params": {} },
+    { "type": "IBH", "params": {} },
+    { "type": "IBL", "params": {} },
+    { "type": "PDO", "params": {} },
+    { "type": "PDC", "params": {} },
+    { "type": "PWO", "params": {} },
+    { "type": "PWC", "params": {} },
+    { "type": "PMO", "params": {} },
+    { "type": "PMC", "params": {} }
+  ],
+  "output_schema": "marketdata",
+  "output_table": "levels",
+  "upsert": true
+}

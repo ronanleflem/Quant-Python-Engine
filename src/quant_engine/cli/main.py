@@ -199,6 +199,34 @@ def seasonality_optimize(
     typer.echo(json.dumps(payload, separators=(",", ":")))
 
 
+@levels_app.command("build")
+def levels_build_cli(
+    spec_path: Path = typer.Option(..., "--spec", exists=True, file_okay=True, dir_okay=False)
+) -> None:
+    """Build levels as defined in a specification file."""
+
+    from ..levels.schemas import LevelsBuildSpec
+    from ..levels.runner import run_levels_build
+
+    spec_model = LevelsBuildSpec.model_validate_json(spec_path.read_text())
+    result = run_levels_build(spec_model)
+    typer.echo(json.dumps(result, separators=(",", ":")))
+
+
+@levels_app.command("fill")
+def levels_fill_cli(
+    spec_path: Path = typer.Option(..., "--spec", exists=True, file_okay=True, dir_okay=False)
+) -> None:
+    """Refresh valid_to_ts for active GAP/FVG levels."""
+
+    from ..levels.schemas import LevelsBuildSpec
+    from ..levels.runner import run_levels_fill
+
+    spec_model = LevelsBuildSpec.model_validate_json(spec_path.read_text())
+    result = run_levels_fill(spec_model)
+    typer.echo(json.dumps(result, separators=(",", ":")))
+
+
 @seasonality_app.command("profiles")
 def seasonality_profiles(
     symbol: Optional[str] = typer.Option(None, "--symbol"),

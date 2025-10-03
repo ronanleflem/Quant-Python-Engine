@@ -1,0 +1,28 @@
+{
+  "data": {
+    "mysql": {
+      "env_var": "QE_MARKETDATA_MYSQL_URL",
+      "schema": "marketdata",
+      "table": "ohlcv_m1",
+      "symbol_col": "symbol",
+      "ts_col": "ts_utc",
+      "open_col": "open",
+      "high_col": "high",
+      "low_col": "low",
+      "close_col": "close",
+      "volume_col": "volume",
+      "timeframe_col": null
+    },
+    "symbols": ["EURUSD"],
+    "timeframe": "M1",
+    "start": "2025-01-01T00:00:00Z",
+    "end": "2025-01-31T23:59:00Z"
+  },
+  "symbols": ["EURUSD"],
+  "range_start": "2025-01-01T00:00:00Z",
+  "range_end": "2025-01-31T23:59:00Z",
+  "targets": [
+    { "type": "FILL_FVG", "params": {} },
+    { "type": "FILL_GAP", "params": {} }
+  ]
+}
