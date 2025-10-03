@@ -36,6 +36,13 @@ class LevelType(str, Enum):
     PWC = "PWC"
     PMO = "PMO"
     PMC = "PMC"
+    SWING_H = "SWING_H"
+    SWING_L = "SWING_L"
+    EQH = "EQH"
+    EQL = "EQL"
+    BOS_H = "BOS_H"
+    BOS_L = "BOS_L"
+    MSS = "MSS"
 
 
 class LevelRecord(BaseModel):
@@ -69,6 +76,13 @@ class LevelRecord(BaseModel):
         "PWC",
         "PMO",
         "PMC",
+        "SWING_H",
+        "SWING_L",
+        "EQH",
+        "EQL",
+        "BOS_H",
+        "BOS_L",
+        "MSS",
     ]
     price: Optional[float] = None
     price_lo: Optional[float] = None

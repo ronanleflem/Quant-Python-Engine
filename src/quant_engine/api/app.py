@@ -247,6 +247,32 @@ def levels_list(
     return _fetch_levels(symbol=symbol, level_type=level_type, start=start, end=end, limit=limit)
 
 
+def levels_search(
+    symbol: str,
+    level_types: Sequence[str] | None = None,
+    start: str | None = None,
+    end: str | None = None,
+    limit: int = 200,
+) -> List[Dict[str, Any]]:
+    """Return levels filtered by type list using the repository helper."""
+
+    engine = _resolve_levels_engine()
+    df = repo_select_levels(
+        engine,
+        LEVELS_TABLE,
+        symbol=symbol,
+        level_types=list(level_types or []),
+        active_only=False,
+        start=start,
+        end=end,
+        limit=limit,
+    )
+    if df.empty:
+        return []
+    rows = df.sort_values("anchor_ts", ascending=False).to_dict(orient="records")
+    return [_serialise_row(row) for row in rows]
+
+
 def levels_active(
     symbol: str,
     level_types: Optional[List[str]] | None = None,
@@ -824,6 +850,22 @@ def levels_active_endpoint(
     """Return currently active levels."""
 
     return levels_active(symbol=symbol, level_types=level_type, start=from_, end=to, limit=limit)
+
+
+@fastapi_app.get('/levels/search', response_model=List[Dict[str, Any]])
+def levels_search_endpoint(
+    symbol: str,
+    type_: Optional[str] = Query(None, alias="type"),
+    from_: Optional[str] = Query(None, alias="from"),
+    to: Optional[str] = Query(None, alias="to"),
+    limit: int = Query(200, ge=1, le=10000),
+) -> List[Dict[str, Any]]:
+    """Search persisted levels by a comma separated type filter."""
+
+    level_types: List[str] | None = None
+    if type_:
+        level_types = [t.strip().upper() for t in type_.split(",") if t.strip()]
+    return levels_search(symbol=symbol, level_types=level_types, start=from_, end=to, limit=limit)
 
 
 @fastapi_app.get('/levels/nearest', response_model=List[Dict[str, Any]])

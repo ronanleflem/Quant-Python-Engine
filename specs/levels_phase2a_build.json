@@ -1,0 +1,40 @@
+{
+  "data": {
+    "dataset_path": "specs/examples/data/eurusd_m1_sample.json",
+    "symbols": ["EURUSD"],
+    "timeframe": "M1",
+    "start": "2024-01-01T00:00:00Z",
+    "end": "2024-01-03T23:59:00Z"
+  },
+  "symbols": ["EURUSD"],
+  "range_start": "2024-01-01T00:00:00Z",
+  "range_end": "2024-01-03T23:59:00Z",
+  "targets": [
+    { "type": "SWING_H", "params": { "left": 2, "right": 2 } },
+    { "type": "SWING_L", "params": { "left": 2, "right": 2 } },
+    {
+      "type": "EQH",
+      "params": {
+        "tolerance_ticks": 1,
+        "price_increment": 0.0001,
+        "min_count": 3,
+        "lookback_bars": 200
+      }
+    },
+    {
+      "type": "EQL",
+      "params": {
+        "tolerance_ticks": 1,
+        "price_increment": 0.0001,
+        "min_count": 3,
+        "lookback_bars": 200
+      }
+    },
+    { "type": "BOS_H", "params": { "left": 2, "right": 2 } },
+    { "type": "BOS_L", "params": { "left": 2, "right": 2 } },
+    { "type": "MSS", "params": { "left": 2, "right": 2 } }
+  ],
+  "output_schema": "marketdata",
+  "output_table": "levels",
+  "upsert": true
+}

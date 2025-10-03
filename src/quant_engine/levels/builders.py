@@ -35,7 +35,8 @@ def build_levels(spec: LevelsBuildSpec, ohlcv: pd.DataFrame) -> List[LevelRecord
     ib_minutes_default = spec.orib.ib_minutes if spec.orib else 60
 
     for symbol in spec.symbols:
-        sym_df = df[df["symbol"] == symbol]
+        sym_df = df[df["symbol"] == symbol].copy()
+        sym_df.attrs["timeframe"] = timeframe
         if sym_df.empty:
             continue
         for target in spec.targets:
@@ -109,6 +110,36 @@ def build_levels(spec: LevelsBuildSpec, ohlcv: pd.DataFrame) -> List[LevelRecord
                     price_min=float(params["price_min"]),
                     price_max=float(params["price_max"]),
                     step=float(params.get("step", 1.0)),
+                )
+            elif level_type in {"SWING_H", "SWING_L"}:
+                detector_records = detectors.detect_fractals(
+                    sym_df,
+                    left=int(params.get("left", 2)),
+                    right=int(params.get("right", 2)),
+                )
+            elif level_type in {"EQH", "EQL"}:
+                price_increment = params.get("price_increment")
+                if price_increment is not None:
+                    price_increment = float(price_increment)
+                detector_records = detectors.detect_equal_highs_lows(
+                    sym_df,
+                    side="high" if level_type == "EQH" else "low",
+                    tolerance_ticks=int(params.get("tolerance_ticks", 1)),
+                    price_increment=price_increment,
+                    min_count=int(params.get("min_count", 2)),
+                    lookback_bars=int(params.get("lookback_bars", 500)),
+                )
+            elif level_type in {"BOS_H", "BOS_L", "MSS"}:
+                use_fractals_raw = params.get("use_fractals", True)
+                if isinstance(use_fractals_raw, str):
+                    use_fractals = use_fractals_raw.strip().lower() not in {"false", "0", "no"}
+                else:
+                    use_fractals = bool(use_fractals_raw)
+                detector_records = detectors.detect_bos_mss(
+                    sym_df,
+                    use_fractals=use_fractals,
+                    left=int(params.get("left", 2)),
+                    right=int(params.get("right", 2)),
                 )
             else:
                 raise ValueError(f"Unsupported level target: {level_type}")
