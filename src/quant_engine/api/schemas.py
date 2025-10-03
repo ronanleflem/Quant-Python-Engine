@@ -4,12 +4,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Dict, List, Literal, Optional
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, model_validator
 
 from ..core.spec import (
     ValidationSpec as CoreValidationSpec,
     ArtifactsSpec as CoreArtifactsSpec,
-    PersistenceSpec as CorePersistenceSpec,
 )
 
 
@@ -73,6 +72,7 @@ class StatsEventSpec(BaseModel):
     """Specification for an event to detect in the dataset."""
 
     name: str
+    type: Optional[str] = None
     params: Dict[str, Any] = Field(default_factory=dict)
 
 
@@ -80,6 +80,7 @@ class StatsConditionSpec(BaseModel):
     """Specification for conditioning regime."""
 
     name: str
+    type: Optional[str] = None
     params: Dict[str, Any] = Field(default_factory=dict)
 
 
@@ -87,7 +88,28 @@ class StatsTargetSpec(BaseModel):
     """Specification for a target metric."""
 
     name: str
+    type: Optional[str] = None
     params: Dict[str, Any] = Field(default_factory=dict)
+
+
+class StatsPersistenceSpec(BaseModel):
+    """Persistence settings for statistics runs."""
+
+    model_config = ConfigDict(protected_namespaces=())
+
+    store_stats_in_db: Optional[bool] = None
+    enabled: Optional[bool] = None
+    spec_id: Optional[str] = None
+    dataset_id: Optional[str] = None
+
+    @model_validator(mode="after")
+    def _resolve_enabled(cls, model: "StatsPersistenceSpec") -> "StatsPersistenceSpec":
+        if model.enabled is None:
+            if model.store_stats_in_db is not None:
+                model.enabled = bool(model.store_stats_in_db)
+            else:
+                model.enabled = False
+        return model
 
 
 class StatsSpec(BaseModel):
@@ -99,7 +121,7 @@ class StatsSpec(BaseModel):
     targets: List[StatsTargetSpec] = Field(default_factory=list)
     validation: CoreValidationSpec | None = None
     artifacts: CoreArtifactsSpec | None = None
-    persistence: CorePersistenceSpec | None = None
+    persistence: StatsPersistenceSpec | None = None
 
 
 class ExecutionSpec(BaseModel):

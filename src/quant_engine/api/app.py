@@ -23,6 +23,7 @@ from ..optimize.runner import run as run_optimisation
 from ..io import ids
 from ..persistence import db
 from ..stats import runner as stats_runner
+from ..stats import conditions as stats_conditions
 from ..stats.estimators import freq_with_wilson
 from ..seasonality import runner as seasonality_runner
 from ..seasonality.optimize import run_optimization as seasonality_run_optimization
@@ -82,6 +83,12 @@ def stats_result() -> schemas.ResultResponse:
         "rows": df.to_dict(orient="records"),
     }
     return schemas.ResultResponse(result=payload)
+
+
+def stats_condition_types() -> List[str]:
+    """Return the list of supported condition factory names."""
+
+    return stats_conditions.list_condition_types()
 
 
 # ---------------------------------------------------------------------------
@@ -796,6 +803,13 @@ def result_endpoint(job_id: str) -> schemas.ResultResponse:
     """Return the optimisation result for a job if available."""
 
     return result(job_id)
+
+
+@fastapi_app.get('/stats/conditions', response_model=List[str])
+def stats_conditions_endpoint() -> List[str]:
+    """Return the list of supported condition factories."""
+
+    return stats_condition_types()
 
 
 @fastapi_app.post('/stats/run', response_model=schemas.StatusResponse)

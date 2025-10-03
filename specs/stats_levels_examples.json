@@ -1,0 +1,35 @@
+{
+  "data": {
+    "mysql": {
+      "env_var": "QE_MARKETDATA_MYSQL_URL",
+      "schema": "marketdata",
+      "table": "ohlcv_m1",
+      "symbol_col": "symbol",
+      "ts_col": "ts_utc",
+      "open_col": "open",
+      "high_col": "high",
+      "low_col": "low",
+      "close_col": "close",
+      "volume_col": "volume",
+      "timeframe_col": null
+    },
+    "symbols": ["EURUSD"],
+    "timeframe": "M1",
+    "start": "2025-01-05T00:00:00Z",
+    "end": "2025-01-10T23:59:00Z"
+  },
+  "events": [
+    { "name": "two_up", "type": "k_consecutive", "params": { "k": 2, "direction": "up" } }
+  ],
+  "conditions": [
+    { "name": "in_fvg", "type": "in_zone_level", "params": { "level_type": "FVG", "tolerance": 0.0 } },
+    { "name": "near_pdh", "type": "distance_to_level", "params": { "level_type": "PDH", "side": "edge", "thresh": 0.0005 } }
+  ],
+  "targets": [
+    { "name": "next_up", "type": "up_next_bar", "params": {} },
+    { "name": "cont_up3", "type": "continuation_n", "params": { "n": 3, "direction": "up" } }
+  ],
+  "validation": { "scheme": "walk_forward", "folds": 1, "train_months": 0, "test_months": 0, "embargo_days": 0 },
+  "artifacts": { "out_dir": "runs/stats_levels_examples" },
+  "persistence": { "store_stats_in_db": false }
+}
