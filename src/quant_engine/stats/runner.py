@@ -54,21 +54,59 @@ def _long_form(dataset: List[Dict[str, Any]], spec: StatsSpec) -> pd.DataFrame:
 
     event_cols: List[Tuple[str, str]] = []
     for ev in spec.events:
-        func = getattr(event_mod, ev.name)
+        func_name = getattr(ev, "type", None) or ev.name
+        func = getattr(event_mod, func_name)
         col = f"ev::{ev.name}"
         df[col] = func(df, **ev.params)
         event_cols.append((ev.name, col))
 
     cond_cols: List[Tuple[str, str]] = []
+    regular_cond_entries: List[Dict[str, Any]] = []
+    level_cond_entries: List[Dict[str, Any]] = []
     for cond in spec.conditions:
-        func = getattr(cond_mod, cond.name)
+        func_name = getattr(cond, "type", None) or cond.name
+        func = getattr(cond_mod, func_name)
         col = f"cond::{cond.name}"
-        df[col] = func(df, **cond.params)
         cond_cols.append((cond.name, col))
+        requires_levels = "_level" in func_name
+        if requires_levels:
+            callable_func = func(**cond.params)
+            level_type = cond.params.get("level_type")
+            entry = {
+                "name": cond.name,
+                "column": col,
+                "callable": callable_func,
+                "level_types": [level_type] if level_type else [],
+            }
+            level_cond_entries.append(entry)
+        else:
+            def _regular(df_local: pd.DataFrame, *, _func=func, _params=cond.params):
+                return _func(df_local, **_params)
+
+            regular_cond_entries.append({
+                "name": cond.name,
+                "column": col,
+                "callable": _regular,
+            })
+
+    for entry in regular_cond_entries:
+        df[entry["column"]] = entry["callable"](df)
+
+    if level_cond_entries:
+        aggregated_level_types = sorted({lt for entry in level_cond_entries for lt in entry["level_types"] if lt})
+        for symbol, group in df.groupby("symbol"):
+            if aggregated_level_types:
+                levels_df = cond_mod._load_levels_for(group, aggregated_level_types)
+            else:
+                levels_df = pd.DataFrame()
+            for entry in level_cond_entries:
+                series = entry["callable"](group, levels_df=levels_df)
+                df.loc[group.index, entry["column"]] = series.reindex(group.index)
 
     tgt_cols: List[Tuple[str, str]] = []
     for tgt in spec.targets:
-        func = getattr(tgt_mod, tgt.name)
+        func_name = getattr(tgt, "type", None) or tgt.name
+        func = getattr(tgt_mod, func_name)
         col = f"tgt::{tgt.name}"
         df[col] = func(df, **tgt.params)
         tgt_cols.append((tgt.name, col))
