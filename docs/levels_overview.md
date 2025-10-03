@@ -16,6 +16,12 @@ The current detectors cover the following level types:
 * **FVG** – three-candle fair value gaps (bullish and bearish) on the base
   timeframe.
 * **POC** – simplified point-of-control using histogram counts.
+* **SWING_H / SWING_L** – n-bar fractal pivots capturing market structure
+  swings.
+* **EQH / EQL** – equal highs/lows (liquidity pools) detected via tolerance
+  bands on recent extremes.
+* **BOS_H / BOS_L / MSS** – Break of Structure and Market Structure Shift events
+  triggered when closes breach the latest swing.
 
 Round numbers (RN) can also be generated statically for convenience.
 
@@ -35,6 +41,37 @@ Round numbers (RN) can also be generated statically for convenience.
 * **Configuration:** session windows and Opening Range/Initial Balance durations
   are configurable via the `session_windows` and `orib` sections of the
   `LevelsBuildSpec`.
+
+## Structure (Phase 2A)
+
+Phase 2A introduces higher-level structure primitives built on fractal swings
+and liquidity pools:
+
+* `SWING_H` / `SWING_L` use n-bar fractals (configurable via `left`/`right`) to
+  anchor swings on the base timeframe.
+* `EQH` / `EQL` cluster nearly equal highs/lows inside a configurable lookback
+  window, returning narrow zones `[price_lo, price_hi]` anchored on the latest
+  touch.
+* `BOS_H` / `BOS_L` fire when the closing price breaks the most recent swing in
+  the corresponding direction, while `MSS` marks a shift when the break
+  reverses the previous run.
+
+The new helpers in `quant_engine.levels.helpers` simplify consumption inside
+stats and backtests:
+
+```python
+from quant_engine.levels import helpers as lvl_helpers, repo
+
+levels = repo.select_levels(engine, "marketdata.levels", symbol="EURUSD", level_types=["EQH"], active_only=False)
+df = lvl_helpers.join_levels(ohlcv_df, levels)
+in_pool = lvl_helpers.in_zone(ohlcv_df, levels, "EQH", tolerance=0.0001)
+distance = lvl_helpers.distance_to(ohlcv_df, levels, "EQH", side="edge")
+recent_touch = lvl_helpers.touched_since(ohlcv_df, levels, "EQH", bars=5)
+```
+
+Statistics conditions wrap these helpers via `in_zone_level`, `distance_to_level`
+and `touched_level_since`, automatically loading persisted levels from
+`marketdata.levels`.
 
 ## Running detections
 
@@ -61,6 +98,8 @@ curl -X POST "http://localhost:8000/levels/build" \
   -d @specs/levels_example.json
 
 curl "http://localhost:8000/levels?symbol=EURUSD&level_type=PDH&limit=50"
+
+curl "http://localhost:8000/levels/search?symbol=EURUSD&type=EQH,EQL&limit=20"
 ```
 
 The `/levels/nearest` endpoint returns levels closest to a target price, making

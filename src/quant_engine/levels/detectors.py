@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from datetime import timezone
-from typing import Iterable, List, Optional
+from typing import Iterable, List, Optional, Sequence, Set
 
 import numpy as np
 import pandas as pd
@@ -597,6 +597,286 @@ def generate_round_numbers(
     return records
 
 
+def _infer_timeframe(df: pd.DataFrame) -> str:
+    attr = df.attrs.get("timeframe")
+    if attr:
+        return str(attr).upper()
+    if "timeframe" in df.columns:
+        series = df["timeframe"].dropna()
+        if not series.empty:
+            return str(series.iloc[0]).upper()
+    return "UNKNOWN"
+
+
+def detect_fractals(df_symbol: pd.DataFrame, left: int = 2, right: int = 2) -> List[LevelRecord]:
+    """Return swing highs and lows using an ``n``-bar fractal definition."""
+
+    if df_symbol.empty:
+        return []
+    timeframe = _infer_timeframe(df_symbol)
+    df_prep = _prepare_ohlcv(df_symbol)
+    if "symbol" not in df_prep.columns:
+        raise ValueError("Fractal detection requires a symbol column")
+    symbol = str(df_prep["symbol"].iloc[0])
+    highs = df_prep["high"].to_numpy()
+    lows = df_prep["low"].to_numpy()
+    timestamps = df_prep["ts"].to_numpy()
+    n = len(df_prep)
+    if n == 0:
+        return []
+    left = max(int(left), 0)
+    right = max(int(right), 0)
+    if n < left + right + 1:
+        return []
+
+    records: List[LevelRecord] = []
+    for idx in range(left, n - right):
+        high_val = highs[idx]
+        if left == 0:
+            left_high = float("-inf")
+        else:
+            left_high = float(np.max(highs[idx - left : idx]))
+        if right == 0:
+            right_high = float("-inf")
+        else:
+            right_high = float(np.max(highs[idx + 1 : idx + 1 + right]))
+        if high_val > left_high and high_val > right_high:
+            anchor = pd.Timestamp(timestamps[idx]).to_pydatetime().astimezone(timezone.utc)
+            records.append(
+                LevelRecord(
+                    symbol=symbol,
+                    timeframe=timeframe,
+                    level_type="SWING_H",
+                    price=float(high_val),
+                    anchor_ts=anchor,
+                    valid_from_ts=anchor,
+                )
+            )
+
+        low_val = lows[idx]
+        if left == 0:
+            left_low = float("inf")
+        else:
+            left_low = float(np.min(lows[idx - left : idx]))
+        if right == 0:
+            right_low = float("inf")
+        else:
+            right_low = float(np.min(lows[idx + 1 : idx + 1 + right]))
+        if low_val < left_low and low_val < right_low:
+            anchor = pd.Timestamp(timestamps[idx]).to_pydatetime().astimezone(timezone.utc)
+            records.append(
+                LevelRecord(
+                    symbol=symbol,
+                    timeframe=timeframe,
+                    level_type="SWING_L",
+                    price=float(low_val),
+                    anchor_ts=anchor,
+                    valid_from_ts=anchor,
+                )
+            )
+    return records
+
+
+def detect_equal_highs_lows(
+    df_symbol: pd.DataFrame,
+    side: str = "high",
+    tolerance_ticks: int = 1,
+    price_increment: Optional[float] = None,
+    min_count: int = 2,
+    lookback_bars: int = 500,
+) -> List[LevelRecord]:
+    """Detect liquidity pools formed by clusters of similar highs or lows."""
+
+    if df_symbol.empty:
+        return []
+    timeframe = _infer_timeframe(df_symbol)
+    df_prep = _prepare_ohlcv(df_symbol)
+    if "symbol" not in df_prep.columns:
+        raise ValueError("Liquidity pool detection requires a symbol column")
+    symbol = str(df_prep["symbol"].iloc[0])
+    side = side.lower()
+    if side not in {"high", "low"}:
+        raise ValueError("side must be 'high' or 'low'")
+    series = df_prep[side].to_numpy()
+    timestamps = df_prep["ts"].to_numpy()
+    min_count = max(int(min_count), 2)
+    lookback_bars = max(int(lookback_bars), min_count)
+    tol_ticks = max(int(tolerance_ticks), 0)
+    if price_increment is not None:
+        tolerance_value = float(tol_ticks) * float(price_increment)
+    else:
+        tolerance_value = float(tol_ticks)
+    n = len(df_prep)
+    records: List[LevelRecord] = []
+    last_price: Optional[float] = None
+    last_idx: Optional[int] = None
+    for idx in range(n):
+        start = max(0, idx - lookback_bars + 1)
+        window_idx = np.arange(start, idx + 1)
+        if len(window_idx) < min_count:
+            continue
+        values = series[window_idx]
+        reference = series[idx]
+        if tolerance_value == 0:
+            mask = np.isclose(values, reference, atol=1e-12)
+        else:
+            mask = np.abs(values - reference) <= tolerance_value + 1e-12
+        cluster_idx = window_idx[mask]
+        if len(cluster_idx) < min_count:
+            continue
+        cluster_vals = series[cluster_idx]
+        mean_price = float(np.mean(cluster_vals))
+        if tolerance_value == 0:
+            lo = float(np.min(cluster_vals))
+            hi = float(np.max(cluster_vals))
+        else:
+            lo = mean_price - tolerance_value
+            hi = mean_price + tolerance_value
+        anchor_ts = pd.Timestamp(timestamps[idx]).to_pydatetime().astimezone(timezone.utc)
+        level_type = "EQH" if side == "high" else "EQL"
+        if (
+            last_price is not None
+            and abs(mean_price - last_price) <= max(tolerance_value, 1e-12)
+            and last_idx is not None
+            and (idx - last_idx) <= lookback_bars
+        ):
+            continue
+        last_price = mean_price
+        last_idx = idx
+        records.append(
+            LevelRecord(
+                symbol=symbol,
+                timeframe=timeframe,
+                level_type=level_type,
+                price=mean_price,
+                price_lo=min(lo, hi),
+                price_hi=max(lo, hi),
+                anchor_ts=anchor_ts,
+                valid_from_ts=anchor_ts,
+            )
+        )
+    return records
+
+
+def _latest_unbroken(indices: Sequence[int], broken: Set[int], current_idx: int) -> Optional[int]:
+    for cand in reversed(indices):
+        if cand in broken:
+            continue
+        if cand >= current_idx:
+            continue
+        return cand
+    return None
+
+
+def detect_bos_mss(
+    df_symbol: pd.DataFrame,
+    use_fractals: bool = True,
+    left: int = 2,
+    right: int = 2,
+) -> List[LevelRecord]:
+    """Detect Break of Structure (BOS) and Market Structure Shift (MSS) events."""
+
+    if df_symbol.empty:
+        return []
+    timeframe = _infer_timeframe(df_symbol)
+    df_prep = _prepare_ohlcv(df_symbol)
+    if "symbol" not in df_prep.columns:
+        raise ValueError("BOS detection requires a symbol column")
+    symbol = str(df_prep["symbol"].iloc[0])
+    highs = df_prep["high"].to_numpy()
+    lows = df_prep["low"].to_numpy()
+    closes = df_prep["close"].to_numpy()
+    timestamps = df_prep["ts"].to_numpy()
+    n = len(df_prep)
+    if n == 0:
+        return []
+    left = max(int(left), 0)
+    right = max(int(right), 0)
+    if not use_fractals:
+        left = max(left, 1)
+        right = max(right, 1)
+    if n < left + right + 1:
+        return []
+
+    swing_highs = np.zeros(n, dtype=bool)
+    swing_lows = np.zeros(n, dtype=bool)
+    for idx in range(left, n - right):
+        high_val = highs[idx]
+        left_high = float(np.max(highs[idx - left : idx])) if left else float("-inf")
+        right_high = float(np.max(highs[idx + 1 : idx + 1 + right])) if right else float("-inf")
+        if high_val > left_high and high_val > right_high:
+            swing_highs[idx] = True
+        low_val = lows[idx]
+        left_low = float(np.min(lows[idx - left : idx])) if left else float("inf")
+        right_low = float(np.min(lows[idx + 1 : idx + 1 + right])) if right else float("inf")
+        if low_val < left_low and low_val < right_low:
+            swing_lows[idx] = True
+
+    high_indices: List[int] = []
+    low_indices: List[int] = []
+    broken_highs: Set[int] = set()
+    broken_lows: Set[int] = set()
+    records: List[LevelRecord] = []
+    last_break_direction: Optional[str] = None
+
+    for idx in range(n):
+        if swing_highs[idx]:
+            high_indices.append(idx)
+        if swing_lows[idx]:
+            low_indices.append(idx)
+
+        new_direction: Optional[str] = None
+        anchor_ts = pd.Timestamp(timestamps[idx]).to_pydatetime().astimezone(timezone.utc)
+
+        high_idx = _latest_unbroken(high_indices, broken_highs, idx)
+        if high_idx is not None and closes[idx] > highs[high_idx]:
+            broken_highs.add(high_idx)
+            swing_price = float(highs[high_idx])
+            records.append(
+                LevelRecord(
+                    symbol=symbol,
+                    timeframe=timeframe,
+                    level_type="BOS_H",
+                    price=swing_price,
+                    anchor_ts=anchor_ts,
+                    valid_from_ts=anchor_ts,
+                )
+            )
+            new_direction = "up"
+
+        low_idx = _latest_unbroken(low_indices, broken_lows, idx)
+        if low_idx is not None and closes[idx] < lows[low_idx]:
+            broken_lows.add(low_idx)
+            swing_price = float(lows[low_idx])
+            records.append(
+                LevelRecord(
+                    symbol=symbol,
+                    timeframe=timeframe,
+                    level_type="BOS_L",
+                    price=swing_price,
+                    anchor_ts=anchor_ts,
+                    valid_from_ts=anchor_ts,
+                )
+            )
+            new_direction = "down" if new_direction is None else new_direction
+
+        if new_direction and last_break_direction and new_direction != last_break_direction:
+            records.append(
+                LevelRecord(
+                    symbol=symbol,
+                    timeframe=timeframe,
+                    level_type="MSS",
+                    price=records[-1].price,
+                    anchor_ts=anchor_ts,
+                    valid_from_ts=anchor_ts,
+                )
+            )
+        if new_direction:
+            last_break_direction = new_direction
+
+    return records
+
+
 __all__ = [
     "detect_previous_high_low",
     "detect_gaps",
@@ -609,4 +889,7 @@ __all__ = [
     "detect_previous_open_close",
     "fill_gaps",
     "fill_fvgs",
+    "detect_fractals",
+    "detect_equal_highs_lows",
+    "detect_bos_mss",
 ]
