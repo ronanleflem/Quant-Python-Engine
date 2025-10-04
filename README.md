@@ -76,6 +76,12 @@ poetry run quant-engine stats run --spec specs/filters_volatility_trend_example.
 
 > Consulte la [référence des filtres](docs/filters.md) pour le détail des paramètres ADX/ATR/EMA slope et des autres filtres disponibles.
 
+### Structure & ICT
+
+```bash
+poetry run quant-engine stats run --spec specs/filters_structure_ict_example.json
+```
+
 ## Configuration `.env`
 Copier `.env.example` vers `.env` et ajuster :
 ```env

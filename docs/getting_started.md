@@ -44,3 +44,13 @@ poetry run qe stats run --spec specs/filters_volume_profile_example.json
 ```
 
 Le résultat présente les lifts calculés après application des filtres `volume_surge`, `vwap_side` et `poc_distance`. Lorsque la base `marketdata.levels` n'est pas accessible, les filtres reviennent automatiquement sur leurs fallbacks (ou renvoient `False`).
+
+## Essayer les filtres Structure/ICT
+
+Les filtres structurels et ICT disposent d'un exemple dédié dans `specs/filters_structure_ict_example.json`.
+
+```bash
+poetry run qe YOUR_COMMAND --spec specs/filters_structure_ict_example.json
+```
+
+Remplace `YOUR_COMMAND` par la commande de backtest/statistiques adaptée à ton workflow (ex. `stats run`).

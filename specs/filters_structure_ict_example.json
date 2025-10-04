@@ -1,0 +1,26 @@
+{
+  "data": {
+    "mysql": {
+      "env_var": "QE_MARKETDATA_MYSQL_URL",
+      "schema": "marketdata",
+      "table": "ohlcv_m1",
+      "symbol_col": "symbol",
+      "ts_col": "ts_utc",
+      "open_col": "open",
+      "high_col": "high",
+      "low_col": "low",
+      "close_col": "close",
+      "volume_col": "volume",
+      "timeframe_col": null
+    },
+    "symbols": ["EURUSD"],
+    "timeframe": "M1",
+    "start": "2025-01-05T00:00:00Z",
+    "end": "2025-01-10T23:59:00Z"
+  },
+  "filters": [
+    { "type": "liquidity_sweep", "params": { "side": "high", "lookback": 50, "require_close_back_in": true, "tolerance_ticks": 1, "price_increment": 0.0001 } },
+    { "type": "bos", "params": { "direction": "up", "left": 2, "right": 2, "use_levels": true, "symbol": "EURUSD" } },
+    { "type": "mss", "params": { "left": 2, "right": 2, "window": 30, "use_levels": true, "symbol": "EURUSD" } }
+  ]
+}
