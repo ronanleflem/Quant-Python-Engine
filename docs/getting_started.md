@@ -54,3 +54,13 @@ poetry run qe YOUR_COMMAND --spec specs/filters_structure_ict_example.json
 ```
 
 Remplace `YOUR_COMMAND` par la commande de backtest/statistiques adaptée à ton workflow (ex. `stats run`).
+
+## Essayer les filtres Seasonality/Time
+
+Les filtres basés sur l'heure et la saisonnalité disposent d'un exemple dans `specs/filters_time_seasonality_example.json`.
+
+```bash
+poetry run qe YOUR_COMMAND --spec specs/filters_time_seasonality_example.json
+```
+
+Comme pour les autres exemples, remplace `YOUR_COMMAND` par la commande souhaitée (`stats run`, etc.).

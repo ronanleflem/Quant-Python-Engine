@@ -82,6 +82,12 @@ poetry run quant-engine stats run --spec specs/filters_volatility_trend_example.
 poetry run quant-engine stats run --spec specs/filters_structure_ict_example.json
 ```
 
+### Seasonality & Time
+
+```bash
+poetry run quant-engine stats run --spec specs/filters_time_seasonality_example.json
+```
+
 ## Configuration `.env`
 Copier `.env.example` vers `.env` et ajuster :
 ```env
