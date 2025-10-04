@@ -84,6 +84,13 @@ class StatsConditionSpec(BaseModel):
     params: Dict[str, Any] = Field(default_factory=dict)
 
 
+class FilterConditionSpec(BaseModel):
+    """Specification for applying a pre-trade filter."""
+
+    type: Literal["adx", "atr", "ema_slope"]
+    params: Dict[str, Any] = Field(default_factory=dict)
+
+
 class StatsTargetSpec(BaseModel):
     """Specification for a target metric."""
 
