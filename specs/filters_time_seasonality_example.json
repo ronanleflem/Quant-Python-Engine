@@ -1,0 +1,27 @@
+{
+  "data": {
+    "mysql": {
+      "env_var": "QE_MARKETDATA_MYSQL_URL",
+      "schema": "marketdata",
+      "table": "ohlcv_m1",
+      "symbol_col": "symbol",
+      "ts_col": "ts_utc",
+      "open_col": "open",
+      "high_col": "high",
+      "low_col": "low",
+      "close_col": "close",
+      "volume_col": "volume"
+    },
+    "symbols": ["EURUSD"],
+    "timeframe": "M1",
+    "start": "2025-01-01T00:00:00Z",
+    "end": "2025-01-07T23:59:00Z"
+  },
+  "filters": [
+    { "type": "session_time", "params": { "session": "london", "tz": "UTC" } },
+    { "type": "day_of_week", "params": { "allowed_days": [1, 2, 3, 4] } },
+    { "type": "day_of_month", "params": { "mode": "last", "n": 2 } },
+    { "type": "month_of_year", "params": { "blocked_months": [8, 12] } },
+    { "type": "intraday_time", "params": { "start": "09:00", "end": "12:00", "tz": "UTC" } }
+  ]
+}

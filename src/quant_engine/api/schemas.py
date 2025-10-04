@@ -97,6 +97,11 @@ class FilterConditionSpec(BaseModel):
         "liquidity_sweep",
         "bos",
         "mss",
+        "session_time",
+        "day_of_week",
+        "day_of_month",
+        "month_of_year",
+        "intraday_time",
     ]
     params: Dict[str, Any] = Field(default_factory=dict)
 

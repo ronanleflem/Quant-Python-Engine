@@ -60,6 +60,35 @@ Ces filtres exploitent des indicateurs de tendance ou de volatilité calculés d
 - **Retour** : `True` sur la barre qui casse.  
 
 ### `mss`
-- **Idée** : “flip” de structure : cassure dans un sens, puis cassure opposée dans `window` barres.  
-- **Paramètres** : `left`, `right`, `window`, `use_levels`, `symbol`.  
-- **Retour** : `True` sur la barre qui réalise la deuxième cassure.  
+- **Idée** : “flip” de structure : cassure dans un sens, puis cassure opposée dans `window` barres.
+- **Paramètres** : `left`, `right`, `window`, `use_levels`, `symbol`.
+- **Retour** : `True` sur la barre qui réalise la deuxième cassure.
+
+## Seasonality & Time filters
+
+### `session_time`
+- **Sessions pré-définies (UTC)** :
+  - Asia : 23:00–07:00
+  - London : 07:00–15:00
+  - NewYork : 13:00–21:00
+- **Paramètres** : `session` (`"asia"`, `"london"`, `"newyork"`), `tz` (timezone de référence).
+- **Retour** : `True` si la barre tombe dans la session choisie.
+
+### `day_of_week`
+- **Paramètres** : `allowed_days` (liste d'entiers 0–6) ou `blocked_days`.
+- **Retour** : `True` si le jour de semaine est autorisé.
+- **Exemple** : exclure lundi (0) et vendredi (4) → `blocked_days=[0,4]`.
+
+### `day_of_month`
+- **Paramètres** : `mode="first"|"last"`, `n` (entier > 0).
+- **Retour** : `True` si la barre se situe dans les `n` premiers ou derniers jours du mois.
+
+### `month_of_year`
+- **Paramètres** : `allowed_months` ou `blocked_months` (1–12).
+- **Retour** : `True` si le mois est autorisé (ou non bloqué).
+- **Exemple** : éviter août (8) et décembre (12) → `blocked_months=[8,12]`.
+
+### `intraday_time`
+- **Paramètres** : `start`, `end` (format `"HH:MM"`), `tz`.
+- **Retour** : `True` si la barre tombe dans la fenêtre `[start, end)`.
+- **Exemple** : ne garder que 09:00–12:00 UTC.

@@ -4,6 +4,13 @@ from __future__ import annotations
 from .volatility_trend import adx_filter, atr_filter, ema_slope_filter
 from .volume_profile import volume_surge_filter, vwap_side_filter, poc_distance_filter
 from .structure_ict import liquidity_sweep_filter, bos_filter, mss_filter
+from .time_seasonality import (
+    session_time_filter,
+    day_of_week_filter,
+    day_of_month_filter,
+    month_of_year_filter,
+    intraday_time_filter,
+)
 
 __all__ = [
     "adx_filter",
@@ -15,6 +22,11 @@ __all__ = [
     "liquidity_sweep_filter",
     "bos_filter",
     "mss_filter",
+    "session_time_filter",
+    "day_of_week_filter",
+    "day_of_month_filter",
+    "month_of_year_filter",
+    "intraday_time_filter",
     "filters_registry",
     "list_filter_types",
 ]
@@ -29,6 +41,11 @@ filters_registry = {
     "liquidity_sweep": liquidity_sweep_filter,
     "bos": bos_filter,
     "mss": mss_filter,
+    "session_time": session_time_filter,
+    "day_of_week": day_of_week_filter,
+    "day_of_month": day_of_month_filter,
+    "month_of_year": month_of_year_filter,
+    "intraday_time": intraday_time_filter,
 }
 
 
