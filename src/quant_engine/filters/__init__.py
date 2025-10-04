@@ -11,6 +11,12 @@ from .time_seasonality import (
     month_of_year_filter,
     intraday_time_filter,
 )
+from .stat_prob import (
+    k_consecutive_filter,
+    seasonality_bin_filter,
+    hurst_regime_filter,
+    entropy_window_filter,
+)
 
 __all__ = [
     "adx_filter",
@@ -27,6 +33,10 @@ __all__ = [
     "day_of_month_filter",
     "month_of_year_filter",
     "intraday_time_filter",
+    "k_consecutive_filter",
+    "seasonality_bin_filter",
+    "hurst_regime_filter",
+    "entropy_window_filter",
     "filters_registry",
     "list_filter_types",
 ]
@@ -46,6 +56,10 @@ filters_registry = {
     "day_of_month": day_of_month_filter,
     "month_of_year": month_of_year_filter,
     "intraday_time": intraday_time_filter,
+    "k_consecutive": k_consecutive_filter,
+    "seasonality_bin": seasonality_bin_filter,
+    "hurst_regime": hurst_regime_filter,
+    "entropy_window": entropy_window_filter,
 }
 
 

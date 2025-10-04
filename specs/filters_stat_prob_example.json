@@ -1,0 +1,26 @@
+{
+  "data": {
+    "mysql": {
+      "env_var": "QE_MARKETDATA_MYSQL_URL",
+      "schema": "marketdata",
+      "table": "ohlcv_m1",
+      "symbol_col": "symbol",
+      "ts_col": "ts_utc",
+      "open_col": "open",
+      "high_col": "high",
+      "low_col": "low",
+      "close_col": "close",
+      "volume_col": "volume"
+    },
+    "symbols": ["EURUSD"],
+    "timeframe": "M1",
+    "start": "2025-01-01T00:00:00Z",
+    "end": "2025-01-07T23:59:00Z"
+  },
+  "filters": [
+    { "type": "k_consecutive", "params": { "k": 3, "direction": "up", "use_body": true } },
+    { "type": "seasonality_bin", "params": { "mode": "hour", "allowed": [8, 9, 10, 11] } },
+    { "type": "hurst_regime", "params": { "window": 256, "min_h": 0.55, "max_h": 0.9 } },
+    { "type": "entropy_window", "params": { "window": 64, "max_entropy": 0.85, "use_body": false } }
+  ]
+}

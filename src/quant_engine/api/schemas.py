@@ -102,6 +102,10 @@ class FilterConditionSpec(BaseModel):
         "day_of_month",
         "month_of_year",
         "intraday_time",
+        "k_consecutive",
+        "seasonality_bin",
+        "hurst_regime",
+        "entropy_window",
     ]
     params: Dict[str, Any] = Field(default_factory=dict)
 

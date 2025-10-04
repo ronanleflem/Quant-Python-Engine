@@ -88,6 +88,12 @@ poetry run quant-engine stats run --spec specs/filters_structure_ict_example.jso
 poetry run quant-engine stats run --spec specs/filters_time_seasonality_example.json
 ```
 
+### Statistical & Probabilistic
+
+```bash
+poetry run quant-engine stats run --spec specs/filters_stat_prob_example.json
+```
+
 ## Configuration `.env`
 Copier `.env.example` vers `.env` et ajuster :
 ```env

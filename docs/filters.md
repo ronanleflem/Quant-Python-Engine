@@ -92,3 +92,26 @@ Ces filtres exploitent des indicateurs de tendance ou de volatilité calculés d
 - **Paramètres** : `start`, `end` (format `"HH:MM"`), `tz`.
 - **Retour** : `True` si la barre tombe dans la fenêtre `[start, end)`.
 - **Exemple** : ne garder que 09:00–12:00 UTC.
+
+## Statistical & Probabilistic filters
+
+### `k_consecutive`
+- **Idée** : éviter d’entrer après trop de bougies alignées, ou au contraire détecter une séquence momentum.
+- **Paramètres** : `k`, `direction` (`"up"`/`"down"`), `use_body`.
+- **Retour** : `True` si la fenêtre courante présente `k` bougies successives dans la direction souhaitée.
+
+### `seasonality_bin`
+- **Idée** : n’activer que certains bins temporels.
+- **Modes** : `hour` (0–23), `dow` (0–6), `dom` (1–31), `month` (1–12), `session` (0–3).
+- **Paramètres** : `allowed` / `blocked` ou `min_winrate` (+ `symbol`) pour utiliser `quant.seasonality_profiles`.
+- **Retour** : `True` si la barre est dans un bin “positif”.
+
+### `hurst_regime`
+- **Idée** : filtrer par régime (trend/mean-revert/noise).
+- **Paramètres** : `window`, `min_h`, `max_h`.
+- **Retour** : `True` si `H` appartient à l’intervalle `[min_h, max_h]`.
+
+### `entropy_window`
+- **Idée** : mesurer la “randomness” directionnelle locale.
+- **Paramètres** : `window`, `max_entropy` et/ou `min_entropy`, `use_body`.
+- **Retour** : `True` si l’entropie respecte le(s) seuil(s).
