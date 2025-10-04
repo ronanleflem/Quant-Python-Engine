@@ -38,3 +38,28 @@ Ces filtres exploitent des indicateurs de tendance ou de volatilité calculés d
 - **Paramètres** : `max_distance` (float), `unit` = `"abs"` \| `"pct"`, `symbol`, `level_type="POC"`.
 - **Retour** : `True` si la distance au **POC actif** le plus proche ≤ seuil.
 - **Notes** : nécessite des **POC** en DB (`marketdata.levels`). Sans POC: renvoie `False`.
+
+## Structure & ICT filters
+
+### `liquidity_sweep`
+- **Idée** : mèche qui “prend” la liquidité d’un extrême récent (EQH/EQL local).  
+- **Paramètres** :  
+  - `side` = `"high"` \| `"low"`  
+  - `lookback` (barres)  
+  - `require_close_back_in` (bool, par défaut True)  
+  - `tolerance_ticks`, `price_increment` (pour marge)  
+- **Retour** : `True` quand la barre réalise un sweep (prise + close-back-in si demandé).  
+- **Source** : pure OHLC (pas besoin de DB).
+
+### `bos`
+- **Idée** : cassure du dernier swing high/low → Break Of Structure.  
+- **Paramètres** :  
+  - `direction` = `"up"` \| `"down"`  
+  - `left`, `right` (fractals)  
+  - `use_levels` (True par défaut) + `symbol` → si SWING_H/L présents en DB, les utiliser ; sinon fallback fractals.  
+- **Retour** : `True` sur la barre qui casse.  
+
+### `mss`
+- **Idée** : “flip” de structure : cassure dans un sens, puis cassure opposée dans `window` barres.  
+- **Paramètres** : `left`, `right`, `window`, `use_levels`, `symbol`.  
+- **Retour** : `True` sur la barre qui réalise la deuxième cassure.  

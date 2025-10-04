@@ -94,6 +94,9 @@ class FilterConditionSpec(BaseModel):
         "volume_surge",
         "vwap_side",
         "poc_distance",
+        "liquidity_sweep",
+        "bos",
+        "mss",
     ]
     params: Dict[str, Any] = Field(default_factory=dict)
 
