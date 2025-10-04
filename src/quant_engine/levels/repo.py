@@ -29,9 +29,9 @@ def get_engine(url: str | None = None) -> Engine:
 
 
 def ensure_table(engine: Engine, table_fqn: str) -> None:
-    """Create the levels table if it does not already exist."""
+    """Create the levels table and supporting structures if missing."""
 
-    ddl = f"""
+    create_table = f"""
     CREATE TABLE IF NOT EXISTS {table_fqn} (
       id BIGINT AUTO_INCREMENT PRIMARY KEY,
       symbol VARCHAR(64) NOT NULL,
@@ -45,16 +45,38 @@ def ensure_table(engine: Engine, table_fqn: str) -> None:
       valid_to_ts DATETIME(6) NULL,
       params_hash VARCHAR(64) NULL,
       source VARCHAR(64) NOT NULL,
-      uniq_hash CHAR(64) NOT NULL,
+      uniq_hash VARCHAR(64) NULL,
       created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-      updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
-      UNIQUE KEY uq_levels_hash (uniq_hash),
-      INDEX idx_lvl_sym_type_anchor (symbol, level_type, anchor_ts),
-      INDEX idx_lvl_sym_valid (symbol, valid_from_ts, valid_to_ts)
+      updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)
     ) ENGINE=InnoDB;
     """
+    add_column = (
+        f"ALTER TABLE {table_fqn} ADD COLUMN IF NOT EXISTS uniq_hash VARCHAR(64) NULL"
+    )
+    create_indexes = [
+        f"CREATE UNIQUE INDEX IF NOT EXISTS ux_levels_uniq_hash ON {table_fqn}(uniq_hash)",
+        f"CREATE INDEX IF NOT EXISTS idx_levels_sym_type_anchor ON {table_fqn}(symbol, level_type, anchor_ts)",
+        f"CREATE INDEX IF NOT EXISTS idx_levels_sym_valid ON {table_fqn}(symbol, valid_from_ts, valid_to_ts)",
+    ]
+    create_views = [
+        f"""
+        CREATE VIEW IF NOT EXISTS marketdata.view_levels_active_points AS
+        SELECT * FROM {table_fqn}
+        WHERE valid_to_ts IS NULL AND price IS NOT NULL
+        """.strip(),
+        f"""
+        CREATE VIEW IF NOT EXISTS marketdata.view_levels_active_zones AS
+        SELECT * FROM {table_fqn}
+        WHERE valid_to_ts IS NULL AND price_lo IS NOT NULL AND price_hi IS NOT NULL
+        """.strip(),
+    ]
     with engine.begin() as conn:
-        conn.execute(text(ddl))
+        conn.execute(text(create_table))
+        conn.execute(text(add_column))
+        for ddl in create_indexes:
+            conn.execute(text(ddl))
+        for ddl in create_views:
+            conn.execute(text(ddl))
 
 
 def _normalise_ts(value: datetime | None) -> datetime | None:
@@ -73,13 +95,61 @@ def _ensure_datetime(value: datetime | pd.Timestamp | None) -> datetime | None:
     return value
 
 
-def _build_row(record: LevelRecord) -> dict:
-    uniq_payload = f"{record.symbol}|{record.timeframe}|{record.level_type}|{record.anchor_ts.isoformat()}|"
-    uniq_payload += "|".join(
-        str(x if x is not None else "")
-        for x in (record.price, record.price_lo, record.price_hi, record.params_hash)
+def _format_float(value: Optional[float]) -> str:
+    if value is None:
+        return ""
+    rounded = round(float(value), 10)
+    return str(rounded)
+
+
+def _compute_uniq_hash(
+    symbol: str,
+    level_type: str,
+    timeframe: str,
+    price: Optional[float],
+    price_lo: Optional[float],
+    price_hi: Optional[float],
+    anchor_ts: datetime,
+    valid_from_ts: Optional[datetime],
+    params_hash: Optional[str],
+) -> str:
+    anchor_norm = _normalise_ts(anchor_ts)
+    if anchor_norm is None:
+        raise ValueError("anchor_ts is required to compute uniq_hash")
+    valid_from_norm = _normalise_ts(valid_from_ts) if valid_from_ts else None
+    key_str = "|".join(
+        [
+            symbol or "",
+            level_type or "",
+            timeframe or "",
+            _format_float(price),
+            _format_float(price_lo),
+            _format_float(price_hi),
+            anchor_norm.isoformat(),
+            valid_from_norm.isoformat() if valid_from_norm else "",
+            params_hash or "",
+        ]
     )
-    uniq_hash = sha256(uniq_payload.encode()).hexdigest()
+    return sha256(key_str.encode()).hexdigest()
+
+
+def _build_row(record: LevelRecord) -> dict:
+    anchor_ts = _normalise_ts(record.anchor_ts)
+    if anchor_ts is None:
+        raise ValueError("anchor_ts is required on LevelRecord")
+    valid_from_ts = _normalise_ts(record.valid_from_ts)
+    valid_to_ts = _normalise_ts(record.valid_to_ts)
+    uniq_hash = _compute_uniq_hash(
+        record.symbol,
+        record.level_type,
+        record.timeframe,
+        record.price,
+        record.price_lo,
+        record.price_hi,
+        anchor_ts,
+        valid_from_ts,
+        record.params_hash,
+    )
     return {
         "symbol": record.symbol,
         "timeframe": record.timeframe,
@@ -87,9 +157,9 @@ def _build_row(record: LevelRecord) -> dict:
         "price": record.price,
         "price_lo": record.price_lo,
         "price_hi": record.price_hi,
-        "anchor_ts": _normalise_ts(record.anchor_ts),
-        "valid_from_ts": _normalise_ts(record.valid_from_ts),
-        "valid_to_ts": _normalise_ts(record.valid_to_ts),
+        "anchor_ts": anchor_ts,
+        "valid_from_ts": valid_from_ts,
+        "valid_to_ts": valid_to_ts,
         "params_hash": record.params_hash,
         "source": record.source,
         "uniq_hash": uniq_hash,
@@ -119,12 +189,11 @@ def upsert_levels(engine: Engine, table_fqn: str, records: List[LevelRecord]) ->
             (:symbol, :timeframe, :level_type, :price, :price_lo, :price_hi,
              :anchor_ts, :valid_from_ts, :valid_to_ts, :params_hash, :source, :uniq_hash)
         ON DUPLICATE KEY UPDATE
-             timeframe = VALUES(timeframe),
+             updated_at = CURRENT_TIMESTAMP(6),
              price = VALUES(price),
              price_lo = VALUES(price_lo),
              price_hi = VALUES(price_hi),
-             valid_from_ts = VALUES(valid_from_ts),
-             valid_to_ts = VALUES(valid_to_ts),
+             valid_to_ts = COALESCE(VALUES(valid_to_ts), {table_fqn}.valid_to_ts),
              params_hash = VALUES(params_hash),
              source = VALUES(source)
         """
@@ -154,13 +223,22 @@ def _compute_row_hash(row: dict) -> str:
     anchor_ts = _ensure_datetime(row.get("anchor_ts"))
     if anchor_ts is None:
         raise ValueError("anchor_ts is required to compute uniq_hash")
-    anchor_norm = _normalise_ts(anchor_ts)
-    payload = f"{symbol}|{timeframe}|{level_type}|{anchor_norm.isoformat()}|"
-    payload += "|".join(
-        str(x if x is not None else "")
-        for x in (row.get("price"), row.get("price_lo"), row.get("price_hi"), row.get("params_hash"))
+    valid_from_ts = _ensure_datetime(row.get("valid_from_ts"))
+    price = row.get("price")
+    price_lo = row.get("price_lo")
+    price_hi = row.get("price_hi")
+    params_hash = row.get("params_hash")
+    return _compute_uniq_hash(
+        symbol or "",
+        level_type or "",
+        timeframe or "",
+        None if pd.isna(price) else price,
+        None if pd.isna(price_lo) else price_lo,
+        None if pd.isna(price_hi) else price_hi,
+        anchor_ts,
+        valid_from_ts,
+        params_hash,
     )
-    return sha256(payload.encode()).hexdigest()
 
 
 def _parse_optional_ts(value: Optional[str | datetime | pd.Timestamp]) -> Optional[datetime]:
