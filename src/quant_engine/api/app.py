@@ -27,6 +27,7 @@ from ..stats import conditions as stats_conditions
 from ..stats.estimators import freq_with_wilson
 from ..seasonality import runner as seasonality_runner
 from ..seasonality.optimize import run_optimization as seasonality_run_optimization
+from ..filters import list_filter_types
 from . import schemas
 
 _jobs: Dict[str, Dict[str, Any]] = {}
@@ -89,6 +90,12 @@ def stats_condition_types() -> List[str]:
     """Return the list of supported condition factory names."""
 
     return stats_conditions.list_condition_types()
+
+
+def filters_list() -> List[str]:
+    """Return the list of supported filter identifiers."""
+
+    return list_filter_types()
 
 
 # ---------------------------------------------------------------------------
@@ -810,6 +817,13 @@ def stats_conditions_endpoint() -> List[str]:
     """Return the list of supported condition factories."""
 
     return stats_condition_types()
+
+
+@fastapi_app.get('/filters/list', response_model=List[str])
+def filters_list_endpoint() -> List[str]:
+    """Return the list of available filters."""
+
+    return filters_list()
 
 
 @fastapi_app.post('/stats/run', response_model=schemas.StatusResponse)

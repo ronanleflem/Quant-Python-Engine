@@ -1,0 +1,22 @@
+{
+  "data": {
+    "symbols": ["EURUSD"],
+    "start": "2024-01-01T00:00:00Z",
+    "end": "2024-01-07T00:00:00Z",
+    "dataset_path": "specs/examples/data/eurusd_m1_sample.json"
+  },
+  "filters": [
+    {
+      "type": "adx",
+      "params": {"window": 14, "thresh": 20}
+    },
+    {
+      "type": "atr",
+      "params": {"window": 14, "min_mult": 0.5, "max_mult": 2.0}
+    },
+    {
+      "type": "ema_slope",
+      "params": {"window": 50, "slope_thresh": 0.0001}
+    }
+  ]
+}
