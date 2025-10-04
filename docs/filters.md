@@ -2,13 +2,24 @@
 
 This document provides a concise reference for the pre-trade filters available in the Quant Engine.
 
-## Core volatility & trend filters
+## Trend & Volatility filters
 
-These filters rely on volatility or trend metrics computed directly from the OHLCV stream. Refer to the individual function docstrings for the latest parameter details.
+Ces filtres exploitent des indicateurs de tendance ou de volatilité calculés directement à partir du flux OHLCV.
 
-- `adx`
-- `atr`
-- `ema_slope`
+### `adx`
+- **Paramètres** : `window` (int), `thresh` (float).
+- **Retour** : `True` si `ADX(window) > thresh`.
+- **Utilité** : confirme qu'une tendance est suffisamment forte pour éviter les phases de range.
+
+### `atr`
+- **Paramètres** : `window` (int), `min_mult` (float), `max_mult` (float).
+- **Retour** : `True` si `ATR(window) / close` appartient à l'intervalle `[min_mult, max_mult]`.
+- **Utilité** : filtre les marchés trop calmes ou, à l'inverse, trop explosifs.
+
+### `ema_slope`
+- **Paramètres** : `window` (int), `slope_thresh` (float).
+- **Retour** : `True` si la pente de `EMA(window)` est `> slope_thresh` (tendance haussière) ou `< -slope_thresh` (tendance baissière).
+- **Utilité** : valide que la tendance présente une pente marquée plutôt qu'une moyenne mobile plate.
 
 ## Volume & Market Profile filters
 

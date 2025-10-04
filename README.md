@@ -66,6 +66,16 @@ poetry run uvicorn quant_engine.api.app:app --reload --app-dir src
   poetry run quant-engine runs show RUN_ID
   ```
 
+## Exemples de filtres
+
+### Volatilité & tendance
+
+```bash
+poetry run quant-engine stats run --spec specs/filters_volatility_trend_example.json
+```
+
+> Consulte la [référence des filtres](docs/filters.md) pour le détail des paramètres ADX/ATR/EMA slope et des autres filtres disponibles.
+
 ## Configuration `.env`
 Copier `.env.example` vers `.env` et ajuster :
 ```env

@@ -25,6 +25,16 @@ Les commandes Typer sont exposées sous l'alias `qe` :
 poetry run qe --help
 ```
 
+## Essayer les filtres Volatilité/Tendance
+
+Un exemple prêt à l'emploi est fourni dans `specs/filters_volatility_trend_example.json`.
+
+```bash
+poetry run qe stats run --spec specs/filters_volatility_trend_example.json
+```
+
+Ce scénario combine `adx`, `atr` et `ema_slope` pour illustrer les filtres de tendance et de volatilité.
+
 ## Essayer les filtres Volume/Profile
 
 Les filtres pré-trade peuvent être évalués dans les workflows de statistiques. Un exemple complet est fourni dans `specs/filters_volume_profile_example.json`.
