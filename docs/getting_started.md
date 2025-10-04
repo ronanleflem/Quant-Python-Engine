@@ -64,3 +64,13 @@ poetry run qe YOUR_COMMAND --spec specs/filters_time_seasonality_example.json
 ```
 
 Comme pour les autres exemples, remplace `YOUR_COMMAND` par la commande souhaitée (`stats run`, etc.).
+
+## Essayer les filtres Statistiques/Probabilistes
+
+Un exemple combinant les filtres de cette famille est fourni dans `specs/filters_stat_prob_example.json`.
+
+```bash
+poetry run qe YOUR_COMMAND --spec specs/filters_stat_prob_example.json
+```
+
+Adapte `YOUR_COMMAND` au workflow visé (par exemple `stats run`).
