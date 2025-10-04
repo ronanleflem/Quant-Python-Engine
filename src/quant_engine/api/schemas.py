@@ -106,6 +106,11 @@ class FilterConditionSpec(BaseModel):
         "seasonality_bin",
         "hurst_regime",
         "entropy_window",
+        "daily_loss_cap",
+        "daily_trades_cap",
+        "cooldown_bars",
+        "atr_risk_gate",
+        "equity_dd_lockout",
     ]
     params: Dict[str, Any] = Field(default_factory=dict)
 

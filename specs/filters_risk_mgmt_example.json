@@ -1,0 +1,27 @@
+{
+  "data": {
+    "mysql": {
+      "env_var": "QE_MARKETDATA_MYSQL_URL",
+      "schema": "marketdata",
+      "table": "ohlcv_m1",
+      "symbol_col": "symbol",
+      "ts_col": "ts_utc",
+      "open_col": "open",
+      "high_col": "high",
+      "low_col": "low",
+      "close_col": "close",
+      "volume_col": "volume"
+    },
+    "symbols": ["EURUSD"],
+    "timeframe": "M1",
+    "start": "2025-01-01T00:00:00Z",
+    "end": "2025-01-07T23:59:00Z"
+  },
+  "filters": [
+    { "type": "daily_loss_cap",   "params": { "loss_cap": 500.0, "mode": "pnl",    "pnl_col": "pnl" } },
+    { "type": "equity_dd_lockout","params": { "max_dd_pct": 0.15, "equity_col": "equity" } },
+    { "type": "atr_risk_gate",    "params": { "atr_window": 14, "max_atr_pct": 0.02 } },
+    { "type": "daily_trades_cap", "params": { "signal_col": "entry_signal", "max_trades_per_day": 3 } },
+    { "type": "cooldown_bars",    "params": { "signal_col": "entry_signal", "cooldown_bars": 20 } }
+  ]
+}

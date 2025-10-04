@@ -115,3 +115,33 @@ Ces filtres exploitent des indicateurs de tendance ou de volatilité calculés d
 - **Idée** : mesurer la “randomness” directionnelle locale.
 - **Paramètres** : `window`, `max_entropy` et/ou `min_entropy`, `use_body`.
 - **Retour** : `True` si l’entropie respecte le(s) seuil(s).
+
+## Risk & Money Management filters
+
+Ces filtres visent à plafonner les pertes, limiter le nombre d’entrées et adapter le risque aux conditions de marché.
+
+### `daily_loss_cap`
+- **Idée** : couper les signaux quand la perte journalière dépasse un plafond.
+- **Paramètres** : `loss_cap` (float, en devise), `mode` = `"pnl"` \| `"equity"` \| `"ret_notional"`, `pnl_col` / `equity_col` / `ret_col` (+ `notional`).
+- **Comportement** : renvoie `False` (lock) pour le reste de la journée dès que la perte cumulée ≤ `-loss_cap`.
+- **Tolérance** : si les colonnes requises sont absentes, le filtre renvoie `True` partout (no-op).
+
+### `daily_trades_cap`
+- **Idée** : limiter le nombre d’entrées par jour.
+- **Paramètres** : `signal_col` (bool), `max_trades_per_day` (int).
+- **Notes** : nécessite que `signal_col` existe déjà (par exemple le résultat d’un bloc de règles). Après avoir atteint la limite, le filtre reste `False` jusqu’à la fin de la journée.
+
+### `cooldown_bars`
+- **Idée** : imposer un cooldown après un signal.
+- **Paramètres** : `signal_col` (bool), `cooldown_bars` (int).
+- **Retour** : `True` uniquement si au moins `cooldown_bars` barres se sont écoulées depuis le dernier `True`.
+
+### `atr_risk_gate`
+- **Idée** : bloquer si la volatilité relative (ATR/close) est trop élevée.
+- **Paramètres** : `atr_window`, `max_atr_pct`.
+- **Utilité** : conserver un sizing cohérent et un ratio rendement/risque praticable. Si les colonnes OHLC sont absentes, le filtre devient un no-op (`True`).
+
+### `equity_dd_lockout`
+- **Idée** : lockout si le drawdown de l’equity dépasse un seuil.
+- **Paramètres** : `equity_col`, `max_dd_pct`.
+- **Notes** : nécessite une colonne equity ; sinon le filtre renvoie `True` (no-op).

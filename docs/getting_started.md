@@ -74,3 +74,13 @@ poetry run qe YOUR_COMMAND --spec specs/filters_stat_prob_example.json
 ```
 
 Adapte `YOUR_COMMAND` au workflow visé (par exemple `stats run`).
+
+## Essayer les filtres Risk & Money Management
+
+Les filtres de gestion du risque disposent d'un exemple complet dans `specs/filters_risk_mgmt_example.json`.
+
+```bash
+poetry run qe YOUR_COMMAND --spec specs/filters_risk_mgmt_example.json
+```
+
+Comme pour les autres scénarios, remplace `YOUR_COMMAND` par la commande correspondant à ton pipeline (`stats run`, backtest, etc.).

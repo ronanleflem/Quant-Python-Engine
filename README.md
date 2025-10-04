@@ -94,6 +94,12 @@ poetry run quant-engine stats run --spec specs/filters_time_seasonality_example.
 poetry run quant-engine stats run --spec specs/filters_stat_prob_example.json
 ```
 
+### Risk & Money Management
+
+```bash
+poetry run quant-engine stats run --spec specs/filters_risk_mgmt_example.json
+```
+
 ## Configuration `.env`
 Copier `.env.example` vers `.env` et ajuster :
 ```env
