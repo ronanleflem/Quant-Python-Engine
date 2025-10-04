@@ -17,6 +17,13 @@ from .stat_prob import (
     hurst_regime_filter,
     entropy_window_filter,
 )
+from .risk_mgmt import (
+    daily_loss_cap_filter,
+    daily_trades_cap_filter,
+    cooldown_bars_filter,
+    atr_risk_gate_filter,
+    equity_dd_lockout_filter,
+)
 
 __all__ = [
     "adx_filter",
@@ -39,6 +46,11 @@ __all__ = [
     "entropy_window_filter",
     "filters_registry",
     "list_filter_types",
+    "daily_loss_cap_filter",
+    "daily_trades_cap_filter",
+    "cooldown_bars_filter",
+    "atr_risk_gate_filter",
+    "equity_dd_lockout_filter",
 ]
 
 filters_registry = {
@@ -60,6 +72,11 @@ filters_registry = {
     "seasonality_bin": seasonality_bin_filter,
     "hurst_regime": hurst_regime_filter,
     "entropy_window": entropy_window_filter,
+    "daily_loss_cap": daily_loss_cap_filter,
+    "daily_trades_cap": daily_trades_cap_filter,
+    "cooldown_bars": cooldown_bars_filter,
+    "atr_risk_gate": atr_risk_gate_filter,
+    "equity_dd_lockout": equity_dd_lockout_filter,
 }
 
 
