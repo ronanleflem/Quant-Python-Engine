@@ -83,6 +83,27 @@ Statistics conditions wrap these helpers via `in_zone_level`, `distance_to_level
 and `touched_level_since`, automatically loading persisted levels from
 `marketdata.levels`.
 
+## Idempotence & perf
+
+* Every row carries a deterministic `uniq_hash` (SHA-256) built from
+  `symbol`, `level_type`, `timeframe`, rounded prices, anchor timestamp,
+  optional `valid_from_ts` and the detector `params_hash`. The hash is
+  enforced via a unique index so repeated ingestions stay idempotent.
+* Additional b-tree indices on `(symbol, level_type, anchor_ts)` and
+  `(symbol, valid_from_ts, valid_to_ts)` keep the most common lookups quick for
+  scans, overlays and validity checks.
+* Two helper views expose only active rows (still-open points or zones) for
+  latency-sensitive consumers like the Java execution stack or the Angular UI.
+
+Example query for open zones:
+
+```sql
+SELECT *
+FROM marketdata.view_levels_active_zones
+WHERE symbol = 'EURUSD'
+  AND level_type IN ('FVG', 'GAP_D');
+```
+
 ## Running detections
 
 ### CLI
