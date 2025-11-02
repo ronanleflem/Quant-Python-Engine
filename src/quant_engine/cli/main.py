@@ -21,10 +21,12 @@ runs_app = typer.Typer()
 stats_app = typer.Typer()
 seasonality_app = typer.Typer()
 levels_app = typer.Typer()
+live_app = typer.Typer()
 app.add_typer(runs_app, name="runs")
 app.add_typer(stats_app, name="stats")
 app.add_typer(seasonality_app, name="seasonality")
 app.add_typer(levels_app, name="levels")
+app.add_typer(live_app, name="live")
 
 
 class RunStatus(str, Enum):
@@ -442,6 +444,21 @@ def levels_build(
     spec_model = LevelsBuildSpec.model_validate_json(Path(spec).read_text())
     result = run_levels_build(spec_model)
     typer.echo(json.dumps(result, separators=(",", ":")))
+
+
+@live_app.command("run")
+def live_run(
+    spec: Path = typer.Option(..., "--spec", exists=True, file_okay=True, dir_okay=False)
+) -> None:
+    """Run a live trading specification locally."""
+
+    from ..api.schemas import LiveSpec
+    from ..live.runner import LiveRunner
+
+    payload = json.loads(Path(spec).read_text())
+    live_spec = LiveSpec.model_validate(payload)
+    runner = LiveRunner(live_spec)
+    runner.run_forever()
 
 
 if __name__ == "__main__":

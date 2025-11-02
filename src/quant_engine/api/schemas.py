@@ -200,6 +200,89 @@ class PersistenceSpec(BaseModel):
     dataset_id: str | None = None
 
 
+class LiveDataSpec(BaseModel):
+    """Specification of the live data feed for on-bar-close execution."""
+
+    model_config = ConfigDict(protected_namespaces=(), populate_by_name=True)
+
+    mysql_read_env: str = "QE_MARKETDATA_MYSQL_URL"
+    schema_: str = Field("marketdata", alias="schema")
+    table: str = "ohlcv"
+    symbol_col: str = "symbol"
+    ts_col: str = "ts"
+    open_col: str = "open"
+    high_col: str = "high"
+    low_col: str = "low"
+    close_col: str = "close"
+    volume_col: str = "volume"
+    symbols: List[str]
+    timeframe: str
+    warmup_bars: int = 300
+    poll_interval_sec: int = 5
+    timeframe_col: str | None = None
+
+    @property
+    def schema(self) -> str:
+        return self.schema_
+
+
+class LiveFilterSpec(BaseModel):
+    type: str
+    params: Dict[str, Any] = Field(default_factory=dict)
+
+
+class LiveRuleSpec(BaseModel):
+    type: str
+    params: Dict[str, Any] = Field(default_factory=dict)
+
+
+class LiveRiskGateSpec(BaseModel):
+    type: str
+    params: Dict[str, Any] = Field(default_factory=dict)
+
+
+class LiveTPSLMgmtSpec(BaseModel):
+    type: str
+    params: Dict[str, Any] = Field(default_factory=dict)
+
+
+class LiveStrategySpec(BaseModel):
+    strategy_id: str
+    filters: List[LiveFilterSpec] = Field(default_factory=list)
+    rules: List[LiveRuleSpec] = Field(default_factory=list)
+    risk_gates: List[LiveRiskGateSpec] = Field(default_factory=list)
+    tp_sl_mgmt: LiveTPSLMgmtSpec | None = None
+
+
+class LiveWriteDBSpec(BaseModel):
+    model_config = ConfigDict(protected_namespaces=(), populate_by_name=True)
+
+    mysql_write_env: str = "QE_WRITE_MYSQL_URL"
+    schema_: str = Field("quant", alias="schema")
+    table: str = "trades_live"
+
+    @property
+    def schema(self) -> str:
+        return self.schema_
+
+
+class LiveJavaEmitSpec(BaseModel):
+    enabled: bool = False
+    url_env: str = "QE_JAVA_LIVE_URL"
+    path: str = "/live/signal"
+
+
+class LiveDestinationsSpec(BaseModel):
+    write_db: LiveWriteDBSpec | None = None
+    emit_java: LiveJavaEmitSpec | None = None
+
+
+class LiveSpec(BaseModel):
+    data: LiveDataSpec
+    strategy: LiveStrategySpec
+    destinations: LiveDestinationsSpec | None = None
+
+
 class SeasonalityDataSpec(DataInputSpec):
     pass
 

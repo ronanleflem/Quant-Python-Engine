@@ -1,0 +1,42 @@
+{
+  "data": {
+    "mysql_read_env": "QE_MARKETDATA_MYSQL_URL",
+    "schema": "marketdata",
+    "table": "ohlcv_m1",
+    "symbol_col": "symbol",
+    "ts_col": "ts_utc",
+    "open_col": "open",
+    "high_col": "high",
+    "low_col": "low",
+    "close_col": "close",
+    "volume_col": "volume",
+    "symbols": ["EURUSD"],
+    "timeframe": "M1",
+    "warmup_bars": 300,
+    "poll_interval_sec": 5
+  },
+  "strategy": {
+    "strategy_id": "EMA_ADX_M1_v1",
+    "filters": [
+      { "type": "adx", "params": { "window": 14, "thresh": 20 } },
+      { "type": "atr", "params": { "window": 14, "min_mult": 0.0005, "max_mult": 0.02 } },
+      { "type": "ema_slope", "params": { "window": 50, "slope_thresh": 0.0 } },
+      { "type": "vwap_side", "params": { "anchor": "day", "side": "above", "from_levels": true, "symbol": "EURUSD" } }
+    ],
+    "rules": [
+      { "type": "cross_over", "params": { "fast_ema": 20, "slow_ema": 50, "side": "LONG" } }
+    ],
+    "risk_gates": [
+      { "type": "daily_loss_cap", "params": { "loss_cap": 300.0, "mode": "equity", "equity_col": "equity" } },
+      { "type": "equity_dd_lockout", "params": { "max_dd_pct": 0.15, "equity_col": "equity" } }
+    ],
+    "tp_sl_mgmt": {
+      "type": "fixed_rr",
+      "params": { "rr": 2.0, "sl_mode": "atr", "atr_window": 14, "atr_mult": 1.5 }
+    }
+  },
+  "destinations": {
+    "write_db": { "mysql_write_env": "QE_WRITE_MYSQL_URL", "schema": "quant", "table": "trades_live" },
+    "emit_java": { "enabled": true, "url_env": "QE_JAVA_LIVE_URL", "path": "/live/signal" }
+  }
+}
