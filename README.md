@@ -42,6 +42,7 @@ export $(grep -v '^#' .env | xargs)
 - [Getting started](docs/getting_started.md)
 - [Filtres pré-trade](docs/filters.md)
 - [Seasonality – Dimensions & Métriques](docs/seasonality_reference.md)
+- [Live Trading Runner](docs/live.md)
 
 ## Lancer l'API
 ```bash
