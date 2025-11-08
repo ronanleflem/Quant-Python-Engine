@@ -13,7 +13,14 @@ from sqlalchemy import create_engine
 
 from ..api.schemas import LiveSpec
 from ..filters import filters_registry
-from .emitter import build_trade, emit_to_java, ensure_trades_live_table, write_trade
+from .emitter import (
+    TradePayload,
+    build_trade,
+    emit_to_java,
+    ensure_trades_live_table,
+    write_trade,
+)
+from ..notify.telegram_notify import send_telegram_message
 from .feed import FeedColumns, MySQLPollFeed
 from .state import LiveState
 
@@ -324,6 +331,7 @@ class LiveRunner:
                 emit_to_java(payload, url_env=self.emit_java_env, path=self.emit_java_path)
             except Exception as exc:  # pragma: no cover - network failure
                 LOGGER.warning("Java emission raised: %s", exc)
+        self._notify_telegram(state, trade)
         state.emitted_hashes.add(trade.uniq_hash)
         self._emitted += 1
         LOGGER.info(
@@ -333,6 +341,32 @@ class LiveRunner:
             ts.isoformat(),
             entry_price,
         )
+
+    def _notify_telegram(self, state: LiveState, trade: TradePayload) -> None:
+        """Send a Telegram alert for the emitted trade without blocking the main flow."""
+
+        try:
+            msg_lines = [
+                "🚨 *Signal de trading détecté*",
+                f"• Stratégie : `{trade.strategy_id}`",
+                f"• Symbole : `{state.symbol}`",
+                f"• Timeframe : `{state.timeframe}`",
+                f"• Direction : *{trade.side}*",
+                f"• Prix d'entrée : `{trade.entry_price}`",
+                f"• Timestamp : `{trade.ts_open}`",
+            ]
+            if trade.expected_rr is not None:
+                msg_lines.append(f"• RR attendu : `{trade.expected_rr}`")
+            if trade.signal_payload and "details" in trade.signal_payload:
+                details = trade.signal_payload["details"]
+                if isinstance(details, dict) and details:
+                    formatted = ", ".join(
+                        f"{key}={value}" for key, value in details.items()
+                    )
+                    msg_lines.append(f"• Détails : `{formatted}`")
+            send_telegram_message("\n".join(msg_lines))
+        except Exception as exc:  # pragma: no cover - defensive logging
+            LOGGER.error("Erreur lors de la préparation/envoi de l'alerte Telegram: %s", exc)
 
 
 __all__ = ["LiveRunner"]

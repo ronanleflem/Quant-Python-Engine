@@ -111,6 +111,18 @@ MLFLOW_TRACKING_URI=http://localhost:5000
 Pour les tests rapides, la persistance locale utilise SQLite (`.db/quant.db`). Configure les accès MySQL via `QE_MARKETDATA_MYSQL_URL` lorsque tu veux lire les OHLCV depuis ton instance Spring.
 
 
+## Activer les alertes Telegram
+Configure les variables d'environnement suivantes avant de lancer le runner live :
+
+```bash
+export ENABLE_TELEGRAM_ALERTS=true
+export TELEGRAM_BOT_TOKEN="123456789:ABCDEF..."
+export TELEGRAM_CHAT_ID="123456789"
+```
+
+Mets `ENABLE_TELEGRAM_ALERTS` à `false` (ou supprime la variable) pour désactiver les notifications. Si les variables sont absentes ou incomplètes, le moteur continue de fonctionner sans envoyer d'alerte et logue un avertissement.
+
+
 ## Docker Compose
 ```bash
 docker compose up -d
