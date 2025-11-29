@@ -1,0 +1,43 @@
+{
+  "strategy": {
+    "strategy_id": "DCA_EQUITY_DEMO",
+    "type": "dca_equity",
+    "params": {
+      "asset_class": "EQUITY",
+      "grid": [
+        {"dd": -10.0, "weight": 0.15},
+        {"dd": -20.0, "weight": 0.20},
+        {"dd": -30.0, "weight": 0.25},
+        {"dd": -40.0, "weight": 0.25},
+        {"dd": -50.0, "weight": 0.15}
+      ],
+      "tp_sl": {
+        "enabled": true,
+        "mode": "per_grid_max_dd",
+        "rules": [
+          {"max_dd_reached": -10.0, "tp_pct": 5.0},
+          {"max_dd_reached": -20.0, "tp_pct": 10.0},
+          {"max_dd_reached": -30.0, "tp_pct": 15.0, "be_pct": 10.0},
+          {"max_dd_reached": -40.0, "tp_pct": 20.0, "be_pct": 10.0},
+          {"max_dd_reached": -50.0, "tp_pct": 25.0, "be_pct": 10.0}
+        ]
+      }
+    }
+  },
+  "data": {
+    "start": "2020-01-01",
+    "end": "2023-12-31",
+    "timeframe": "1D",
+    "schema": "marketdata",
+    "table": "ohlcv",
+    "mysql_env": "QE_MARKETDATA_MYSQL_URL"
+  },
+  "universe": [
+    {"symbol": "AAPL", "asset_class": "EQUITY"},
+    {"symbol": "MSFT", "asset_class": "EQUITY"}
+  ],
+  "output": {
+    "path": "runs/dca_equity_backtest.json",
+    "format": "json"
+  }
+}

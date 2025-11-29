@@ -220,6 +220,7 @@ class LiveDataSpec(BaseModel):
     warmup_bars: int = 300
     poll_interval_sec: int = 5
     timeframe_col: str | None = None
+    scans: list[dict[str, Any]] = Field(default_factory=list)
 
     @property
     def schema(self) -> str:
@@ -246,12 +247,18 @@ class LiveTPSLMgmtSpec(BaseModel):
     params: Dict[str, Any] = Field(default_factory=dict)
 
 
+class StrategyImplSpec(BaseModel):
+    type: str
+    params: Dict[str, Any] = Field(default_factory=dict)
+
+
 class LiveStrategySpec(BaseModel):
     strategy_id: str
     filters: List[LiveFilterSpec] = Field(default_factory=list)
     rules: List[LiveRuleSpec] = Field(default_factory=list)
     risk_gates: List[LiveRiskGateSpec] = Field(default_factory=list)
     tp_sl_mgmt: LiveTPSLMgmtSpec | None = None
+    impl: StrategyImplSpec | None = None
 
 
 class LiveWriteDBSpec(BaseModel):

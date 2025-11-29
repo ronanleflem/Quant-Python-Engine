@@ -3,7 +3,7 @@ name = "quant-engine"
 version = "0.1.0"
 description = "Quantitative strategy optimization engine"
 authors = ["Your Name <you@example.com>"]
-package-mode = false
+packages = [{ include = "quant_engine", from = "src" }]
 
 [tool.poetry.dependencies]
 python = "^3.11"
@@ -15,13 +15,14 @@ optuna = "^3.5.0"
 mlflow = "^2.8.0"
 fastapi = "^0.109.0"
 pydantic = "^2.5"
-typer = "^0.9.0"
+typer = "^0.12.3"
 sqlalchemy = "^2.0"
 alembic = "^1.12"
 tenacity = "^8.2"
 pymysql = "^1.1"
 pydantic-settings = "^2.1"
 requests = "^2.31.0"
+click = ">=8.1.7,<8.2.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.0"
@@ -33,4 +34,7 @@ pre-commit = "^3.8.0"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+qe = "quant_engine.cli.main:app"
 

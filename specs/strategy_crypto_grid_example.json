@@ -1,0 +1,43 @@
+{
+  "strategy": {
+    "strategy_id": "CRYPTO_GRID_DEMO",
+    "type": "crypto_grid",
+    "params": {
+      "asset_class": "CRYPTO",
+      "grid": [
+        {"dd": -30.0, "action": "increase", "intensity": "small"},
+        {"dd": -45.0, "action": "increase", "intensity": "medium"},
+        {"dd": -60.0, "action": "increase", "intensity": "large"},
+        {"dd": -75.0, "action": "increase", "intensity": "aggressive"},
+        {"dd": -85.0, "action": "increase", "intensity": "final"}
+      ],
+      "tp_sl": {
+        "enabled": true,
+        "mode": "per_grid_max_dd",
+        "rules": [
+          {"max_dd_reached": -30.0, "tp_pct": 25.0},
+          {"max_dd_reached": -45.0, "tp_pct": 35.0},
+          {"max_dd_reached": -60.0, "tp_pct": 60.0, "be_pct": 20.0},
+          {"max_dd_reached": -75.0, "tp_pct": 80.0, "be_pct": 25.0},
+          {"max_dd_reached": -85.0, "tp_pct": 120.0, "be_pct": 30.0}
+        ]
+      }
+    }
+  },
+  "data": {
+    "start": "2018-01-01",
+    "end": "2023-12-31",
+    "timeframe": "1D",
+    "schema": "marketdata",
+    "table": "crypto_ohlcv",
+    "mysql_env": "QE_MARKETDATA_MYSQL_URL"
+  },
+  "universe": [
+    {"symbol": "BTCUSDT", "asset_class": "CRYPTO"},
+    {"symbol": "ETHUSDT", "asset_class": "CRYPTO"}
+  ],
+  "output": {
+    "path": "runs/crypto_grid_backtest.json",
+    "format": "json"
+  }
+}

@@ -9,6 +9,8 @@ Affichage Markdown :  Ctrl + Shift + V
 ## Installation
 ```bash 
 # Installer les dépendances nécessaires
+pip install poetry 
+
 sudo apt update
 sudo apt install -y make build-essential libssl-dev zlib1g-dev \
 libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm \
@@ -43,6 +45,7 @@ export $(grep -v '^#' .env | xargs)
 - [Filtres pré-trade](docs/filters.md)
 - [Seasonality – Dimensions & Métriques](docs/seasonality_reference.md)
 - [Live Trading Runner](docs/live.md)
+- [High-level Strategies](docs/strategies_overview.md)
 
 ## Lancer l'API
 ```bash
@@ -66,6 +69,18 @@ poetry run uvicorn quant_engine.api.app:app --reload --app-dir src
   ```bash
   poetry run quant-engine runs show RUN_ID
   ```
+
+### High-level Strategies
+
+- **Backtest**
+  ```bash
+  poetry run qe strategy backtest --spec specs/strategy_dca_equity_example.json
+  ```
+- **Live (avec implémentation)**
+  ```bash
+  poetry run qe live run --spec specs/live_example.json
+  ```
+  Assurez-vous que `specs/live_example.json` contient `"strategy": { "impl": { "type": "dca_equity", ... } }`.
 
 ## Exemples de filtres
 
