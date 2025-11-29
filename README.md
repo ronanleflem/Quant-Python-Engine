@@ -9,6 +9,8 @@ Affichage Markdown :  Ctrl + Shift + V
 ## Installation
 ```bash 
 # Installer les dépendances nécessaires
+pip install poetry 
+
 sudo apt update
 sudo apt install -y make build-essential libssl-dev zlib1g-dev \
 libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm \

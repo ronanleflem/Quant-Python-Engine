@@ -2,11 +2,35 @@
 from __future__ import annotations
 
 import os
-from typing import Any, Dict, List
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
 
 import requests
 
-BASE_URL = os.getenv("QE_JAVA_BASE_URL", "http://localhost:8080")
+BASE_URL = os.getenv("QE_JAVA_BASE_URL", "http://localhost:8090")
+
+
+def _normalize_instant(value: Optional[str]) -> Optional[str]:
+    """Ensure timestamps are valid ISO instants for the Java server."""
+
+    if value is None:
+        return None
+    text = value.strip()
+    if not text:
+        return None
+    candidate = text.replace("Z", "+00:00") if text.endswith("Z") else text
+    try:
+        parsed = datetime.fromisoformat(candidate)
+    except ValueError:
+        try:
+            parsed = datetime.strptime(text, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        except ValueError:
+            return text  # leave untouched if format is already custom
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    else:
+        parsed = parsed.astimezone(timezone.utc)
+    return parsed.isoformat().replace("+00:00", "Z")
 
 
 def get_scan(endpoint: str, params: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -28,16 +52,18 @@ def get_market_scan(scan_type: str, params: Dict[str, Any]) -> List[Dict[str, An
 
 
 def get_ohlc(
-    symbol: str, asset_class: str, start: str, end: str, timeframe: str
+    symbol: str, asset_class: Optional[str], start: Optional[str], end: Optional[str], timeframe: Optional[str]
 ) -> List[Dict[str, Any]]:
     """Fetch OHLC rows from the Java backend for a given instrument."""
 
     url = BASE_URL + "/api/market/ohlc"
+    start_iso = _normalize_instant(start)
+    end_iso = _normalize_instant(end)
     params = {
         "symbol": symbol,
         "assetClass": asset_class,
-        "start": start,
-        "end": end,
+        "start": start_iso,
+        "end": end_iso,
         "timeframe": timeframe,
     }
     resp = requests.get(url, params=params, timeout=10)

@@ -1,5 +1,4 @@
-"""Command line interface entry points."""
-from __future__ import annotations
+
 
 import json
 from enum import Enum
@@ -115,7 +114,9 @@ def stats_show(
     limit: int = typer.Option(20, "--limit"),
     method: str = typer.Option("freq", "--method", help="freq or bayes"),
     significant_only: bool = typer.Option(
-        False, "--significant-only/--no-significant-only"
+        False,
+        "--significant-only",
+        help="Afficher uniquement les stats significatives",
     ),
 ) -> None:
     """Fetch persisted stats from the HTTP API and display them."""
