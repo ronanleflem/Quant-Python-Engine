@@ -1,18 +1,22 @@
 """Live runner orchestrating feed, strategy evaluation and emission."""
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 import os
 import threading
 import time
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
 from sqlalchemy import create_engine
 
 from ..api.schemas import LiveSpec
 from ..filters import filters_registry
+from ..integrations import java_client
+from ..strategies import StrategySignal, create_strategy
 from .emitter import (
     TradePayload,
     build_trade,
@@ -73,6 +77,18 @@ class LiveRunner:
         self._states: Dict[str, LiveState] = {}
         self._stop = threading.Event()
         self._emitted = 0
+        self._strategy_impl = None
+        self._strategy_impl_type: Optional[str] = None
+        self._strategy_impl_params: Dict[str, Any] = {}
+        impl_spec = getattr(spec.strategy, "impl", None)
+        if impl_spec is not None:
+            self._strategy_impl = create_strategy(
+                impl_spec.type,
+                strategy_id=self.strategy_id,
+                params=impl_spec.params or {},
+            )
+            self._strategy_impl_type = impl_spec.type
+            self._strategy_impl_params = impl_spec.params or {}
         columns = FeedColumns(
             ts=spec.data.ts_col,
             open=spec.data.open_col,
@@ -82,7 +98,8 @@ class LiveRunner:
             volume=spec.data.volume_col,
             symbol=spec.data.symbol_col,
         )
-        for symbol in spec.data.symbols:
+        resolved_symbols = self._resolve_symbols(spec.data.symbols, spec.data.scans)
+        for symbol in resolved_symbols:
             feed = MySQLPollFeed(
                 engine=self.read_engine,
                 table=spec.data.table,
@@ -126,6 +143,9 @@ class LiveRunner:
             LOGGER.info("LiveRunner stopped")
 
     def _run_cycle(self) -> None:
+        if self._strategy_impl is not None:
+            self._run_cycle_strategy_impl()
+            return
         for symbol, feed in self._feeds.items():
             state = self._states[symbol]
             if not state.warm:
@@ -150,6 +170,187 @@ class LiveRunner:
             if decision is not None:
                 self._emit_signal(state, decision, latest)
             state.mark_processed(bar_ts)
+
+    def _run_cycle_strategy_impl(self) -> None:
+        positions = self._safe_get_positions()
+        grouped = self._group_positions_by_symbol(positions)
+        for symbol, feed in self._feeds.items():
+            state = self._states[symbol]
+            if not state.warm:
+                history = feed.bootstrap()
+                if history.empty:
+                    LOGGER.debug("Warm-up empty for %s", symbol)
+                    continue
+                state.append_history(history)
+                state.mark_processed(history["ts"].iloc[-1])
+                state.warm = True
+                LOGGER.info("Warm-up loaded %s bars for %s", len(history), symbol)
+                continue
+            last_ts = state.last_ts_seen
+            latest = feed.poll_last_bar(last_ts)
+            if latest.empty:
+                continue
+            bar_ts = latest["ts"].iloc[-1]
+            if not state.should_process(bar_ts):
+                continue
+            state.append_history(latest)
+            history = state.history.copy()
+            history["ts"] = pd.to_datetime(history["ts"], utc=True)
+            history_df = history.set_index("ts")
+            context = self._build_strategy_context(symbol, state, grouped)
+            try:
+                signals = self._strategy_impl.evaluate_live_bar(history_df, context)
+            except Exception as exc:  # pragma: no cover - defensive log
+                LOGGER.exception("Strategy evaluation failed for %s: %s", symbol, exc)
+                signals = []
+            if context.get("state") is not None:
+                state.strategy_ctx = context["state"]
+            if signals:
+                for seq, signal in enumerate(signals):
+                    self._emit_strategy_signal(state, signal, latest, seq)
+            state.mark_processed(bar_ts)
+
+    def _build_strategy_context(
+        self,
+        symbol: str,
+        state: LiveState,
+        grouped_positions: Dict[str, List[Dict[str, Any]]],
+    ) -> Dict[str, Any]:
+        asset_class = self._strategy_impl_params.get("asset_class")
+        if asset_class is None and self._strategy_impl is not None:
+            asset_class = getattr(self._strategy_impl, "asset_class", None)
+        if isinstance(asset_class, str):
+            asset_class_value: Any = asset_class.upper()
+        else:
+            asset_class_value = asset_class
+        context_state = state.strategy_ctx
+        if context_state is None:
+            context_state = {}
+            state.strategy_ctx = context_state
+        return {
+            "symbol": symbol,
+            "asset_class": asset_class_value or symbol,
+            "positions": grouped_positions.get(symbol, []),
+            "portfolio_positions": grouped_positions,
+            "timeframe": self.timeframe,
+            "macro": self._strategy_impl_params.get("macro_context"),
+            "state": context_state,
+            "tp_sl": self._strategy_impl_params.get("tp_sl"),
+            "grid": self._strategy_impl_params.get("grid"),
+        }
+
+    def _resolve_symbols(
+        self, static_symbols: List[str], scans: List[Dict[str, Any]]
+    ) -> List[str]:
+        symbols = list(static_symbols)
+        for scan_spec in scans or []:
+            scan_type = scan_spec.get("type")
+            params = scan_spec.get("params", {})
+            if not scan_type:
+                continue
+            try:
+                results = java_client.get_market_scan(scan_type, params)
+            except Exception as exc:  # pragma: no cover - network failure
+                LOGGER.warning("Scan %s failed: %s", scan_type, exc)
+                continue
+            for item in results:
+                symbol = item.get("symbol")
+                if symbol and symbol not in symbols:
+                    symbols.append(symbol)
+        return symbols
+
+    def _safe_get_positions(self) -> List[Dict[str, Any]]:
+        try:
+            return java_client.get_positions()
+        except Exception as exc:  # pragma: no cover - network failure
+            LOGGER.warning("Failed to fetch positions from Java backend: %s", exc)
+            return []
+
+    def _group_positions_by_symbol(
+        self, positions: List[Dict[str, Any]]
+    ) -> Dict[str, List[Dict[str, Any]]]:
+        grouped: Dict[str, List[Dict[str, Any]]] = {}
+        for position in positions:
+            symbol = position.get("symbol")
+            if not symbol:
+                continue
+            grouped.setdefault(symbol, []).append(position)
+        return grouped
+
+    def _emit_strategy_signal(
+        self,
+        state: LiveState,
+        signal: StrategySignal,
+        latest: pd.DataFrame,
+        sequence: int,
+    ) -> None:
+        if latest.empty:
+            return
+        ts = pd.Timestamp(signal.ts_open_utc)
+        if ts.tzinfo is None:
+            ts = ts.tz_localize("UTC")
+        else:
+            ts = ts.tz_convert("UTC")
+        close_col = self.spec.data.close_col
+        entry_price = float(latest[close_col].iloc[-1])
+        trade_side = "LONG" if signal.side.upper() == "BUY" else "SHORT"
+        payload = {
+            "source": "strategy_impl",
+            "strategy_type": self._strategy_impl_type,
+            "signal": {
+                "side": signal.side,
+                "asset_class": signal.asset_class,
+                "qty": signal.qty,
+                "meta": signal.meta,
+            },
+            "details": signal.meta,
+        }
+        trade = build_trade(
+            strategy_id=self.strategy_id,
+            symbol=state.symbol,
+            timeframe=state.timeframe,
+            ts_open=ts.isoformat(),
+            side=trade_side,
+            entry_price=entry_price,
+            sl=None,
+            tp=None,
+            expected_rr=None,
+            payload=payload,
+        )
+        trade.uniq_hash = self._compute_strategy_trade_hash(trade, signal, sequence)
+        if trade.uniq_hash in state.emitted_hashes:
+            LOGGER.debug("Duplicate strategy signal skipped for %s", state.symbol)
+            return
+        if self.write_engine is not None and self.write_table is not None:
+            try:
+                write_trade(self.write_engine, self.write_table, trade)
+            except Exception as exc:
+                LOGGER.exception("Failed to persist trade: %s", exc)
+        if self.emit_java_enabled:
+            payload = trade.as_dict()
+            payload.pop("uniq_hash", None)
+            try:
+                emit_to_java(payload, url_env=self.emit_java_env, path=self.emit_java_path)
+            except Exception as exc:  # pragma: no cover - network failure
+                LOGGER.warning("Java emission raised: %s", exc)
+        self._notify_telegram(state, trade)
+        state.emitted_hashes.add(trade.uniq_hash)
+        self._emitted += 1
+        LOGGER.info(
+            "Emitted strategy signal %s %s at %s (entry %.5f)",
+            signal.side,
+            state.symbol,
+            ts.isoformat(),
+            entry_price,
+        )
+
+    def _compute_strategy_trade_hash(
+        self, trade: TradePayload, signal: StrategySignal, sequence: int
+    ) -> str:
+        base_hash = trade.uniq_hash or ""
+        meta_repr = json.dumps(signal.meta, sort_keys=True, default=str)
+        payload = f"{base_hash}|{signal.side}|{sequence}|{meta_repr}"
+        return hashlib.sha256(payload.encode()).hexdigest()
 
     def _evaluate_symbol(self, state: LiveState) -> Optional[RuleResult]:
         df = state.history.copy()

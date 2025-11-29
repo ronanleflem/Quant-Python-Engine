@@ -22,11 +22,13 @@ stats_app = typer.Typer()
 seasonality_app = typer.Typer()
 levels_app = typer.Typer()
 live_app = typer.Typer()
+strategy_app = typer.Typer()
 app.add_typer(runs_app, name="runs")
 app.add_typer(stats_app, name="stats")
 app.add_typer(seasonality_app, name="seasonality")
 app.add_typer(levels_app, name="levels")
 app.add_typer(live_app, name="live")
+app.add_typer(strategy_app, name="strategy")
 
 
 class RunStatus(str, Enum):
@@ -459,6 +461,19 @@ def live_run(
     live_spec = LiveSpec.model_validate(payload)
     runner = LiveRunner(live_spec)
     runner.run_forever()
+
+
+@strategy_app.command("backtest")
+def strategy_backtest(
+    spec: Path = typer.Option(..., "--spec", exists=True, file_okay=True, dir_okay=False)
+) -> None:
+    """Run a strategy backtest based on a JSON specification."""
+
+    from ..strategies.runner import load_strategy_spec, run_backtest_from_spec
+
+    spec_dict = load_strategy_spec(spec)
+    result = run_backtest_from_spec(spec_dict)
+    typer.echo(json.dumps(result, separators=(",", ":")))
 
 
 if __name__ == "__main__":

@@ -19,6 +19,7 @@ class LiveState:
     warm: bool = False
     indicator_ctx: Dict[str, object] = field(default_factory=dict)
     position_state: Dict[str, object] = field(default_factory=dict)
+    strategy_ctx: Dict[str, object] = field(default_factory=dict)
     emitted_hashes: Set[str] = field(default_factory=set)
 
     def should_process(self, ts: pd.Timestamp) -> bool:

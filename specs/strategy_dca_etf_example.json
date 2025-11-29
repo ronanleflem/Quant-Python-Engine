@@ -1,0 +1,37 @@
+{
+  "strategy": {
+    "strategy_id": "DCA_ETF_DEMO",
+    "type": "dca_etf",
+    "params": {
+      "asset_class": "ETF",
+      "grid": [
+        {"dd": -5.0, "weight": 0.15},
+        {"dd": -10.0, "weight": 0.20},
+        {"dd": -15.0, "weight": 0.25},
+        {"dd": -20.0, "weight": 0.25},
+        {"dd": -30.0, "weight": 0.15}
+      ],
+      "activation_limit": {
+        "period_days": 30,
+        "max_signals": 2
+      },
+      "reset_on_new_high": true
+    }
+  },
+  "data": {
+    "start": "2015-01-01",
+    "end": "2023-12-31",
+    "timeframe": "1W",
+    "schema": "marketdata",
+    "table": "ohlcv",
+    "mysql_env": "QE_MARKETDATA_MYSQL_URL"
+  },
+  "universe": [
+    {"symbol": "SPY", "asset_class": "ETF"},
+    {"symbol": "VWCE", "asset_class": "ETF", "timeframe": "1W"}
+  ],
+  "output": {
+    "path": "runs/dca_etf_backtest.json",
+    "format": "json"
+  }
+}
