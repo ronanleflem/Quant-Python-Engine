@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 import requests
@@ -33,6 +33,18 @@ def _normalize_instant(value: Optional[str]) -> Optional[str]:
     return parsed.isoformat().replace("+00:00", "Z")
 
 
+def _parse_iso_instant(value: Optional[str]) -> Optional[datetime]:
+    """Parse an ISO instant string to datetime, returning None on failure."""
+
+    if not value:
+        return None
+    try:
+        candidate = value.replace("Z", "+00:00") if value.endswith("Z") else value
+        return datetime.fromisoformat(candidate)
+    except ValueError:
+        return None
+
+
 def get_scan(endpoint: str, params: Dict[str, Any]) -> List[Dict[str, Any]]:
     """Fetch a scan payload from the Java backend using ``GET``."""
 
@@ -59,13 +71,29 @@ def get_ohlc(
     url = BASE_URL + "/api/market/ohlc"
     start_iso = _normalize_instant(start)
     end_iso = _normalize_instant(end)
-    params = {
-        "symbol": symbol,
-        "assetClass": asset_class,
-        "start": start_iso,
-        "end": end_iso,
-        "timeframe": timeframe,
-    }
+    base_params = {"symbol": symbol, "assetClass": asset_class, "timeframe": timeframe}
+
+    # If both dates are present, chunk by 1-year windows to satisfy backend limits.
+    start_dt = _parse_iso_instant(start_iso)
+    end_dt = _parse_iso_instant(end_iso)
+    if start_dt and end_dt and end_dt > start_dt:
+        results: List[Dict[str, Any]] = []
+        current = start_dt
+        while current < end_dt:
+            chunk_end = min(current + timedelta(days=365), end_dt)
+            params = {
+                **base_params,
+                "start": current.isoformat().replace("+00:00", "Z"),
+                "end": chunk_end.isoformat().replace("+00:00", "Z"),
+            }
+            resp = requests.get(url, params=params, timeout=10)
+            resp.raise_for_status()
+            results.extend(resp.json())
+            current = chunk_end
+        return results
+
+    # Fallback single request when dates are missing or unparsable.
+    params = {**base_params, "start": start_iso, "end": end_iso}
     resp = requests.get(url, params=params, timeout=10)
     resp.raise_for_status()
     return resp.json()
