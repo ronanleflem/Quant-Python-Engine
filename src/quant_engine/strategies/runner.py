@@ -180,6 +180,8 @@ def _fetch_from_java(
         _request_ingestion_on_gap(symbol, asset, spec)
         return None
     df = pd.DataFrame(rows)
+    if "ts" not in df.columns and "time" in df.columns:
+        df = df.rename(columns={"time": "ts"})
     expected = {"ts", "open", "high", "low", "close"}
     if not expected.issubset(df.columns):
         raise ValueError("Java OHLC response missing required columns")
