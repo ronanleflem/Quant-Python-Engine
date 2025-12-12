@@ -2,8 +2,8 @@
   "strategy_id": "DCA_EQUITY_DEMO",
   "strategy_type": "dca_equity",
   "counts": {
-    "AAPL": 54,
-    "MSFT": 35
+    "AAPL": 9,
+    "MSFT": 6
   },
   "signals": {
     "AAPL": [
@@ -12,86 +12,47 @@
         "symbol": "AAPL",
         "asset_class": "EQUITY",
         "side": "BUY",
-        "ts_open_utc": "2020-02-25T00:00:00+00:00",
-        "qty": 0.0,
+        "ts_open_utc": "2020-03-12T00:00:00+00:00",
+        "qty": 0.2,
         "meta": {
-          "dd_pct": -11.955990220048907,
-          "drawdown_pct": -11.955990220048907,
-          "grid_level": -10.0,
-          "palier_used": 0.15,
+          "dd_pct": -24.1320293398533,
+          "drawdown_pct": -24.1320293398533,
+          "grid_level": -20.0,
+          "palier_used": 0.2,
           "grid_config": [
             {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
               "dd": -50.0,
-              "weight": 0.15
+              "weight": 0.2
             },
             {
               "dd": -40.0,
-              "weight": 0.25
+              "weight": 0.2
             },
             {
               "dd": -30.0,
-              "weight": 0.25
+              "weight": 0.2
             },
             {
               "dd": -20.0,
               "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
             }
           ],
           "cycle_id": 1,
-          "max_dd_reached": -11.955990220048907,
-          "tp_target": 5.0,
+          "max_dd_reached": -24.1320293398533,
+          "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
+          "tp_pct": 20.0,
           "be_pct": null,
           "tp_rule": {
-            "max_dd_reached": -10.0,
-            "tp_pct": 5.0
-          }
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "AAPL",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2020-03-02T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "max_dd_reached": -16.454767726161357,
-          "drawdown_pct": -16.454767726161357,
-          "cycle_id": 1,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 9.306409130816506
+            "max_dd_reached": -20.0,
+            "tp_pct": 20.0
+          },
+          "position_qty": 0.0,
+          "position_cost": 0.0
         }
       },
       {
@@ -99,209 +60,48 @@
         "symbol": "AAPL",
         "asset_class": "EQUITY",
         "side": "BUY",
-        "ts_open_utc": "2020-03-03T00:00:00+00:00",
-        "qty": 0.0,
+        "ts_open_utc": "2020-03-23T00:00:00+00:00",
+        "qty": 0.2,
         "meta": {
-          "dd_pct": -11.577017114914423,
-          "drawdown_pct": -11.577017114914423,
-          "grid_level": -10.0,
-          "palier_used": 0.15,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "cycle_id": 2,
-          "max_dd_reached": -11.577017114914423,
-          "tp_target": 5.0,
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "tp_rule": {
-            "max_dd_reached": -10.0,
-            "tp_pct": 5.0
-          }
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "AAPL",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2020-03-10T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "max_dd_reached": -18.655256723716374,
-          "drawdown_pct": -18.655256723716374,
-          "cycle_id": 2,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 7.198677487225713
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "AAPL",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2020-03-13T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 10.0,
-          "be_pct": null,
-          "max_dd_reached": -24.1320293398533,
-          "drawdown_pct": -24.1320293398533,
-          "cycle_id": 3,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 11.972284885594565
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "AAPL",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2020-03-26T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 15.0,
-          "be_pct": 10.0,
-          "max_dd_reached": -31.43031784841075,
+          "dd_pct": -31.43031784841075,
           "drawdown_pct": -31.43031784841075,
-          "cycle_id": 4,
+          "grid_level": -30.0,
+          "palier_used": 0.2,
           "grid_config": [
             {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
               "dd": -50.0,
-              "weight": 0.15
+              "weight": 0.2
             },
             {
               "dd": -40.0,
-              "weight": 0.25
+              "weight": 0.2
             },
             {
               "dd": -30.0,
-              "weight": 0.25
+              "weight": 0.2
             },
             {
               "dd": -20.0,
               "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
             }
           ],
-          "grid_level": null,
-          "rebound_pct": 15.189873417721511
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "AAPL",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2020-04-08T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
+          "cycle_id": 1,
+          "max_dd_reached": -31.43031784841075,
+          "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
-          "tp_pct": 10.0,
-          "be_pct": null,
-          "max_dd_reached": -26.36919315403423,
-          "drawdown_pct": -26.36919315403423,
-          "cycle_id": 5,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 10.4433006807239
+          "tp_pct": 20.0,
+          "be_pct": 10.0,
+          "tp_rule": {
+            "max_dd_reached": -30.0,
+            "tp_pct": 20.0,
+            "be_pct": 10.0
+          },
+          "position_qty": 0.2,
+          "position_cost": 12.412
         }
       },
       {
@@ -310,162 +110,42 @@
         "asset_class": "EQUITY",
         "side": "SELL",
         "ts_open_utc": "2020-04-14T00:00:00+00:00",
-        "qty": 0.0,
+        "qty": 0.4,
         "meta": {
           "action": "take_profit",
           "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "max_dd_reached": -18.092909535452318,
-          "drawdown_pct": -18.092909535452318,
-          "cycle_id": 6,
+          "tp_pct": 20.0,
+          "be_pct": 10.0,
+          "max_dd_reached": -31.43031784841075,
+          "drawdown_pct": -31.43031784841075,
+          "cycle_id": 1,
           "grid_config": [
             {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
               "dd": -50.0,
-              "weight": 0.15
+              "weight": 0.2
             },
             {
               "dd": -40.0,
-              "weight": 0.25
+              "weight": 0.2
             },
             {
               "dd": -30.0,
-              "weight": 0.25
+              "weight": 0.2
             },
             {
               "dd": -20.0,
               "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
             }
           ],
           "grid_level": null,
-          "rebound_pct": 7.1044776119403075
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "AAPL",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2020-04-24T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "max_dd_reached": -17.982885085574562,
-          "drawdown_pct": -17.982885085574562,
-          "cycle_id": 7,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 5.4404531226710295
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "AAPL",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2020-04-30T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "max_dd_reached": -14.865525672371637,
-          "drawdown_pct": -14.865525672371637,
-          "cycle_id": 8,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 5.470993681792069
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "AAPL",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2020-05-07T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "max_dd_reached": -11.650366748166263,
-          "drawdown_pct": -11.650366748166263,
-          "cycle_id": 9,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 5.078179050781784
+          "rebound_pct": null,
+          "avg_entry_price": 59.075,
+          "pnl_pct_at_exit": 21.472704189589507,
+          "break_even_reached": true
         }
       },
       {
@@ -473,45 +153,47 @@
         "symbol": "AAPL",
         "asset_class": "EQUITY",
         "side": "BUY",
-        "ts_open_utc": "2020-09-08T00:00:00+00:00",
-        "qty": 0.0,
+        "ts_open_utc": "2020-09-18T00:00:00+00:00",
+        "qty": 0.2,
         "meta": {
-          "dd_pct": -15.918914890445679,
-          "drawdown_pct": -15.918914890445679,
-          "grid_level": -10.0,
-          "palier_used": 0.15,
+          "dd_pct": -20.37561484572962,
+          "drawdown_pct": -20.37561484572962,
+          "grid_level": -20.0,
+          "palier_used": 0.2,
           "grid_config": [
             {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
               "dd": -50.0,
-              "weight": 0.15
+              "weight": 0.2
             },
             {
               "dd": -40.0,
-              "weight": 0.25
+              "weight": 0.2
             },
             {
               "dd": -30.0,
-              "weight": 0.25
+              "weight": 0.2
             },
             {
               "dd": -20.0,
               "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
             }
           ],
-          "cycle_id": 10,
-          "max_dd_reached": -15.918914890445679,
-          "tp_target": 5.0,
+          "cycle_id": 2,
+          "max_dd_reached": -20.37561484572962,
+          "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
+          "tp_pct": 20.0,
           "be_pct": null,
           "tp_rule": {
-            "max_dd_reached": -10.0,
-            "tp_pct": 5.0
-          }
+            "max_dd_reached": -20.0,
+            "tp_pct": 20.0
+          },
+          "position_qty": 0.0,
+          "position_cost": 0.0
         }
       },
       {
@@ -519,40 +201,43 @@
         "symbol": "AAPL",
         "asset_class": "EQUITY",
         "side": "SELL",
-        "ts_open_utc": "2020-10-12T00:00:00+00:00",
-        "qty": 0.0,
+        "ts_open_utc": "2020-12-17T00:00:00+00:00",
+        "qty": 0.2,
         "meta": {
           "action": "take_profit",
           "tp_mode": "per_grid_max_dd",
-          "tp_pct": 10.0,
+          "tp_pct": 20.0,
           "be_pct": null,
           "max_dd_reached": -20.37561484572962,
           "drawdown_pct": -20.37561484572962,
-          "cycle_id": 10,
+          "cycle_id": 2,
           "grid_config": [
             {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
               "dd": -50.0,
-              "weight": 0.15
+              "weight": 0.2
             },
             {
               "dd": -40.0,
-              "weight": 0.25
+              "weight": 0.2
             },
             {
               "dd": -30.0,
-              "weight": 0.25
+              "weight": 0.2
             },
             {
               "dd": -20.0,
               "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
             }
           ],
           "grid_level": null,
-          "rebound_pct": 16.435791838262826
+          "rebound_pct": null,
+          "avg_entry_price": 106.84,
+          "pnl_pct_at_exit": 20.460501684762257,
+          "break_even_reached": false
         }
       },
       {
@@ -560,45 +245,47 @@
         "symbol": "AAPL",
         "asset_class": "EQUITY",
         "side": "BUY",
-        "ts_open_utc": "2020-10-15T00:00:00+00:00",
-        "qty": 0.0,
+        "ts_open_utc": "2022-05-12T00:00:00+00:00",
+        "qty": 0.2,
         "meta": {
-          "dd_pct": -10.038753912654652,
-          "drawdown_pct": -10.038753912654652,
-          "grid_level": -10.0,
-          "palier_used": 0.15,
+          "dd_pct": -20.339740724184175,
+          "drawdown_pct": -20.339740724184175,
+          "grid_level": -20.0,
+          "palier_used": 0.2,
           "grid_config": [
             {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
               "dd": -50.0,
-              "weight": 0.15
+              "weight": 0.2
             },
             {
               "dd": -40.0,
-              "weight": 0.25
+              "weight": 0.2
             },
             {
               "dd": -30.0,
-              "weight": 0.25
+              "weight": 0.2
             },
             {
               "dd": -20.0,
               "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
             }
           ],
-          "cycle_id": 11,
-          "max_dd_reached": -10.038753912654652,
-          "tp_target": 5.0,
+          "cycle_id": 3,
+          "max_dd_reached": -20.339740724184175,
+          "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
+          "tp_pct": 20.0,
           "be_pct": null,
           "tp_rule": {
-            "max_dd_reached": -10.0,
-            "tp_pct": 5.0
-          }
+            "max_dd_reached": -20.0,
+            "tp_pct": 20.0
+          },
+          "position_qty": 0.0,
+          "position_cost": 0.0
         }
       },
       {
@@ -606,81 +293,43 @@
         "symbol": "AAPL",
         "asset_class": "EQUITY",
         "side": "SELL",
-        "ts_open_utc": "2020-11-04T00:00:00+00:00",
-        "qty": 0.0,
+        "ts_open_utc": "2022-08-12T00:00:00+00:00",
+        "qty": 0.2,
         "meta": {
           "action": "take_profit",
           "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
+          "tp_pct": 20.0,
           "be_pct": null,
-          "max_dd_reached": -18.937248472201528,
-          "drawdown_pct": -18.937248472201528,
-          "cycle_id": 11,
+          "max_dd_reached": -27.32454179704962,
+          "drawdown_pct": -27.32454179704962,
+          "cycle_id": 3,
           "grid_config": [
             {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
               "dd": -50.0,
-              "weight": 0.15
+              "weight": 0.2
             },
             {
               "dd": -40.0,
-              "weight": 0.25
+              "weight": 0.2
             },
             {
               "dd": -30.0,
-              "weight": 0.25
+              "weight": 0.2
             },
             {
               "dd": -20.0,
               "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
             }
           ],
           "grid_level": null,
-          "rebound_pct": 5.6817137078238655
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "AAPL",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2020-12-01T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "max_dd_reached": -15.151289312863325,
-          "drawdown_pct": -15.151289312863325,
-          "cycle_id": 12,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 7.790953008344315
+          "rebound_pct": null,
+          "avg_entry_price": 142.56,
+          "pnl_pct_at_exit": 20.72109988776656,
+          "break_even_reached": false
         }
       },
       {
@@ -688,1146 +337,47 @@
         "symbol": "AAPL",
         "asset_class": "EQUITY",
         "side": "BUY",
-        "ts_open_utc": "2021-02-22T00:00:00+00:00",
-        "qty": 0.0,
+        "ts_open_utc": "2022-09-30T00:00:00+00:00",
+        "qty": 0.2,
         "meta": {
-          "dd_pct": -11.98658843252305,
-          "drawdown_pct": -11.98658843252305,
-          "grid_level": -10.0,
-          "palier_used": 0.15,
+          "dd_pct": -20.82497851618449,
+          "drawdown_pct": -20.82497851618449,
+          "grid_level": -20.0,
+          "palier_used": 0.2,
           "grid_config": [
             {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
               "dd": -50.0,
-              "weight": 0.15
+              "weight": 0.2
             },
             {
               "dd": -40.0,
-              "weight": 0.25
+              "weight": 0.2
             },
             {
               "dd": -30.0,
-              "weight": 0.25
+              "weight": 0.2
             },
             {
               "dd": -20.0,
               "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
             }
           ],
-          "cycle_id": 13,
-          "max_dd_reached": -11.98658843252305,
-          "tp_target": 5.0,
+          "cycle_id": 4,
+          "max_dd_reached": -20.82497851618449,
+          "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
+          "tp_pct": 20.0,
           "be_pct": null,
           "tp_rule": {
-            "max_dd_reached": -10.0,
-            "tp_pct": 5.0
-          }
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "AAPL",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2021-03-01T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "max_dd_reached": -15.4861693210394,
-          "drawdown_pct": -15.4861693210394,
-          "cycle_id": 13,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 5.620299198280865
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "AAPL",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2021-03-15T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "max_dd_reached": -18.72031293657446,
-          "drawdown_pct": -18.72031293657446,
-          "cycle_id": 14,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 6.557236163630109
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "AAPL",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2021-04-05T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "max_dd_reached": -16.247555183012008,
-          "drawdown_pct": -16.247555183012008,
-          "cycle_id": 15,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 5.004170141784825
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "AAPL",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2021-04-09T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "max_dd_reached": -11.839899413243927,
-          "drawdown_pct": -11.839899413243927,
-          "cycle_id": 16,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 5.379922351636157
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "AAPL",
-        "asset_class": "EQUITY",
-        "side": "BUY",
-        "ts_open_utc": "2021-05-04T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "dd_pct": -10.694328024587874,
-          "drawdown_pct": -10.694328024587874,
-          "grid_level": -10.0,
-          "palier_used": 0.15,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "cycle_id": 17,
-          "max_dd_reached": -10.694328024587874,
-          "tp_target": 5.0,
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "tp_rule": {
-            "max_dd_reached": -10.0,
-            "tp_pct": 5.0
-          }
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "AAPL",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2021-06-14T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "max_dd_reached": -14.242805252863933,
-          "drawdown_pct": -14.242805252863933,
-          "cycle_id": 17,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 6.280035839374443
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "AAPL",
-        "asset_class": "EQUITY",
-        "side": "BUY",
-        "ts_open_utc": "2021-10-04T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "dd_pct": -11.200459506031024,
-          "drawdown_pct": -11.200459506031024,
-          "grid_level": -10.0,
-          "palier_used": 0.15,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "cycle_id": 18,
-          "max_dd_reached": -11.200459506031024,
-          "tp_target": 5.0,
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "tp_rule": {
-            "max_dd_reached": -10.0,
-            "tp_pct": 5.0
-          }
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "AAPL",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2021-10-18T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "max_dd_reached": -11.200459506031024,
-          "drawdown_pct": -11.200459506031024,
-          "cycle_id": 18,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 5.32557136696854
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "AAPL",
-        "asset_class": "EQUITY",
-        "side": "BUY",
-        "ts_open_utc": "2022-01-21T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "dd_pct": -10.76863908576452,
-          "drawdown_pct": -10.76863908576452,
-          "grid_level": -10.0,
-          "palier_used": 0.15,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "cycle_id": 19,
-          "max_dd_reached": -10.76863908576452,
-          "tp_target": 5.0,
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "tp_rule": {
-            "max_dd_reached": -10.0,
-            "tp_pct": 5.0
-          }
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "AAPL",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2022-01-28T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "max_dd_reached": -12.521290039008836,
-          "drawdown_pct": -12.521290039008836,
-          "cycle_id": 19,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 6.977766612234659
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "AAPL",
-        "asset_class": "EQUITY",
-        "side": "BUY",
-        "ts_open_utc": "2022-02-23T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "dd_pct": -12.054282731718036,
-          "drawdown_pct": -12.054282731718036,
-          "grid_level": -10.0,
-          "palier_used": 0.15,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "cycle_id": 20,
-          "max_dd_reached": -12.054282731718036,
-          "tp_target": 5.0,
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "tp_rule": {
-            "max_dd_reached": -10.0,
-            "tp_pct": 5.0
-          }
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "AAPL",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2022-03-16T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "max_dd_reached": -17.246305148068785,
-          "drawdown_pct": -17.246305148068785,
-          "cycle_id": 20,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 5.9553844111007725
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "AAPL",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2022-03-22T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "max_dd_reached": -11.752101532882797,
-          "drawdown_pct": -11.752101532882797,
-          "cycle_id": 21,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 5.105217283028263
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "AAPL",
-        "asset_class": "EQUITY",
-        "side": "BUY",
-        "ts_open_utc": "2022-04-22T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "dd_pct": -11.109279709906051,
-          "drawdown_pct": -11.109279709906051,
-          "grid_level": -10.0,
-          "palier_used": 0.15,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "cycle_id": 22,
-          "max_dd_reached": -11.109279709906051,
-          "tp_target": 5.0,
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "tp_rule": {
-            "max_dd_reached": -10.0,
-            "tp_pct": 5.0
-          }
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "AAPL",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2022-05-04T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "max_dd_reached": -13.977253997033134,
-          "drawdown_pct": -13.977253997033134,
-          "cycle_id": 22,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 6.035639011304861
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "AAPL",
-        "asset_class": "EQUITY",
-        "side": "BUY",
-        "ts_open_utc": "2022-05-05T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "dd_pct": -13.8673699247294,
-          "drawdown_pct": -13.8673699247294,
-          "grid_level": -10.0,
-          "palier_used": 0.15,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "cycle_id": 23,
-          "max_dd_reached": -13.8673699247294,
-          "tp_target": 5.0,
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "tp_rule": {
-            "max_dd_reached": -10.0,
-            "tp_pct": 5.0
-          }
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "AAPL",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2022-06-02T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 10.0,
-          "be_pct": null,
-          "max_dd_reached": -24.53711334542058,
-          "drawdown_pct": -24.53711334542058,
-          "cycle_id": 23,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 10.091008372770304
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "AAPL",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2022-07-07T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 10.0,
-          "be_pct": null,
-          "max_dd_reached": -28.542387780891154,
-          "drawdown_pct": -28.542387780891154,
-          "cycle_id": 24,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 12.524988466861453
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "AAPL",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2022-07-29T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 10.0,
-          "be_pct": null,
-          "max_dd_reached": -20.405472226800715,
-          "drawdown_pct": -20.405472226800715,
-          "cycle_id": 25,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 12.176434044315588
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "AAPL",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2022-08-10T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "max_dd_reached": -12.087247953409152,
-          "drawdown_pct": -12.087247953409152,
-          "cycle_id": 26,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 5.768389475657787
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "AAPL",
-        "asset_class": "EQUITY",
-        "side": "BUY",
-        "ts_open_utc": "2022-08-26T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "dd_pct": -10.103840448327006,
-          "drawdown_pct": -10.103840448327006,
-          "grid_level": -10.0,
-          "palier_used": 0.15,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "cycle_id": 27,
-          "max_dd_reached": -10.103840448327006,
-          "tp_target": 5.0,
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "tp_rule": {
-            "max_dd_reached": -10.0,
-            "tp_pct": 5.0
-          }
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "AAPL",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2022-09-12T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "max_dd_reached": -15.136530959837359,
-          "drawdown_pct": -15.136530959837359,
-          "cycle_id": 27,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 5.80732875825456
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "AAPL",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2022-10-25T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 10.0,
-          "be_pct": null,
-          "max_dd_reached": -24.07010603812978,
-          "drawdown_pct": -24.07010603812978,
-          "cycle_id": 28,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 10.231548480463104
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "AAPL",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2022-11-11T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 10.0,
-          "be_pct": null,
-          "max_dd_reached": -25.899675841986703,
-          "drawdown_pct": -25.899675841986703,
-          "cycle_id": 29,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 10.995773708015122
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "AAPL",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2023-01-26T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 15.0,
-          "be_pct": 10.0,
-          "max_dd_reached": -31.311466402944887,
-          "drawdown_pct": -31.311466402944887,
-          "cycle_id": 30,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 15.149576067829162
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "AAPL",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2023-03-20T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 10.0,
-          "be_pct": null,
-          "max_dd_reached": -21.432888302840503,
-          "drawdown_pct": -21.432888302840503,
-          "cycle_id": 31,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 10.069930069930066
+            "max_dd_reached": -20.0,
+            "tp_pct": 20.0
+          },
+          "position_qty": 0.0,
+          "position_cost": 0.0
         }
       },
       {
@@ -1836,474 +386,42 @@
         "asset_class": "EQUITY",
         "side": "SELL",
         "ts_open_utc": "2023-04-03T00:00:00+00:00",
-        "qty": 0.0,
+        "qty": 0.2,
         "meta": {
           "action": "take_profit",
           "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
+          "tp_pct": 20.0,
           "be_pct": null,
-          "max_dd_reached": -13.38388000659304,
-          "drawdown_pct": -13.38388000659304,
-          "cycle_id": 32,
+          "max_dd_reached": -22.732741334861075,
+          "drawdown_pct": -22.732741334861075,
+          "cycle_id": 4,
           "grid_config": [
             {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
               "dd": -50.0,
-              "weight": 0.15
+              "weight": 0.2
             },
             {
               "dd": -40.0,
-              "weight": 0.25
+              "weight": 0.2
             },
             {
               "dd": -30.0,
-              "weight": 0.25
+              "weight": 0.2
             },
             {
               "dd": -20.0,
               "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
             }
           ],
           "grid_level": null,
-          "rebound_pct": 5.404376784015219
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "AAPL",
-        "asset_class": "EQUITY",
-        "side": "BUY",
-        "ts_open_utc": "2023-04-05T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "dd_pct": -10.026921597714411,
-          "drawdown_pct": -10.026921597714411,
-          "grid_level": -10.0,
-          "palier_used": 0.15,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "cycle_id": 33,
-          "max_dd_reached": -10.026921597714411,
-          "tp_target": 5.0,
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "tp_rule": {
-            "max_dd_reached": -10.0,
-            "tp_pct": 5.0
-          }
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "AAPL",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2023-04-27T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "max_dd_reached": -12.037800120872477,
-          "drawdown_pct": -12.037800120872477,
-          "cycle_id": 33,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 5.190505933791378
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "AAPL",
-        "asset_class": "EQUITY",
-        "side": "BUY",
-        "ts_open_utc": "2023-08-16T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "dd_pct": -10.119623313820314,
-          "drawdown_pct": -10.119623313820314,
-          "grid_level": -10.0,
-          "palier_used": 0.15,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "cycle_id": 34,
-          "max_dd_reached": -10.119623313820314,
-          "tp_target": 5.0,
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "tp_rule": {
-            "max_dd_reached": -10.0,
-            "tp_pct": 5.0
-          }
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "AAPL",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2023-08-29T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "max_dd_reached": -11.427844235174344,
-          "drawdown_pct": -11.427844235174344,
-          "cycle_id": 34,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 5.816091954022995
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "AAPL",
-        "asset_class": "EQUITY",
-        "side": "BUY",
-        "ts_open_utc": "2023-09-12T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "dd_pct": -10.257062865869171,
-          "drawdown_pct": -10.257062865869171,
-          "grid_level": -10.0,
-          "palier_used": 0.15,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "cycle_id": 35,
-          "max_dd_reached": -10.257062865869171,
-          "tp_target": 5.0,
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "tp_rule": {
-            "max_dd_reached": -10.0,
-            "tp_pct": 5.0
-          }
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "AAPL",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2023-10-09T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "max_dd_reached": -13.245100534487142,
-          "drawdown_pct": -13.245100534487142,
-          "cycle_id": 35,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 5.022589919615084
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "AAPL",
-        "asset_class": "EQUITY",
-        "side": "BUY",
-        "ts_open_utc": "2023-10-18T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "dd_pct": -10.491219139730202,
-          "drawdown_pct": -10.491219139730202,
-          "grid_level": -10.0,
-          "palier_used": 0.15,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "cycle_id": 36,
-          "max_dd_reached": -10.491219139730202,
-          "tp_target": 5.0,
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "tp_rule": {
-            "max_dd_reached": -10.0,
-            "tp_pct": 5.0
-          }
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "AAPL",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2023-11-02T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "max_dd_reached": -15.047085772461188,
-          "drawdown_pct": -15.047085772461188,
-          "cycle_id": 36,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 6.399424770807127
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "AAPL",
-        "asset_class": "EQUITY",
-        "side": "BUY",
-        "ts_open_utc": "2023-11-03T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "dd_pct": -10.078900483583597,
-          "drawdown_pct": -10.078900483583597,
-          "grid_level": -10.0,
-          "palier_used": 0.15,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "cycle_id": 37,
-          "max_dd_reached": -10.078900483583597,
-          "tp_target": 5.0,
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "tp_rule": {
-            "max_dd_reached": -10.0,
-            "tp_pct": 5.0
-          }
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "AAPL",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2023-11-10T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "max_dd_reached": -10.078900483583597,
-          "drawdown_pct": -10.078900483583597,
-          "cycle_id": 37,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 5.5193886215680665
+          "rebound_pct": null,
+          "avg_entry_price": 138.2,
+          "pnl_pct_at_exit": 20.238784370477568,
+          "break_even_reached": false
         }
       }
     ],
@@ -2313,45 +431,47 @@
         "symbol": "MSFT",
         "asset_class": "EQUITY",
         "side": "BUY",
-        "ts_open_utc": "2020-02-25T00:00:00+00:00",
-        "qty": 0.0,
+        "ts_open_utc": "2020-03-09T00:00:00+00:00",
+        "qty": 0.2,
         "meta": {
-          "dd_pct": -10.93269740328564,
-          "drawdown_pct": -10.93269740328564,
-          "grid_level": -10.0,
-          "palier_used": 0.15,
+          "dd_pct": -20.180180180180173,
+          "drawdown_pct": -20.180180180180173,
+          "grid_level": -20.0,
+          "palier_used": 0.2,
           "grid_config": [
             {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
               "dd": -50.0,
-              "weight": 0.15
+              "weight": 0.2
             },
             {
               "dd": -40.0,
-              "weight": 0.25
+              "weight": 0.2
             },
             {
               "dd": -30.0,
-              "weight": 0.25
+              "weight": 0.2
             },
             {
               "dd": -20.0,
               "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
             }
           ],
           "cycle_id": 1,
-          "max_dd_reached": -10.93269740328564,
-          "tp_target": 5.0,
+          "max_dd_reached": -20.180180180180173,
+          "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
+          "tp_pct": 20.0,
           "be_pct": null,
           "tp_rule": {
-            "max_dd_reached": -10.0,
-            "tp_pct": 5.0
-          }
+            "max_dd_reached": -20.0,
+            "tp_pct": 20.0
+          },
+          "position_qty": 0.0,
+          "position_cost": 0.0
         }
       },
       {
@@ -2359,1448 +479,227 @@
         "symbol": "MSFT",
         "asset_class": "EQUITY",
         "side": "SELL",
-        "ts_open_utc": "2020-03-02T00:00:00+00:00",
-        "qty": 0.0,
+        "ts_open_utc": "2020-05-05T00:00:00+00:00",
+        "qty": 0.2,
         "meta": {
           "action": "take_profit",
           "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "max_dd_reached": -16.17382087970323,
-          "drawdown_pct": -16.17382087970323,
-          "cycle_id": 1,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 9.236313061069668
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "MSFT",
-        "asset_class": "EQUITY",
-        "side": "BUY",
-        "ts_open_utc": "2020-03-03T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "dd_pct": -12.819289878113405,
-          "drawdown_pct": -12.819289878113405,
-          "grid_level": -10.0,
-          "palier_used": 0.15,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "cycle_id": 2,
-          "max_dd_reached": -12.819289878113405,
-          "tp_target": 5.0,
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "tp_rule": {
-            "max_dd_reached": -10.0,
-            "tp_pct": 5.0
-          }
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "MSFT",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2020-03-13T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 10.0,
-          "be_pct": null,
-          "max_dd_reached": -26.306306306306304,
-          "drawdown_pct": -26.306306306306304,
-          "cycle_id": 2,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 14.216884797928952
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "MSFT",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2020-03-26T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 10.0,
+          "tp_pct": 20.0,
           "be_pct": null,
           "max_dd_reached": -28.235294117647058,
           "drawdown_pct": -28.235294117647058,
+          "cycle_id": 1,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "grid_level": null,
+          "rebound_pct": null,
+          "avg_entry_price": 150.62,
+          "pnl_pct_at_exit": 20.010622759261707,
+          "break_even_reached": false
+        }
+      },
+      {
+        "strategy_id": "DCA_EQUITY_DEMO",
+        "symbol": "MSFT",
+        "asset_class": "EQUITY",
+        "side": "BUY",
+        "ts_open_utc": "2022-06-13T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "dd_pct": -23.192035762975184,
+          "drawdown_pct": -23.192035762975184,
+          "grid_level": -20.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 2,
+          "max_dd_reached": -23.192035762975184,
+          "tp_target": 20.0,
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": null,
+          "tp_rule": {
+            "max_dd_reached": -20.0,
+            "tp_pct": 20.0
+          },
+          "position_qty": 0.0,
+          "position_cost": 0.0
+        }
+      },
+      {
+        "strategy_id": "DCA_EQUITY_DEMO",
+        "symbol": "MSFT",
+        "asset_class": "EQUITY",
+        "side": "SELL",
+        "ts_open_utc": "2022-08-12T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "action": "take_profit",
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": null,
+          "max_dd_reached": -23.192035762975184,
+          "drawdown_pct": -23.192035762975184,
+          "cycle_id": 2,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "grid_level": null,
+          "rebound_pct": null,
+          "avg_entry_price": 242.26,
+          "pnl_pct_at_exit": 20.49451003054572,
+          "break_even_reached": false
+        }
+      },
+      {
+        "strategy_id": "DCA_EQUITY_DEMO",
+        "symbol": "MSFT",
+        "asset_class": "EQUITY",
+        "side": "BUY",
+        "ts_open_utc": "2022-09-30T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "dd_pct": -20.639247623266442,
+          "drawdown_pct": -20.639247623266442,
+          "grid_level": -20.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 3,
+          "max_dd_reached": -20.639247623266442,
+          "tp_target": 20.0,
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": null,
+          "tp_rule": {
+            "max_dd_reached": -20.0,
+            "tp_pct": 20.0
+          },
+          "position_qty": 0.0,
+          "position_cost": 0.0
+        }
+      },
+      {
+        "strategy_id": "DCA_EQUITY_DEMO",
+        "symbol": "MSFT",
+        "asset_class": "EQUITY",
+        "side": "SELL",
+        "ts_open_utc": "2023-03-24T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "action": "take_profit",
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": null,
+          "max_dd_reached": -26.994241319385292,
+          "drawdown_pct": -26.994241319385292,
           "cycle_id": 3,
           "grid_config": [
             {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
               "dd": -50.0,
-              "weight": 0.15
+              "weight": 0.2
             },
             {
               "dd": -40.0,
-              "weight": 0.25
+              "weight": 0.2
             },
             {
               "dd": -30.0,
-              "weight": 0.25
+              "weight": 0.2
             },
             {
               "dd": -20.0,
               "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
             }
           ],
           "grid_level": null,
-          "rebound_pct": 15.278393147245616
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "MSFT",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2020-04-06T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 10.0,
-          "be_pct": null,
-          "max_dd_reached": -20.66772655007949,
-          "drawdown_pct": -20.66772655007949,
-          "cycle_id": 4,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 10.400801603206421
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "MSFT",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2020-04-14T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "max_dd_reached": -13.359830418653939,
-          "drawdown_pct": -13.359830418653939,
-          "cycle_id": 5,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 6.245030277081165
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "MSFT",
-        "asset_class": "EQUITY",
-        "side": "BUY",
-        "ts_open_utc": "2020-04-21T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "dd_pct": -11.065182829888709,
-          "drawdown_pct": -11.065182829888709,
-          "grid_level": -10.0,
-          "palier_used": 0.15,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "cycle_id": 6,
-          "max_dd_reached": -11.065182829888709,
-          "tp_target": 5.0,
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "tp_rule": {
-            "max_dd_reached": -10.0,
-            "tp_pct": 5.0
-          }
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "MSFT",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2020-04-29T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "max_dd_reached": -11.065182829888709,
-          "drawdown_pct": -11.065182829888709,
-          "cycle_id": 6,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 5.726373495411763
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "MSFT",
-        "asset_class": "EQUITY",
-        "side": "BUY",
-        "ts_open_utc": "2020-09-08T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "dd_pct": -12.514569393481544,
-          "drawdown_pct": -12.514569393481544,
-          "grid_level": -10.0,
-          "palier_used": 0.15,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "cycle_id": 7,
-          "max_dd_reached": -12.514569393481544,
-          "tp_target": 5.0,
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "tp_rule": {
-            "max_dd_reached": -10.0,
-            "tp_pct": 5.0
-          }
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "MSFT",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2020-10-01T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "max_dd_reached": -13.494496006906974,
-          "drawdown_pct": -13.494496006906974,
-          "cycle_id": 7,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 6.023254653425836
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "MSFT",
-        "asset_class": "EQUITY",
-        "side": "BUY",
-        "ts_open_utc": "2020-10-02T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "dd_pct": -10.990718756745089,
-          "drawdown_pct": -10.990718756745089,
-          "grid_level": -10.0,
-          "palier_used": 0.15,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "cycle_id": 8,
-          "max_dd_reached": -10.990718756745089,
-          "tp_target": 5.0,
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "tp_rule": {
-            "max_dd_reached": -10.0,
-            "tp_pct": 5.0
-          }
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "MSFT",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2020-10-12T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "max_dd_reached": -11.111590761925328,
-          "drawdown_pct": -11.111590761925328,
-          "cycle_id": 8,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 7.5227040940216705
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "MSFT",
-        "asset_class": "EQUITY",
-        "side": "BUY",
-        "ts_open_utc": "2020-10-28T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "dd_pct": -12.50593567882582,
-          "drawdown_pct": -12.50593567882582,
-          "grid_level": -10.0,
-          "palier_used": 0.15,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "cycle_id": 9,
-          "max_dd_reached": -12.50593567882582,
-          "tp_target": 5.0,
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "tp_rule": {
-            "max_dd_reached": -10.0,
-            "tp_pct": 5.0
-          }
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "MSFT",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2020-11-04T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "max_dd_reached": -12.657025685301093,
-          "drawdown_pct": -12.657025685301093,
-          "cycle_id": 9,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 6.949043641575625
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "MSFT",
-        "asset_class": "EQUITY",
-        "side": "BUY",
-        "ts_open_utc": "2022-01-13T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "dd_pct": -11.165515432368633,
-          "drawdown_pct": -11.165515432368633,
-          "grid_level": -10.0,
-          "palier_used": 0.15,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "cycle_id": 10,
-          "max_dd_reached": -11.165515432368633,
-          "tp_target": 5.0,
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "tp_rule": {
-            "max_dd_reached": -10.0,
-            "tp_pct": 5.0
-          }
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "MSFT",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2022-01-28T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "max_dd_reached": -15.919093002244178,
-          "drawdown_pct": -15.919093002244178,
-          "cycle_id": 10,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 6.852923844847303
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "MSFT",
-        "asset_class": "EQUITY",
-        "side": "BUY",
-        "ts_open_utc": "2022-02-01T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "dd_pct": -10.011366617119876,
-          "drawdown_pct": -10.011366617119876,
-          "grid_level": -10.0,
-          "palier_used": 0.15,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "cycle_id": 11,
-          "max_dd_reached": -10.011366617119876,
-          "tp_target": 5.0,
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "tp_rule": {
-            "max_dd_reached": -10.0,
-            "tp_pct": 5.0
-          }
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "MSFT",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2022-02-24T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "max_dd_reached": -18.314826149048415,
-          "drawdown_pct": -18.314826149048415,
-          "cycle_id": 11,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 5.109358832554323
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "MSFT",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2022-03-16T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "max_dd_reached": -19.603042755967472,
-          "drawdown_pct": -19.603042755967472,
-          "cycle_id": 12,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 6.721044045676994
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "MSFT",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2022-03-28T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "max_dd_reached": -13.957622919763335,
-          "drawdown_pct": -13.957622919763335,
-          "cycle_id": 13,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 5.243547185150055
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "MSFT",
-        "asset_class": "EQUITY",
-        "side": "BUY",
-        "ts_open_utc": "2022-03-31T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "dd_pct": -10.14251989157996,
-          "drawdown_pct": -10.14251989157996,
-          "grid_level": -10.0,
-          "palier_used": 0.15,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "cycle_id": 14,
-          "max_dd_reached": -10.14251989157996,
-          "tp_target": 5.0,
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "tp_rule": {
-            "max_dd_reached": -10.0,
-            "tp_pct": 5.0
-          }
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "MSFT",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2022-06-24T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 10.0,
-          "be_pct": null,
-          "max_dd_reached": -29.392906065110324,
-          "drawdown_pct": -29.392906065110324,
-          "cycle_id": 14,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 10.50111450507718
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "MSFT",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2022-07-29T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 10.0,
-          "be_pct": null,
-          "max_dd_reached": -26.583311474454263,
-          "drawdown_pct": -26.583311474454263,
-          "cycle_id": 15,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 11.448987693529178
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "MSFT",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2022-08-10T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "max_dd_reached": -19.903238028620564,
-          "drawdown_pct": -19.903238028620564,
-          "cycle_id": 16,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 5.217960847099934
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "MSFT",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2022-11-11T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 15.0,
-          "be_pct": 10.0,
-          "max_dd_reached": -37.55646877094809,
-          "drawdown_pct": -37.55646877094809,
-          "cycle_id": 17,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 15.337222870478428
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "MSFT",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2023-02-02T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 15.0,
-          "be_pct": 10.0,
-          "max_dd_reached": -35.207367899507446,
-          "drawdown_pct": -35.207367899507446,
-          "cycle_id": 18,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 19.022985920561396
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "MSFT",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2023-03-16T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 10.0,
-          "be_pct": null,
-          "max_dd_reached": -28.224184663810437,
-          "drawdown_pct": -28.224184663810437,
-          "cycle_id": 19,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 12.153327648515845
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "MSFT",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2023-04-27T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 10.0,
-          "be_pct": null,
-          "max_dd_reached": -20.6580979860686,
-          "drawdown_pct": -20.6580979860686,
-          "cycle_id": 20,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 11.97516805642287
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "MSFT",
-        "asset_class": "EQUITY",
-        "side": "BUY",
-        "ts_open_utc": "2023-05-08T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "dd_pct": -10.043426306432346,
-          "drawdown_pct": -10.043426306432346,
-          "grid_level": -10.0,
-          "palier_used": 0.15,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "cycle_id": 21,
-          "max_dd_reached": -11.282096120777608,
-          "tp_target": 5.0,
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "tp_rule": {
-            "max_dd_reached": -10.0,
-            "tp_pct": 5.0
-          }
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "MSFT",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2023-05-22T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "max_dd_reached": -11.282096120777608,
-          "drawdown_pct": -11.282096120777608,
-          "cycle_id": 21,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 5.512483574244431
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "MSFT",
-        "asset_class": "EQUITY",
-        "side": "BUY",
-        "ts_open_utc": "2023-08-09T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "dd_pct": -10.364683301343568,
-          "drawdown_pct": -10.364683301343568,
-          "grid_level": -10.0,
-          "palier_used": 0.15,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "cycle_id": 22,
-          "max_dd_reached": -10.364683301343568,
-          "tp_target": 5.0,
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "tp_rule": {
-            "max_dd_reached": -10.0,
-            "tp_pct": 5.0
-          }
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "MSFT",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2023-09-05T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "max_dd_reached": -11.964171465131157,
-          "drawdown_pct": -11.964171465131157,
-          "cycle_id": 22,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 5.393705763397372
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "MSFT",
-        "asset_class": "EQUITY",
-        "side": "BUY",
-        "ts_open_utc": "2023-09-20T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "dd_pct": -10.770814209018342,
-          "drawdown_pct": -10.770814209018342,
-          "grid_level": -10.0,
-          "palier_used": 0.15,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "cycle_id": 23,
-          "max_dd_reached": -10.770814209018342,
-          "tp_target": 5.0,
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "tp_rule": {
-            "max_dd_reached": -10.0,
-            "tp_pct": 5.0
-          }
-        }
-      },
-      {
-        "strategy_id": "DCA_EQUITY_DEMO",
-        "symbol": "MSFT",
-        "asset_class": "EQUITY",
-        "side": "SELL",
-        "ts_open_utc": "2023-10-09T00:00:00+00:00",
-        "qty": 0.0,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 5.0,
-          "be_pct": null,
-          "max_dd_reached": -13.171437313972579,
-          "drawdown_pct": -13.171437313972579,
-          "cycle_id": 23,
-          "grid_config": [
-            {
-              "dd": -50.0,
-              "weight": 0.15
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.25
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -10.0,
-              "weight": 0.15
-            }
-          ],
-          "grid_level": null,
-          "rebound_pct": 5.664125072083048
+          "rebound_pct": null,
+          "avg_entry_price": 232.9,
+          "pnl_pct_at_exit": 20.468012022327176,
+          "break_even_reached": false
         }
       }
     ]

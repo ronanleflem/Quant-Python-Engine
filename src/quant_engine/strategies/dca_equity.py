@@ -22,6 +22,8 @@ class _CycleState:
     prev_dd: Optional[float] = None
     last_processed_ts: Optional[pd.Timestamp] = None
     tp_emitted: bool = False
+    position_qty: float = 0.0
+    position_cost: float = 0.0  # somme prix*qty pour prix moyen
 
     def reset(self, level_count: int) -> None:
         self.cycle_active = False
@@ -31,6 +33,8 @@ class _CycleState:
         self.cycle_high_ref = None
         self.prev_dd = None
         self.tp_emitted = False
+        self.position_qty = 0.0
+        self.position_cost = 0.0
 
 
 class DcaEquityStrategy(Strategy):
@@ -48,11 +52,23 @@ class DcaEquityStrategy(Strategy):
 
     @staticmethod
     def compute_drawdown(close: pd.Series) -> pd.Series:
-        """Compute drawdown (in percentage) from the running maximum."""
+        """Compute drawdown (in percentage) vs rolling high (deprecated)."""
 
         rolling_max = close.cummax()
         dd = (close / rolling_max - 1.0) * 100.0
         return dd.fillna(0.0)
+
+    @staticmethod
+    def compute_reference_high(close: pd.Series) -> pd.Series:
+        """
+        Rolling high sur les 3 derniers mois (~90 jours calendaires).
+        - Si on démarre en début d’historique, on prend le max des bougies disponibles (min_periods=1).
+        - Inclut la bougie courante (mise à jour dès qu’un nouveau plus haut apparaît).
+        """
+
+        ref = close.rolling("90D", min_periods=1).max()
+        ref = ref.ffill().fillna(close.iloc[0])
+        return ref
 
     def backtest(self, ohlc: pd.DataFrame, context: Dict[str, Any]) -> List[StrategySignal]:
         df = self._normalize_ohlc(ohlc)
@@ -81,17 +97,21 @@ class DcaEquityStrategy(Strategy):
         if df.empty:
             return []
         close = df["close"].astype(float)
-        dd_series = self.compute_drawdown(close)
-        rolling_max = close.cummax()
+        ref_high = self.compute_reference_high(close)
+        dd_series = ((close / ref_high) - 1.0) * 100.0
+        dd_series = dd_series.fillna(0.0)
         symbol = context.get("symbol", context.get("symbol_id", ""))
         asset_class = context.get("asset_class", self.asset_class)
         results: List[StrategySignal] = []
         last_processed = state.last_processed_ts
-        for ts, price, dd in zip(dd_series.index, close, dd_series):
+        for ts, price, dd, ref_h in zip(dd_series.index, close, dd_series, ref_high):
             if last_processed is not None and ts <= last_processed:
                 continue
+            state.current_price = float(price)
             self._ensure_cycle_initialized(state)
-            self._maybe_start_cycle(state, float(dd), float(rolling_max.loc[ts]), float(price))
+            # fige le ref_high une fois un cycle actif (ne pas recalculer pendant un trade)
+            ref_high_value = state.cycle_high_ref if state.cycle_active else float(ref_h)
+            self._maybe_start_cycle(state, float(dd), ref_high_value, float(price))
             if state.cycle_active:
                 self._update_cycle_stats(state, float(dd), float(price))
                 buys = self._check_buy_levels(state, float(dd), ts, symbol, asset_class)
@@ -105,6 +125,8 @@ class DcaEquityStrategy(Strategy):
                 state.prev_dd = float(dd)
             self._maybe_reset_on_recovery(state, float(price))
             state.prev_dd = float(dd)
+            if not state.cycle_active:
+                state.cycle_high_ref = float(ref_h)
             state.last_processed_ts = ts
         return results
 
@@ -121,17 +143,19 @@ class DcaEquityStrategy(Strategy):
     ) -> None:
         if state.cycle_active:
             return
-        eligible = [idx for idx, level in enumerate(self.grid) if dd <= float(level["dd"])]
-        if not eligible:
+        # start a cycle as soon as dd touches the shallowest level
+        if dd > float(self.grid[-1]["dd"]):
             return
         state.cycle_active = True
         state.cycle_id += 1
-        first_idx = max(eligible)
-        state.consumed_levels = [idx < first_idx for idx in range(len(self.grid))]
+        # none of the levels are consumed at start; they will be flagged as we cross thresholds
+        state.consumed_levels = [False] * len(self.grid)
         state.cycle_high_ref = ref_high
         state.cycle_low = price
         state.max_dd = dd
         state.prev_dd = state.prev_dd if state.prev_dd is not None else 0.0
+        state.position_qty = 0.0
+        state.position_cost = 0.0
 
     def _update_cycle_stats(self, state: _CycleState, dd: float, price: float) -> None:
         state.max_dd = min(state.max_dd, dd)
@@ -154,6 +178,9 @@ class DcaEquityStrategy(Strategy):
             if dd <= threshold and prev_dd > threshold:
                 state.consumed_levels[idx] = True
                 meta = self._build_buy_meta(state, level, dd)
+                qty = float(level.get("weight", 0.0)) or 0.0
+                state.position_qty += qty
+                state.position_cost += qty * state.current_price
                 signals.append(
                     StrategySignal(
                         strategy_id=self.strategy_id,
@@ -161,7 +188,7 @@ class DcaEquityStrategy(Strategy):
                         asset_class=asset_class,
                         side="BUY",
                         ts_open_utc=ts,
-                        qty=0.0,
+                        qty=qty,
                         meta=meta,
                     )
                 )
@@ -180,10 +207,29 @@ class DcaEquityStrategy(Strategy):
         if not tp_rule or state.cycle_low is None:
             return signals
         tp_pct = tp_rule.get("tp_pct")
+        be_pct = tp_rule.get("be_pct")
         if tp_pct is None:
             return signals
-        rebound = (price / state.cycle_low - 1.0) * 100.0
-        if rebound >= float(tp_pct) and not state.tp_emitted:
+        if state.position_qty <= 0:
+            return signals
+
+        avg_entry = state.position_cost / state.position_qty if state.position_qty > 0 else price
+        if avg_entry == 0:
+            return signals
+        pnl_pct = (price / avg_entry - 1.0) * 100.0
+
+        should_tp = pnl_pct >= float(tp_pct)
+        should_be = be_pct is not None and pnl_pct >= float(be_pct)
+
+        # Debug trace for TP/BE decisions
+        print(
+            f"[TP_CHECK] cycle={state.cycle_id} sym={symbol} ts={ts} "
+            f"avg_entry={avg_entry:.4f} price={price:.4f} pnl_pct={pnl_pct:.2f} "
+            f"tp_pct={tp_pct} be_pct={be_pct} should_tp={should_tp} should_be={should_be} "
+            f"pos_qty={state.position_qty:.4f}"
+        )
+
+        if should_tp and not state.tp_emitted:
             state.tp_emitted = True
             meta = {
                 "action": "take_profit",
@@ -195,7 +241,10 @@ class DcaEquityStrategy(Strategy):
                 "cycle_id": state.cycle_id,
                 "grid_config": self.grid,
                 "grid_level": None,
-                "rebound_pct": rebound,
+                "rebound_pct": None,
+                "avg_entry_price": avg_entry,
+                "pnl_pct_at_exit": pnl_pct,
+                "break_even_reached": should_be,
             }
             signals.append(
                 StrategySignal(
@@ -204,7 +253,7 @@ class DcaEquityStrategy(Strategy):
                     asset_class=asset_class,
                     side="SELL",
                     ts_open_utc=ts,
-                    qty=0.0,
+                    qty=state.position_qty,
                     meta=meta,
                 )
             )
@@ -240,6 +289,8 @@ class DcaEquityStrategy(Strategy):
             "tp_pct": tp_rule.get("tp_pct") if tp_rule else None,
             "be_pct": tp_rule.get("be_pct") if tp_rule else None,
             "tp_rule": tp_rule,
+            "position_qty": state.position_qty,
+            "position_cost": state.position_cost,
         }
 
     def _resolve_tp_rule(self, max_dd: float) -> Optional[Dict[str, Any]]:
@@ -294,6 +345,9 @@ class DcaEquityStrategy(Strategy):
             pd.Timestamp(last_ts).tz_convert("UTC") if last_ts is not None else None
         )
         state.tp_emitted = bool(data.get("tp_emitted", False))
+        state.position_qty = float(data.get("position_qty", 0.0))
+        state.position_cost = float(data.get("position_cost", 0.0))
+        state.current_price = float(data.get("current_price", 0.0))
         self._ensure_cycle_initialized(state)
         return state
 
@@ -311,6 +365,9 @@ class DcaEquityStrategy(Strategy):
                 if state.last_processed_ts is not None
                 else None,
                 "tp_emitted": state.tp_emitted,
+                "position_qty": state.position_qty,
+                "position_cost": state.position_cost,
+                "current_price": state.current_price,
             }
         )
 

@@ -117,6 +117,9 @@ poetry run quant-engine stats run --spec specs/filters_risk_mgmt_example.json
 ```
 
 ## Configuration `.env`
+export DB_DSN="mysql+pymysql://restadmin:ronanronan77@127.0.0.1:3306/restdb"
+
+IL FAUT QUE LES VARIABLES D'ENV SOIT DECLAREES DANS LE TERMINAL, LE PROJET PREND PAS LE .ENV
 Copier `.env.example` vers `.env` et ajuster :
 ```env
 DB_DSN=sqlite:///.db/quant.db

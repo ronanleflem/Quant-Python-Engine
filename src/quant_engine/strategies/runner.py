@@ -4,21 +4,25 @@ from __future__ import annotations
 import json
 import logging
 import os
+import uuid
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence
 
 import pandas as pd
+import requests
 from sqlalchemy import create_engine, text
 
 from . import create_strategy
 from .base import StrategySignal
 from ..integrations import java_client
+from ..performance.dca_builder import build_backend_payload_for_java
 try:
     from deltalake import DeltaTable, write_deltalake
 except Exception:  # pragma: no cover - optional dependency
     DeltaTable = None
     write_deltalake = None
 
+logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger(__name__)
 
 
@@ -77,6 +81,7 @@ def run_backtest_from_spec(spec: Mapping[str, Any]) -> Dict[str, Any]:
     universe: Iterable[Mapping[str, Any]] = _expand_universe(spec)
     signals_by_symbol: Dict[str, List[Dict[str, Any]]] = {}
     counts: Dict[str, int] = {}
+    ohlc_by_symbol: Dict[str, pd.DataFrame] = {}
     for instrument in universe:
         symbol = instrument.get("symbol")
         if not symbol:
@@ -87,6 +92,7 @@ def run_backtest_from_spec(spec: Mapping[str, Any]) -> Dict[str, Any]:
             getattr(strategy, "asset_class", None) or strategy_cfg.get("asset_class"),
         )
         df = _fetch_ohlc_for_symbol(symbol, asset_class, data_spec, instrument)
+        ohlc_by_symbol[symbol] = df.copy()
         context = {"symbol": symbol, "asset_class": asset_class}
         signals = strategy.backtest(df, context)
         serialized = [_serialize_signal(sig) for sig in signals]
@@ -99,6 +105,7 @@ def run_backtest_from_spec(spec: Mapping[str, Any]) -> Dict[str, Any]:
         "signals": signals_by_symbol,
     }
     _persist_results_if_requested(result, spec.get("output"))
+    _persist_results_to_db(result, spec, ohlc_by_symbol)
     return result
 
 
@@ -117,9 +124,15 @@ def _fetch_ohlc_for_symbol(
     else:
         df = _fetch_from_delta(symbol, asset_class, merged_spec)
         if df is None or df.empty:
+            LOGGER.info("Delta source empty for %s, falling back to MySQL/Java", symbol)
             df = _fetch_from_mysql(symbol, merged_spec)
+        else:
+            LOGGER.info("Loaded OHLC for %s from Delta (%d rows)", symbol, len(df))
         if df is None or df.empty:
+            LOGGER.info("MySQL source empty for %s, falling back to Java", symbol)
             df = _fetch_from_java(symbol, asset_class, merged_spec)
+        else:
+            LOGGER.info("Loaded OHLC for %s from MySQL (%d rows)", symbol, len(df))
     if df is None or df.empty:
         raise RuntimeError(f"Unable to load OHLC for {symbol}")
     df["ts"] = pd.to_datetime(df["ts"], utc=True)
@@ -296,21 +309,33 @@ def _fetch_from_java(
     df["ts"] = pd.to_datetime(df["ts"], utc=True)
     start_ts = pd.to_datetime(start, utc=True)
     end_ts = pd.to_datetime(end, utc=True)
-    if df.empty or df["ts"].min() > start_ts or df["ts"].max() < end_ts:
-        _request_ingestion_on_gap(symbol, asset, spec)
+    if df.empty:
+        LOGGER.warning("Java OHLC returned empty for %s; no ingestion fallback enabled", symbol)
+        return None
+
+    coverage = _coverage_ratio(df, start_ts, end_ts, timeframe, asset)
+    LOGGER.info(
+        "Java OHLC coverage for %s [%s -> %s]: %.1f%% (rows=%d)",
+        symbol,
+        start,
+        end,
+        coverage * 100,
+        len(df),
+    )
+    if coverage < 0.9:
+        LOGGER.warning(
+            "Java OHLC coverage insufficient for %s: %.1f%% (start=%s end=%s); skipping ingestion fallback",
+            symbol,
+            coverage * 100,
+            start,
+            end,
+        )
     return df
 
 
 def _request_ingestion_on_gap(symbol: str, asset: str, spec: Mapping[str, Any]) -> None:
-    source = spec.get("ingestion_source", spec.get("source", "java"))
-    start = spec.get("start")
-    end = spec.get("end")
-    if not start or not end:
-        return
-    try:
-        java_client.request_historical_ingestion(symbol, asset, str(source), start, end)
-    except Exception:
-        LOGGER.warning("Historical ingestion request failed for %s", symbol)
+    # Ingestion fallback disabled: rely solely on Delta/MySQL/Java OHLC endpoints.
+    return
 
 
 def _serialize_signal(signal: StrategySignal) -> Dict[str, Any]:
@@ -393,5 +418,164 @@ def _persist_results_to_delta(result: Dict[str, Any]) -> None:
     except Exception as exc:  # pragma: no cover - remote dependency
         LOGGER.warning("Failed to persist strategy signals to Delta (%s): %s", table_path, exc)
 
-
 __all__ = ["load_strategy_spec", "run_backtest_from_spec"]
+
+
+def _compact_meta(meta: Mapping[str, Any]) -> Dict[str, Any]:
+    """Drop heavy fields (grid configs etc.) and cap size for DB transport."""
+
+    if not meta:
+        return {}
+    pruned: Dict[str, Any] = {
+        k: v
+        for k, v in meta.items()
+        if k
+        not in {
+            "grid_config",
+            "tp_rule",
+            "grid",
+            "rules",
+            "filters",
+        }
+    }
+    try:
+        serialized = json.dumps(pruned, ensure_ascii=False)
+        if len(serialized) > 2000:
+            pruned = {"note": "meta truncated", "keys": list(pruned.keys())}
+    except Exception:
+        pruned = {"note": "meta serialization failed"}
+    return pruned
+
+
+def _truncate_json(obj: Any, limit: int = 250) -> str:
+    try:
+        s = json.dumps(obj, ensure_ascii=False)
+    except Exception:
+        return ""
+    if len(s) > limit:
+        return s[: limit - 3] + "..."
+    return s
+
+
+def _persist_results_to_db(result: Dict[str, Any], spec: Mapping[str, Any], ohlc_by_symbol: Optional[Dict[str, pd.DataFrame]] = None) -> None:
+    dsn = os.getenv("DB_DSN")
+    if not dsn:
+        LOGGER.info("DB_DSN not set; skipping DB persistence")
+        return
+
+    strategy_cfg = spec.get("strategy", {}) or {}
+    strategy_id = strategy_cfg.get("strategy_id") or "strategy"
+    run_id = spec.get("run_id") or strategy_cfg.get("run_id") or uuid.uuid4().hex
+    asset_class = strategy_cfg.get("params", {}).get("asset_class") or strategy_cfg.get("asset_class") or ""
+    data_spec = spec.get("data", {}) or {}
+    timeframe = data_spec.get("timeframe")
+    universe_label = spec.get("universe_label") or None
+
+    class _DictSignal:
+        def __init__(self, payload: Mapping[str, Any]) -> None:
+            self.strategy_id = payload.get("strategy_id")
+            self.symbol = payload.get("symbol")
+            self.asset_class = payload.get("asset_class")
+            self.side = payload.get("side")
+            self.ts_open_utc = payload.get("ts_open_utc")
+            self.qty = payload.get("qty", 0.0) or 0.0
+            self.meta = _compact_meta(payload.get("meta", {}) or {})
+
+    signals_by_symbol: Dict[str, List[_DictSignal]] = {}
+    for sym, records in (result.get("signals") or {}).items():
+        signals_by_symbol[sym] = [_DictSignal(r) for r in records]
+
+    payload = build_backend_payload_for_java(
+        strategy_id=strategy_id,
+        run_id=run_id,
+        asset_class=asset_class,
+        universe=universe_label,
+        timeframe=timeframe,
+        signals_by_symbol=signals_by_symbol,
+        ohlc_by_symbol=ohlc_by_symbol,
+        config=spec.get("performance", {}) or {},
+    )
+
+    run = payload.get("run", {})
+    trades = payload.get("trades", [])
+
+    try:
+        engine = create_engine(dsn)
+        LOGGER.info("DB engine created for DSN %s", dsn)
+    except Exception as exc:
+        LOGGER.warning("DB_DSN invalid, skipping DB persistence: %s", exc)
+        return
+
+    try:
+        perf_row = {
+            "strategy_name": run.get("strategyId"),
+            "run_id": run.get("runId"),
+            "asset_class": run.get("assetClass"),
+            "universe": run.get("universe"),
+            "timeframe": run.get("timeframe"),
+            "symbol": run.get("symbol"),
+            "compared_symbol": run.get("comparedSymbol"),
+            "start_strategy": pd.to_datetime(run.get("startTsUtc"), utc=True),
+            "end_strategy": pd.to_datetime(run.get("endTsUtc"), utc=True),
+            "win_count": run.get("winCount"),
+            "loss_count": run.get("lossCount"),
+            "total_return": run.get("totalReturn"),
+            "max_drawdown": run.get("maxDrawdown"),
+            "average_trade": run.get("averageTrade"),
+            "averagesl": run.get("averageSL"),
+            "averagetp": run.get("averageTP"),
+            "rr_moyen": run.get("rrMoyen"),
+            "total_net_return": run.get("totalNetReturn"),
+            "net_win_count": run.get("netWinCount"),
+            "net_loss_count": run.get("netLossCount"),
+            "average_net_trade": run.get("averageNetTrade"),
+            "initial_capital": run.get("initialCapital"),
+            "final_capital": run.get("finalCapital"),
+            "return_pct": run.get("returnPct"),
+            "max_drawdown_pct": run.get("maxDrawdownPct"),
+            "volatility_pct": run.get("volatilityPct"),
+            "sharpe": run.get("sharpe"),
+            "sortino": run.get("sortino"),
+            "winrate_pct": run.get("winratePct"),
+            "metric": None,
+            "value": 0.0,
+            "extra_json": json.dumps(run.get("extra", {}), ensure_ascii=False),
+        }
+        pd.DataFrame([perf_row]).to_sql("performance", engine, if_exists="append", index=False)
+        LOGGER.info("Persisted performance row for run %s to DB", run_id)
+    except Exception as exc:
+        LOGGER.warning("Failed to persist performance for run %s: %s", run_id, exc)
+
+    if not trades:
+        LOGGER.info("No trades to persist for run %s", run_id)
+        return
+
+    trade_rows: List[Dict[str, Any]] = []
+    for t in trades:
+        trade_rows.append(
+            {
+                "strategy_name": t.get("strategyId"),
+                "run_id": t.get("runId"),
+                "symbol": t.get("symbol"),
+                "asset_class": t.get("assetClass"),
+                "cycle_id": t.get("cycleId"),
+                "trade_type": t.get("side") or "LONG",
+                "entry_timestamp": pd.to_datetime(t.get("entryTimeUtc"), utc=True),
+                "exit_timestamp": pd.to_datetime(t.get("exitTimeUtc"), utc=True),
+                "entry_price": t.get("entryPrice") or 0.0,
+                "exit_price": t.get("exitPrice") or 0.0,
+                "quantity": t.get("quantity") or 0.0,
+                "profit_or_loss": t.get("grossPnl") or 0.0,
+                "pnl_pct": t.get("grossPnlPct"),
+                "max_drawdown_pct": t.get("maxDdPct"),
+                "meta_json": json.dumps(t.get("meta", {}), ensure_ascii=False),
+                "confidence_score": 0.0,
+                "stop_loss": 0.0,
+                "take_profit": 0.0,
+            }
+        )
+    try:
+        pd.DataFrame(trade_rows).to_sql("trades_completed", engine, if_exists="append", index=False)
+        LOGGER.info("Persisted %d trades for run %s to DB", len(trade_rows), run_id)
+    except Exception as exc:
+        LOGGER.warning("Failed to persist trades for run %s: %s", run_id, exc)
