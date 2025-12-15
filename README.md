@@ -5,6 +5,14 @@
 ## Présentation
 Moteur d’optimisation et de backtest basé sur une spécification JSON, prenant en charge EMA/VWAP, TP/SL, Walk Forward Analysis, Optuna, MySQL et MLflow.
 
+### Vue d’ensemble du moteur Python
+- **Source de vérité métier** : le code Python produit les signaux (EMA/grid/DCA), reconstruit les trades, calcule les métriques de performance et garde la cohérence entre backtests et exécution live.
+- **Séparation des rôles** :
+  - *Signaux* (bas niveau, multi BUY par cycle),
+  - *Trades agrégés* (1 cycle DCA = 1 trade logique, clôturé sur le SELL take‑profit),
+  - *Run de stratégie* (métriques globales dérivées des trades).
+- **Persistance** : Python ne stocke pas durablement les résultats métiers ; il calcule et transmet un payload vers le backend Java Spring responsable de l’import et de la conservation des runs/trades.
+
 Affichage Markdown :  Ctrl + Shift + V
 ## Installation
 ```bash 
@@ -69,6 +77,13 @@ poetry run uvicorn quant_engine.api.app:app --reload --app-dir src
   ```bash
   poetry run quant-engine runs show RUN_ID
   ```
+
+## Performance, DCA et intégration backend
+- **Module `quant_engine.performance`** : calcule les métriques côté Python et agrège les signaux DCA en `CompletedTrade` (1 cycle = 1 trade logique). Les BUY successifs d’un cycle sont consolidés ; la vente `take_profit` clôture le trade et porte les métadonnées du cycle.
+- **StrategyRunResult** : résumé d’un run (dates, ratios win/loss, drawdown, Sharpe/Sortino calculés en Python). Les champs capital/prix/qty peuvent rester des placeholders selon la stratégie ; les valeurs optionnelles sont envoyées dans `extra` pour compatibilité future.
+- **Flux de données** : `candles → signaux → trades → métriques → payload backend`. Les perfs sont calculées en Python pour garantir la cohérence entre backtest et live, éviter la duplication de logique et permettre la reproductibilité.
+- **Payload Java** : un seul endpoint d’import est appelé avec `{ "run": {..}, "trades": [...] }`. Le backend Spring ne recalcule pas les perfs ; il persiste simplement le run et les trades reçus.
+- **Conventions récentes** : `runId` est obligatoire et présent dans tous les objets envoyés. Les signaux sont des événements bas niveau ; les trades reflètent les cycles stratégiques ; le run agrège la performance globale. Certains champs prix/qty peuvent encore être complétés par la suite (TODO connus), mais la structure de payload est stable.
 
 ### High-level Strategies
 

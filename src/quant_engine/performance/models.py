@@ -1,3 +1,13 @@
+"""Dataclasses représentant un run de stratégie et les trades agrégés.
+
+Le module sert de contrat interne pour le calcul des performances côté Python et
+la génération du payload envoyé au backend Java. `StrategyRunResult` décrit la
+vue synthétique d’un run (dates, ratios, drawdown, métriques de risque), tandis
+que `CompletedTrade` capture un cycle DCA consolidé (BUY multiples → SELL
+take-profit). Les champs optionnels permettent de transporter des placeholders
+ou des compléments dans `extra/meta` sans casser le format du payload.
+"""
+
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
