@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import uuid
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence
@@ -16,6 +17,8 @@ from . import create_strategy
 from .base import StrategySignal
 from ..integrations import java_client
 from ..performance.dca_builder import build_backend_payload_for_java
+from pandas.tseries.holiday import USFederalHolidayCalendar
+from pandas.tseries.offsets import CustomBusinessDay
 try:
     from deltalake import DeltaTable, write_deltalake
 except Exception:  # pragma: no cover - optional dependency
@@ -161,7 +164,7 @@ def _build_delta_storage_options() -> Dict[str, Any]:
 def _delta_asset_dir(asset_class: Optional[str]) -> str:
     if not asset_class:
         return "GENERIC"
-    mapping = {"EQUITY": "ACTION", "ETF": "ETF", "CRYPTO": "CRYPTO"}
+    mapping = {"EQUITY": "STOCK", "ACTION": "STOCK", "ETF": "ETF", "CRYPTO": "CRYPTO"}
     return mapping.get(asset_class.upper(), asset_class.upper())
 
 
@@ -173,6 +176,10 @@ def _fetch_from_delta(symbol: str, asset_class: Optional[str], spec: Mapping[str
         return None
 
     asset_dir = spec.get("delta_asset_dir") or _delta_asset_dir(asset_class or spec.get("asset_class"))
+    delta_prefix = spec.get("delta_prefix") or os.getenv("DELTA_PREFIX") or "delta"
+    delta_prefix = str(delta_prefix).strip().strip("/")
+    exchange = spec.get("delta_exchange") or spec.get("exchange") or os.getenv("DELTA_EXCHANGE") or "GENERIC"
+    exchange = str(exchange).strip().upper() or "GENERIC"
     quotes: List[str] = []
     if "delta_quotes" in spec:
         quotes = [q.strip() for q in str(spec["delta_quotes"]).split(",") if q.strip()]
@@ -186,11 +193,20 @@ def _fetch_from_delta(symbol: str, asset_class: Optional[str], spec: Mapping[str
     timeframe = spec.get("timeframe")
     start_dt = pd.to_datetime(start_str, utc=True) if start_str else None
     end_dt = pd.to_datetime(end_str, utc=True) if end_str else None
+    try:
+        min_coverage = float(spec.get("delta_min_coverage") or os.getenv("DELTA_MIN_COVERAGE", 0.95))
+    except Exception:
+        min_coverage = 0.95
+    min_coverage = max(0.0, min(min_coverage, 1.0))
 
     storage_options = _build_delta_storage_options()
     table_name = spec.get("delta_table") or spec.get("delta_symbol") or symbol
     for quote in quotes:
-        table_path = "/".join([base_uri.rstrip("/"), asset_dir.strip("/"), quote.strip("/"), table_name])
+        parts = [base_uri.rstrip("/")]
+        if delta_prefix:
+            parts.append(delta_prefix)
+        parts.extend([asset_dir.strip("/"), exchange.strip("/"), quote.strip("/"), table_name])
+        table_path = "/".join(parts)
         LOGGER.info("Trying Delta path: %s", table_path)
         try:
             dt = DeltaTable(table_path, storage_options=storage_options)
@@ -202,45 +218,146 @@ def _fetch_from_delta(symbol: str, asset_class: Optional[str], spec: Mapping[str
         if df.empty:
             LOGGER.info("Delta path %s returned no rows", table_path)
             continue
-        if "ts" not in df.columns and "time" in df.columns:
-            df = df.rename(columns={"time": "ts"})
-        df["ts"] = pd.to_datetime(df["ts"], utc=True, errors="coerce")
+        if "ts" not in df.columns:
+            if "time" in df.columns:
+                df = df.rename(columns={"time": "ts"})
+            elif "timestamp" in df.columns:
+                df = df.rename(columns={"timestamp": "ts"})
+            else:
+                LOGGER.warning("Delta path %s missing time column", table_path)
+                continue
+
+        if pd.api.types.is_numeric_dtype(df["ts"]):
+            df["ts"] = pd.to_datetime(df["ts"], unit="ms", utc=True, errors="coerce")
+        else:
+            df["ts"] = pd.to_datetime(df["ts"], utc=True, errors="coerce")
         df = df.dropna(subset=["ts"])
         start_filter = start_dt if start_dt is not None else df["ts"].min()
         end_filter = end_dt if end_dt is not None else df["ts"].max()
         df_filtered = df[(df["ts"] >= start_filter) & (df["ts"] <= end_filter)]
 
-        coverage = _coverage_ratio(df_filtered, start_dt, end_dt, timeframe, asset_class or spec.get("asset_class"))
-        if coverage >= 0.999:
-            LOGGER.info("Delta path %s covers requested range (%.1f%%)", table_path, coverage * 100)
+        coverage, expected_len, observed_len, obs_start, obs_end, missing_sample = _coverage_stats(
+            df_filtered,
+            start_dt,
+            end_dt,
+            timeframe,
+            asset_class or spec.get("asset_class"),
+            spec.get("delta_calendar") or os.getenv("DELTA_CALENDAR"),
+        )
+        if coverage >= min_coverage:
+            LOGGER.info(
+                "Delta path %s covers requested range (%.1f%%>=%.1f%%)", table_path, coverage * 100, min_coverage * 100
+            )
+            if coverage < 1.0 and missing_sample:
+                LOGGER.info(
+                    "Delta path %s missing dates (first %d): %s",
+                    table_path,
+                    len(missing_sample),
+                    missing_sample[:20],
+                )
             return df_filtered
 
         LOGGER.warning(
-            "Delta path %s has partial coverage: %.1f%% (rows=%s)", table_path, coverage * 100, len(df_filtered)
+            "Delta path %s has partial coverage: %.1f%% < %.1f%% (rows=%s, expected=%s, ts_min=%s, ts_max=%s)",
+            table_path,
+            coverage * 100,
+            min_coverage * 100,
+            observed_len,
+            expected_len,
+            obs_start,
+            obs_end,
         )
+        if missing_sample:
+            LOGGER.info("Sample missing dates for %s: %s", table_path, missing_sample[:20])
 
-    LOGGER.info("No complete Delta coverage for %s; fallback to other sources", symbol)
+    LOGGER.info(
+        "No Delta coverage >= %.1f%% for %s; fallback to other sources", min_coverage * 100, symbol
+    )
     return None
 
 
-def _coverage_ratio(
+def _timeframe_freq(timeframe: Optional[str], asset_class: Optional[str]) -> Optional[str]:
+    if not timeframe:
+        return None
+    tf = str(timeframe).strip().lower()
+    aliases = {
+        "1m": "1min",
+        "m1": "1min",
+        "5m": "5min",
+        "15m": "15min",
+        "30m": "30min",
+        "60m": "60min",
+        "1h": "1h",
+        "h1": "1h",
+        "4h": "4h",
+        "1d": "1d",
+        "d1": "1d",
+        "1w": "1w",
+        "w1": "1w",
+    }
+    tf_norm = aliases.get(tf)
+    if tf_norm is None:
+        match = re.match(r"^(\d+)\s*([smhdw])", tf)
+        if not match:
+            return None
+        value = match.group(1)
+        unit = match.group(2).lower()
+        unit_map = {"s": "S", "m": "min", "h": "H", "d": "D", "w": "W"}
+        if unit not in unit_map:
+            return None
+        tf_norm = f"{value}{unit_map[unit]}"
+
+    if tf_norm == "1d" and asset_class and asset_class.upper() != "CRYPTO":
+        return "B"
+    if tf_norm and tf_norm[-1].isalpha() and tf_norm[-1].lower() in {"h", "w", "d"}:
+        return tf_norm[:-1] + tf_norm[-1].upper()
+    return tf_norm
+
+
+def _coverage_stats(
     df: pd.DataFrame,
     start_dt: Optional[pd.Timestamp],
     end_dt: Optional[pd.Timestamp],
     timeframe: Optional[str],
     asset_class: Optional[str],
-) -> float:
-    if df.empty or start_dt is None or end_dt is None or timeframe != "1D":
-        return 1.0
-    ts = df["ts"].dt.normalize()
-    observed = set(ts.unique())
-    if asset_class and asset_class.upper() == "CRYPTO":
-        expected = pd.date_range(start_dt.normalize(), end_dt.normalize(), freq="D")
+    calendar: Optional[str] = None,
+) -> tuple[float, int, int, Optional[pd.Timestamp], Optional[pd.Timestamp], List[pd.Timestamp]]:
+    if df.empty:
+        return 0.0, 0, 0, None, None, []
+    if start_dt is None or end_dt is None:
+        ts = df["ts"].dropna()
+        return 1.0, len(ts), len(ts), ts.min(), ts.max(), []
+
+    freq = _timeframe_freq(timeframe, asset_class)
+    if freq is None:
+        ts = df["ts"].dropna()
+        return 1.0, len(ts), len(ts), ts.min(), ts.max(), []
+
+    ts = df["ts"].dropna().dt.tz_convert("UTC")
+    if ts.empty:
+        return 0.0, 0, 0, None, None, []
+
+    if freq == "B":
+        cal = (calendar or os.getenv("DELTA_CALENDAR") or "").strip().upper()
+        if not cal and asset_class and asset_class.upper() in {"EQUITY", "STOCK", "ACTION", "ETF"}:
+            cal = "USFED"
+        expected_freq = CustomBusinessDay(calendar=USFederalHolidayCalendar()) if cal in {"USFED", "US_FED", "US-FED"} else "B"
+        expected = pd.date_range(start_dt.normalize(), end_dt.normalize(), freq=expected_freq, tz="UTC")
+        observed = ts.dt.floor("D")
+    elif freq.upper().endswith("W"):
+        expected = pd.date_range(start_dt.normalize(), end_dt.normalize(), freq=freq)
+        observed = ts.dt.to_period("W").dt.start_time
     else:
-        expected = pd.date_range(start_dt.normalize(), end_dt.normalize(), freq="B")
+        expected = pd.date_range(start_dt, end_dt, freq=freq)
+        observed = ts.dt.floor(freq)
+
     if len(expected) == 0:
-        return 0.0
-    return len(observed & set(expected)) / len(expected)
+        return 0.0, 0, len(observed.unique()), ts.min(), ts.max(), []
+    observed_set = set(observed.unique())
+    expected_set = set(expected)
+    coverage = len(observed_set & expected_set) / len(expected_set)
+    missing_sorted = sorted(list(expected_set - observed_set))[:50]
+    return coverage, len(expected_set), len(observed_set), ts.min(), ts.max(), missing_sorted
 
 
 def _fetch_from_mysql(symbol: str, spec: Mapping[str, Any]) -> Optional[pd.DataFrame]:
@@ -313,14 +430,23 @@ def _fetch_from_java(
         LOGGER.warning("Java OHLC returned empty for %s; no ingestion fallback enabled", symbol)
         return None
 
-    coverage = _coverage_ratio(df, start_ts, end_ts, timeframe, asset)
+    coverage, _, _, obs_start, obs_end, _ = _coverage_stats(
+        df,
+        start_ts,
+        end_ts,
+        timeframe,
+        asset,
+        spec.get("delta_calendar") or os.getenv("DELTA_CALENDAR"),
+    )
     LOGGER.info(
-        "Java OHLC coverage for %s [%s -> %s]: %.1f%% (rows=%d)",
+        "Java OHLC coverage for %s [%s -> %s]: %.1f%% (rows=%d, ts_min=%s, ts_max=%s)",
         symbol,
         start,
         end,
         coverage * 100,
         len(df),
+        obs_start,
+        obs_end,
     )
     if coverage < 0.9:
         LOGGER.warning(

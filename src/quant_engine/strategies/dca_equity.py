@@ -221,13 +221,13 @@ class DcaEquityStrategy(Strategy):
         should_tp = pnl_pct >= float(tp_pct)
         should_be = be_pct is not None and pnl_pct >= float(be_pct)
 
-        # Debug trace for TP/BE decisions
-        print(
-            f"[TP_CHECK] cycle={state.cycle_id} sym={symbol} ts={ts} "
-            f"avg_entry={avg_entry:.4f} price={price:.4f} pnl_pct={pnl_pct:.2f} "
-            f"tp_pct={tp_pct} be_pct={be_pct} should_tp={should_tp} should_be={should_be} "
-            f"pos_qty={state.position_qty:.4f}"
-        )
+        # Debug trace for TP/BE decisions (muted; re-enable for troubleshooting)
+        # print(
+        #     f"[TP_CHECK] cycle={state.cycle_id} sym={symbol} ts={ts} "
+        #     f"avg_entry={avg_entry:.4f} price={price:.4f} pnl_pct={pnl_pct:.2f} "
+        #     f"tp_pct={tp_pct} be_pct={be_pct} should_tp={should_tp} should_be={should_be} "
+        #     f"pos_qty={state.position_qty:.4f}"
+        # )
 
         if should_tp and not state.tp_emitted:
             state.tp_emitted = True
