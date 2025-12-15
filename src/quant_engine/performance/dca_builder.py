@@ -1,3 +1,12 @@
+"""Construction des trades DCA et du payload backend.
+
+À partir des signaux bas niveau (BUY/SELL taggés `cycle_id`), le module
+reconstruit des `CompletedTrade` (1 cycle = 1 trade logique), calcule les
+métriques agrégées (`StrategyRunResult`) et produit le payload `{run, trades}`
+envoyé au backend Java. Les performances sont donc calculées dans Python pour
+rester cohérentes entre backtests et exécution live.
+"""
+
 from __future__ import annotations
 
 import logging

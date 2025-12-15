@@ -11,6 +11,14 @@ Ce document résume l’état **actuel** du moteur lourd Python (après intégra
 - **Persistence** : SQLAlchemy/Alembic (MySQL cible, SQLite fallback), artefacts Parquet/JSON, logging MLflow (si configuré).
 - **Qualité & CI** : pytest, ruff, black, mypy, pré-commit, GitHub Actions.
 
+### Performance & DCA (source de vérité Python)
+- **Python calcule tout** : production des signaux, logique DCA/grid, reconstruction des trades agrégés et calcul des métriques de performance (Sharpe, Sortino, drawdown, win/loss…).
+- **Pas de persistance métier longue durée** : le moteur Python prépare un payload pour le backend Java qui se charge de stocker les résultats.
+- **Granularité** :
+  - *Signaux* : évènements bas niveau (plusieurs BUY par cycle possible, tags `cycle_id`, `grid_level`…),
+  - *Trades* : 1 cycle DCA = 1 `CompletedTrade` consolidé (BUY multiples → SELL take-profit qui clôture),
+  - *Run* : `StrategyRunResult` décrivant la performance globale d’une stratégie sur une période (backtest ou live).
+
 Arborescence (simplifiée) :
 
 src/quant_engine/ api/ (FastAPI, schémas Pydantic) cli/ (Typer CLI) core/ (spec, dataset, features) backtest/ (engine, metrics) tpsl/ (règles TP/SL) validate/ (splitter WFA) optimize/ (Optuna runner) stats/ (events, conditions, targets, estimators, runner) persistence/ (db, models, repo, migrations) io/ (artifacts, ids)
@@ -94,11 +102,21 @@ Ex. “Avec 2 bougies up en M1, HTF up, vol haute → P(up_next) ≈ 57% [54–6
 
 ## 6) Bonnes pratiques (rappel)
 
-- **No lookahead** : conditions calculables à t ; targets sur t+1..t+n.  
-- **n_min** : seuil d’échantillon (ex. 300) ; sous le seuil → `insufficient=true`.  
-- **WFA** : séparer train/test ; apprendre les bins sur train.  
-- **Contrôle FDR** : BH sur p-values si beaucoup de patterns.  
+- **No lookahead** : conditions calculables à t ; targets sur t+1..t+n.
+- **n_min** : seuil d’échantillon (ex. 300) ; sous le seuil → `insufficient=true`.
+- **WFA** : séparer train/test ; apprendre les bins sur train.
+- **Contrôle FDR** : BH sur p-values si beaucoup de patterns.
 - **Traçabilité** : stocker `spec_id`, `dataset_id`, dates `start/end` dans chaque sortie.
+
+## 7) Module performance & intégration backend Java
+
+- **`quant_engine.performance`** :
+  - `StrategyRunResult` = résumé d’un run (timestamps UTC, ratios de victoire/défaite, drawdown, retours cumulés, Sharpe/Sortino calculés côté Python).
+  - `CompletedTrade` = trade agrégé par cycle DCA (plusieurs BUY successifs consolidés, SELL take-profit comme fermeture, `cycle_id` obligatoire pour relier les signaux).
+  - Les champs prix/quantité peuvent rester approximatifs sur certaines stratégies (placeholders) ; les valeurs complémentaires partent dans `extra/meta` pour compatibilité future.
+- **Pipeline de données** : `candles → signaux → trades → métriques → payload backend`. Les perfs sont calculées dans Python pour garantir une logique unique entre backtest et live et éviter toute divergence avec le backend.
+- **Payload envoyé au backend Spring** : structure `{ "run": {…}, "trades": [...] }` générée via `to_backend_payload` ou `build_backend_payload_for_java`. Un seul endpoint d’import est appelé ; Java ne recalculera jamais les performances reçues.
+- **Règles et conventions récentes** : `runId` propagé partout, séparation nette signaux/trades/run, champs encore en TODO (ex. certaines valeurs de prix/qty) mais format stabilisé. Les SELL non take-profit ne ferment pas un trade DCA ; seul le SELL taggé `take_profit` termine le cycle.
 
 ---
 
