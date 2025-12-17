@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
 
@@ -49,6 +49,9 @@ class DcaEquityStrategy(Strategy):
         self.grid: List[Dict[str, Any]] = sorted(grid, key=lambda item: float(item["dd"]))
         self.asset_class = self.params.get("asset_class", "EQUITY").upper()
         self.tp_sl_config: Dict[str, Any] = self.params.get("tp_sl", {})
+        self.dd_reference_mode, self.dd_reference_window = self._parse_drawdown_reference(
+            self.params.get("drawdown_reference")
+        )
 
     @staticmethod
     def compute_drawdown(close: pd.Series) -> pd.Series:
@@ -57,6 +60,51 @@ class DcaEquityStrategy(Strategy):
         rolling_max = close.cummax()
         dd = (close / rolling_max - 1.0) * 100.0
         return dd.fillna(0.0)
+
+    @staticmethod
+    def _parse_drawdown_reference(value: Any) -> Tuple[str, Optional[str]]:
+        """
+        Configure how the reference high is computed for drawdown.
+
+        Supported forms:
+        - null / missing: defaults to rolling 90D (previous behavior)
+        - "ATH": all-time-high
+        - "1M", "3M", "6M", "1Y": rolling time windows (approx 30/90/180/365 days)
+        - {"mode": "rolling", "window": "90D"} or {"mode": "ath"}
+        """
+
+        if value is None or value == "":
+            return "rolling", "90D"
+
+        if isinstance(value, str):
+            token = value.strip().upper()
+            if token in {"ATH", "ALL_TIME_HIGH", "ALL-TIME-HIGH", "HISTORICAL_HIGH"}:
+                return "ath", None
+            mapping = {"1M": "30D", "3M": "90D", "6M": "180D", "1Y": "365D", "12M": "365D"}
+            if token in mapping:
+                return "rolling", mapping[token]
+            return "rolling", token
+
+        if isinstance(value, dict):
+            mode = str(value.get("mode", "rolling")).strip().lower()
+            if mode in {"ath", "all_time_high", "all-time-high"}:
+                return "ath", None
+            if mode in {"rolling", "window", "rolling_window"}:
+                window = value.get("window") or value.get("lookback") or "90D"
+                return "rolling", str(window)
+
+        raise ValueError(
+            "Invalid drawdown_reference; expected 'ATH'/'3M'/'6M'/'1Y' or {mode, window}"
+        )
+
+    def _compute_reference_high(self, close: pd.Series) -> pd.Series:
+        mode = (self.dd_reference_mode or "rolling").lower()
+        if mode == "ath":
+            ref = close.expanding(min_periods=1).max()
+        else:
+            window = self.dd_reference_window or "90D"
+            ref = close.rolling(window, min_periods=1).max()
+        return ref.ffill().fillna(close.iloc[0])
 
     @staticmethod
     def compute_reference_high(close: pd.Series) -> pd.Series:
@@ -97,7 +145,7 @@ class DcaEquityStrategy(Strategy):
         if df.empty:
             return []
         close = df["close"].astype(float)
-        ref_high = self.compute_reference_high(close)
+        ref_high = self._compute_reference_high(close)
         dd_series = ((close / ref_high) - 1.0) * 100.0
         dd_series = dd_series.fillna(0.0)
         symbol = context.get("symbol", context.get("symbol_id", ""))

@@ -24,6 +24,14 @@ try:
 except Exception:  # pragma: no cover - optional dependency
     DeltaTable = None
     write_deltalake = None
+try:  # pragma: no cover - optional dependency
+    import pandas_market_calendars as mcal  # type: ignore
+except Exception:
+    mcal = None
+
+_WARNED_MCAL_MISSING = False
+_WARNED_MCAL_ERROR = False
+_MARKET_SCHEDULE_CACHE: Dict[tuple[str, object, object], pd.DatetimeIndex] = {}
 
 logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger(__name__)
@@ -127,15 +135,18 @@ def _fetch_ohlc_for_symbol(
     else:
         df = _fetch_from_delta(symbol, asset_class, merged_spec)
         if df is None or df.empty:
-            LOGGER.info("Delta source empty for %s, falling back to MySQL/Java", symbol)
+            LOGGER.info("Delta source empty for %s, falling back to MySQL", symbol)
             df = _fetch_from_mysql(symbol, merged_spec)
+            if df is not None and not df.empty:
+                LOGGER.info("Loaded OHLC for %s from MySQL (%d rows)", symbol, len(df))
         else:
             LOGGER.info("Loaded OHLC for %s from Delta (%d rows)", symbol, len(df))
+
         if df is None or df.empty:
             LOGGER.info("MySQL source empty for %s, falling back to Java", symbol)
             df = _fetch_from_java(symbol, asset_class, merged_spec)
-        else:
-            LOGGER.info("Loaded OHLC for %s from MySQL (%d rows)", symbol, len(df))
+            if df is not None and not df.empty:
+                LOGGER.info("Loaded OHLC for %s from Java (%d rows)", symbol, len(df))
     if df is None or df.empty:
         raise RuntimeError(f"Unable to load OHLC for {symbol}")
     df["ts"] = pd.to_datetime(df["ts"], utc=True)
@@ -243,6 +254,7 @@ def _fetch_from_delta(symbol: str, asset_class: Optional[str], spec: Mapping[str
             timeframe,
             asset_class or spec.get("asset_class"),
             spec.get("delta_calendar") or os.getenv("DELTA_CALENDAR"),
+            exchange,
         )
         if coverage >= min_coverage:
             LOGGER.info(
@@ -314,6 +326,61 @@ def _timeframe_freq(timeframe: Optional[str], asset_class: Optional[str]) -> Opt
     return tf_norm
 
 
+def _market_calendar_candidates(exchange: Optional[str]) -> List[str]:
+    if not exchange:
+        return []
+    ex = str(exchange).strip().upper()
+    if not ex or ex in {"GENERIC", "UNKNOWN"}:
+        return []
+
+    aliases: Dict[str, List[str]] = {
+        # US
+        "NASDAQ": ["NASDAQ", "XNAS"],
+        "XNAS": ["NASDAQ", "XNAS"],
+        "NYSE": ["NYSE", "XNYS"],
+        "XNYS": ["NYSE", "XNYS"],
+        "BATS": ["BATS"],
+        "IEX": ["IEX", "IEX", "INVESTORS_EXCHANGE", "Investors_Exchange"],
+        # EU
+        "LSE": ["LSE", "XLON"],
+        "XLON": ["LSE", "XLON"],
+        "SIX": ["SIX", "XSWX"],
+        "XSWX": ["SIX", "XSWX"],
+        "XETR": ["XETR", "XFRA"],
+        "XFRA": ["XFRA", "XETR"],
+        "XPAR": ["XPAR"],
+        "EURONEXT": ["XPAR", "XAMS", "XBRU", "XLIS"],
+        # APAC
+        "JPX": ["JPX", "XJPX"],
+        "XJPX": ["JPX", "XJPX"],
+        "HKEX": ["HKEX", "XHKG"],
+        "XHKG": ["HKEX", "XHKG"],
+        "ASX": ["ASX", "XASX"],
+        "XASX": ["ASX", "XASX"],
+        # Canada
+        "TSX": ["TSX", "XTSE"],
+        "XTSE": ["TSX", "XTSE"],
+        # India
+        "NSE": ["NSE", "XNSE"],
+        "XNSE": ["XNSE", "NSE"],
+        "BSE": ["BSE", "XBOM"],
+        "XBOM": ["XBOM", "BSE"],
+    }
+    candidates = aliases.get(ex, [ex])
+    # Also try the raw value as-is if it differs (some calendars are lowercase like "stock").
+    if exchange and str(exchange).strip() not in candidates:
+        candidates.append(str(exchange).strip())
+    # Dedupe preserving order.
+    seen: set[str] = set()
+    out: List[str] = []
+    for item in candidates:
+        key = str(item)
+        if key and key not in seen:
+            seen.add(key)
+            out.append(key)
+    return out
+
+
 def _coverage_stats(
     df: pd.DataFrame,
     start_dt: Optional[pd.Timestamp],
@@ -321,6 +388,7 @@ def _coverage_stats(
     timeframe: Optional[str],
     asset_class: Optional[str],
     calendar: Optional[str] = None,
+    exchange: Optional[str] = None,
 ) -> tuple[float, int, int, Optional[pd.Timestamp], Optional[pd.Timestamp], List[pd.Timestamp]]:
     if df.empty:
         return 0.0, 0, 0, None, None, []
@@ -341,8 +409,58 @@ def _coverage_stats(
         cal = (calendar or os.getenv("DELTA_CALENDAR") or "").strip().upper()
         if not cal and asset_class and asset_class.upper() in {"EQUITY", "STOCK", "ACTION", "ETF"}:
             cal = "USFED"
-        expected_freq = CustomBusinessDay(calendar=USFederalHolidayCalendar()) if cal in {"USFED", "US_FED", "US-FED"} else "B"
-        expected = pd.date_range(start_dt.normalize(), end_dt.normalize(), freq=expected_freq, tz="UTC")
+        ex = (exchange or "").strip()
+        use_market_calendar = bool(ex)
+        expected = None
+        if use_market_calendar:
+            try:
+                global _WARNED_MCAL_MISSING
+                global _WARNED_MCAL_ERROR
+                if mcal is None:
+                    if not _WARNED_MCAL_MISSING:
+                        LOGGER.warning(
+                            "pandas_market_calendars not installed; falling back to business-day calendar for %s",
+                            str(ex).upper(),
+                        )
+                        _WARNED_MCAL_MISSING = True
+                    expected = None
+                else:
+                    start_date = start_dt.normalize().date()
+                    end_date = end_dt.normalize().date()
+                    for candidate in _market_calendar_candidates(ex):
+                        try:
+                            cache_key = (candidate, start_date, end_date)
+                            sessions = _MARKET_SCHEDULE_CACHE.get(cache_key)
+                            if sessions is None:
+                                schedule = mcal.get_calendar(candidate).schedule(
+                                    start_date=start_date,
+                                    end_date=end_date,
+                                )
+                                sessions = schedule.index
+                                _MARKET_SCHEDULE_CACHE[cache_key] = sessions
+                            if sessions.tz is None:
+                                sessions = sessions.tz_localize("UTC")
+                            else:
+                                sessions = sessions.tz_convert("UTC")
+                            expected = sessions.normalize()
+                            break
+                        except Exception:
+                            expected = None
+            except Exception as exc:
+                if not _WARNED_MCAL_ERROR:
+                    LOGGER.warning(
+                        "pandas_market_calendars failed (%s); falling back to business-day calendar for %s",
+                        exc,
+                        str(ex).upper(),
+                    )
+                    _WARNED_MCAL_ERROR = True
+                expected = None
+
+        if expected is None:
+            expected_freq = (
+                CustomBusinessDay(calendar=USFederalHolidayCalendar()) if cal in {"USFED", "US_FED", "US-FED"} else "B"
+            )
+            expected = pd.date_range(start_dt.normalize(), end_dt.normalize(), freq=expected_freq, tz="UTC")
         observed = ts.dt.floor("D")
     elif freq.upper().endswith("W"):
         expected = pd.date_range(start_dt.normalize(), end_dt.normalize(), freq=freq)
@@ -437,6 +555,7 @@ def _fetch_from_java(
         timeframe,
         asset,
         spec.get("delta_calendar") or os.getenv("DELTA_CALENDAR"),
+        spec.get("delta_exchange") or spec.get("exchange") or os.getenv("DELTA_EXCHANGE"),
     )
     LOGGER.info(
         "Java OHLC coverage for %s [%s -> %s]: %.1f%% (rows=%d, ts_min=%s, ts_max=%s)",
