@@ -710,6 +710,7 @@ def _persist_results_to_db(result: Dict[str, Any], spec: Mapping[str, Any], ohlc
 
     strategy_cfg = spec.get("strategy", {}) or {}
     strategy_id = strategy_cfg.get("strategy_id") or "strategy"
+    strategy_type = str(strategy_cfg.get("type") or "").strip().lower()
     run_id = spec.get("run_id") or strategy_cfg.get("run_id") or uuid.uuid4().hex
     asset_class = strategy_cfg.get("params", {}).get("asset_class") or strategy_cfg.get("asset_class") or ""
     data_spec = spec.get("data", {}) or {}
@@ -758,7 +759,7 @@ def _persist_results_to_db(result: Dict[str, Any], spec: Mapping[str, Any], ohlc
             "asset_class": run.get("assetClass"),
             "universe": run.get("universe"),
             "timeframe": run.get("timeframe"),
-            "symbol": run.get("symbol"),
+            "symbol": "MUTUAL_FUNDS" if strategy_type.startswith("dca") else run.get("symbol"),
             "compared_symbol": run.get("comparedSymbol"),
             "start_strategy": pd.to_datetime(run.get("startTsUtc"), utc=True),
             "end_strategy": pd.to_datetime(run.get("endTsUtc"), utc=True),

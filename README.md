@@ -134,6 +134,9 @@ poetry run quant-engine stats run --spec specs/filters_risk_mgmt_example.json
 ## Configuration `.env`
 poetry run pip install deltalake
 export DB_DSN="mysql+pymysql://restadmin:ronanronan77@127.0.0.1:3306/restdb"
+poetry run pip install pandas-market-calendars
+poetry run qe strategy backtest --spec specs/strategy_dca_equity_example_minimal.json
+
 
 IL FAUT QUE LES VARIABLES D'ENV SOIT DECLAREES DANS LE TERMINAL, LE PROJET PREND PAS LE .ENV
 Copier `.env.example` vers `.env` et ajuster :

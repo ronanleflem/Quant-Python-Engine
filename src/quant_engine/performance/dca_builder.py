@@ -135,12 +135,26 @@ def build_dca_performance_from_signals(
             # Quantité et prix moyen basés sur les BUY du cycle
             total_qty = 0.0
             total_cost = 0.0
-            for b in buys:
+            buy_entries: List[Dict[str, Any]] = []
+            for idx, b in enumerate(buys):
                 q = getattr(b, "qty", 0.0) or 0.0
                 ts_b = _maybe_dt(getattr(b, "ts_open_utc", None)) or entry_time
-                price_b = _price_at(symbol, ts_b) or 0.0
+                price_raw = _price_at(symbol, ts_b)
+                price_b = price_raw or 0.0
                 total_qty += q
                 total_cost += q * price_b
+                meta_b = getattr(b, "meta", {}) or {}
+                buy_entries.append(
+                    {
+                        "index": idx,
+                        "ts_utc": ts_b.isoformat() if ts_b else None,
+                        "qty": q,
+                        "price": price_raw,
+                        "grid_level": meta_b.get("grid_level"),
+                        "dd_pct": meta_b.get("dd_pct") if meta_b.get("dd_pct") is not None else meta_b.get("drawdown_pct"),
+                        "palier_used": meta_b.get("palier_used"),
+                    }
+                )
             quantity = total_qty
             if quantity == 0 and buys:
                 quantity = float(len(buys))  # fallback: 1 unité par BUY si qty absente
@@ -170,6 +184,8 @@ def build_dca_performance_from_signals(
                     "synthetic_entry": not bool(buys),
                 }
             )
+            if len(buy_entries) > 1:
+                tp_meta["intermediate_entries"] = buy_entries[1:]
 
             avg_entry_price = (total_cost / quantity) if quantity else (_price_at(symbol, entry_time) or 0.0)
             entry_price = avg_entry_price
