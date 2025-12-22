@@ -1,0 +1,61 @@
+{
+  "strategy": {
+    "strategy_id": "DCA_CRYPTO_DEMO",
+    "type": "dca_equity",
+    "params": {
+      "asset_class": "CRYPTO",
+      "drawdown_reference": "3M",
+      "grid": [
+        {"dd": -20.0, "weight": 0.20},
+        {"dd": -30.0, "weight": 0.20},
+        {"dd": -40.0, "weight": 0.20},
+        {"dd": -50.0, "weight": 0.20},
+        {"dd": -60.0, "weight": 0.20}
+      ],
+      "tp_sl": {
+        "enabled": true,
+        "mode": "per_grid_max_dd",
+        "rules": [
+          {"max_dd_reached": -20.0, "tp_pct": 20.0},
+          {"max_dd_reached": -30.0, "tp_pct": 20.0, "be_pct": 10.0},
+          {"max_dd_reached": -40.0, "tp_pct": 20.0, "be_pct": 10.0},
+          {"max_dd_reached": -50.0, "tp_pct": 20.0, "be_pct": 10.0},
+          {"max_dd_reached": -60.0, "tp_pct": 20.0, "be_pct": 10.0},
+          {"max_dd_reached": -70.0, "tp_pct": 0.0}
+        ]
+      }
+    }
+  },
+  "data": {
+    "start": "2024-01-01",
+    "end": "2025-01-01",
+    "timeframe": "1D",
+    "delta_min_coverage": 0.95,
+    "delta_exchange": "BINANCE",
+    "delta_base": "s3://quant-delta-dev",
+    "delta_prefix": "delta",
+    "delta_quotes": "USDT,USDC",
+    "schema": "marketdata",
+    "table": "crypto_ohlcv",
+    "mysql_env": "QE_MARKETDATA_MYSQL_URL"
+  },
+  "universe": [
+    {"symbol": "TAOUSDT", "asset_class": "CRYPTO"},
+    {"symbol": "SOLUSDT", "asset_class": "CRYPTO"},
+    {"symbol": "NEARUSDT", "asset_class": "CRYPTO"},
+    {"symbol": "ARUSDT", "asset_class": "CRYPTO"},
+    {"symbol": "AVAXUSDT", "asset_class": "CRYPTO"},
+    {"symbol": "ONDOUSDT", "asset_class": "CRYPTO"},
+    {"symbol": "IMXUSDT", "asset_class": "CRYPTO"},
+    {"symbol": "JUPUSDT", "asset_class": "CRYPTO"},
+    {"symbol": "LINKUSDT", "asset_class": "CRYPTO"}
+  ],
+  "performance": {
+    "initial_capital": 10000,
+    "capital_per_unit": 100
+  },
+  "output": {
+    "path": "runs/dca_crypto_backtest.json",
+    "format": "json"
+  }
+}
