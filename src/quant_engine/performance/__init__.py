@@ -1,6 +1,7 @@
 from .models import CompletedTrade, StrategyRunResult, to_backend_payload
 from .stress_tests import (
     StressTestResult,
+    apply_scenarios_to_returns,
     run_monte_carlo_on_equity_curve,
     run_monte_carlo_on_returns,
     run_monte_carlo_on_trades,
@@ -17,6 +18,7 @@ __all__ = [
     "build_dca_performance_from_signals",
     "build_backend_payload_for_java",
     "StressTestResult",
+    "apply_scenarios_to_returns",
     "run_monte_carlo_on_equity_curve",
     "run_monte_carlo_on_returns",
     "run_monte_carlo_on_trades",
