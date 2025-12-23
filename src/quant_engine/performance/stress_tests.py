@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from math import ceil
 import random
 from statistics import mean, pstdev
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, TypedDict, Union
@@ -49,6 +50,7 @@ class StandardTrade:
     r_multiple: Optional[float]
     entry_time_utc: Optional[datetime]
     exit_time_utc: Optional[datetime]
+    symbol: Optional[str] = None
 
 
 def _parse_dt(value: Any) -> Optional[datetime]:
@@ -92,6 +94,7 @@ def standardize_trades(trades: Sequence[Union[CompletedTrade, Mapping[str, Any]]
                     r_multiple=float(r_multiple) if r_multiple is not None else None,
                     entry_time_utc=_parse_dt(tr.entry_time_utc),
                     exit_time_utc=_parse_dt(tr.exit_time_utc),
+                    symbol=tr.symbol,
                 )
             )
             continue
@@ -103,6 +106,7 @@ def standardize_trades(trades: Sequence[Union[CompletedTrade, Mapping[str, Any]]
             r_multiple = tr.get("r_multiple")
             entry_time = tr.get("ts_entry") or tr.get("entry_time") or tr.get("entryTimeUtc")
             exit_time = tr.get("ts_exit") or tr.get("exit_time") or tr.get("exitTimeUtc")
+            symbol = tr.get("symbol")
             if pnl is None:
                 continue
             normalized.append(
@@ -111,6 +115,7 @@ def standardize_trades(trades: Sequence[Union[CompletedTrade, Mapping[str, Any]]
                     r_multiple=float(r_multiple) if r_multiple is not None else None,
                     entry_time_utc=_parse_dt(entry_time),
                     exit_time_utc=_parse_dt(exit_time),
+                    symbol=str(symbol) if symbol is not None else None,
                 )
             )
     return normalized
@@ -190,6 +195,175 @@ def _build_sampled_timestamps(
     return timestamps
 
 
+def _summary_stats(values: Sequence[float]) -> Dict[str, Optional[float]]:
+    return {
+        "p5": _percentile(values, 0.05),
+        "p50": _percentile(values, 0.50),
+        "p95": _percentile(values, 0.95),
+        "mean": mean(values) if values else None,
+        "std": pstdev(values) if len(values) > 1 else None,
+    }
+
+
+def _block_start_indices(sample_size: int, block_size: int, overlapping: bool) -> List[int]:
+    if block_size <= 0 or sample_size <= 0 or block_size > sample_size:
+        return []
+    if overlapping:
+        return list(range(0, sample_size - block_size + 1))
+    return list(range(0, sample_size - block_size + 1, block_size))
+
+
+def _equity_timestamps_from_trades(trades: Sequence[StandardTrade]) -> Optional[List[datetime]]:
+    exit_times = [t.exit_time_utc for t in trades if t.exit_time_utc is not None]
+    if len(exit_times) != len(trades) or not exit_times:
+        return None
+    return [exit_times[0]] + exit_times
+
+
+def _compute_level1_metrics(
+    pnl_values: Sequence[float],
+    equity: Sequence[float],
+    initial_capital: float,
+) -> Dict[str, Optional[float]]:
+    if not equity:
+        return {
+            "final_capital": None,
+            "return_pct": None,
+            "max_drawdown": None,
+            "max_drawdown_pct": None,
+            "volatility_pct": None,
+            "sharpe": None,
+            "sortino": None,
+            "winrate_pct": None,
+            "total_return": None,
+            "average_trade": None,
+        }
+
+    returns_pct: List[float] = []
+    if initial_capital:
+        returns_pct = [pnl / initial_capital * 100.0 for pnl in pnl_values]
+
+    win_count = sum(1 for r in returns_pct if r > 0)
+    loss_count = sum(1 for r in returns_pct if r <= 0)
+    nb_trades = len(returns_pct)
+    total_return = sum(returns_pct) if returns_pct else None
+    average_trade = (total_return / nb_trades) if nb_trades and total_return is not None else None
+
+    final_capital = equity[-1]
+    return_pct = ((final_capital - initial_capital) / initial_capital * 100.0) if initial_capital else None
+
+    max_drawdown = _max_drawdown(equity)
+    peak = equity[0]
+    max_dd_value = 0.0
+    for value in equity[1:]:
+        peak = max(peak, value)
+        max_dd_value = max(max_dd_value, peak - value)
+    max_drawdown_pct = (max_dd_value / peak * 100.0) if peak else None
+
+    volatility_pct = pstdev(returns_pct) if len(returns_pct) > 1 else None
+    mean_ret = mean(returns_pct) if returns_pct else None
+    sharpe = None
+    sortino = None
+    if volatility_pct and volatility_pct != 0 and mean_ret is not None:
+        sharpe = mean_ret / volatility_pct * (len(returns_pct) ** 0.5)
+    if returns_pct:
+        downside = [r for r in returns_pct if r < 0]
+        if len(downside) > 1:
+            downside_std = pstdev(downside)
+            if downside_std:
+                sortino = mean_ret / downside_std * (len(returns_pct) ** 0.5) if mean_ret is not None else None
+
+    winrate_pct = (win_count / nb_trades * 100.0) if nb_trades else None
+
+    return {
+        "final_capital": final_capital,
+        "return_pct": return_pct,
+        "max_drawdown": max_drawdown,
+        "max_drawdown_pct": max_drawdown_pct,
+        "volatility_pct": volatility_pct,
+        "sharpe": sharpe,
+        "sortino": sortino,
+        "winrate_pct": winrate_pct,
+        "total_return": total_return,
+        "average_trade": average_trade,
+        "win_count": float(win_count),
+        "loss_count": float(loss_count),
+    }
+
+
+def _sample_iid(trades: Sequence[StandardTrade], rng: random.Random) -> List[StandardTrade]:
+    indices = list(range(len(trades)))
+    rng.shuffle(indices)
+    return [trades[i] for i in indices]
+
+
+def _sample_bootstrap(trades: Sequence[StandardTrade], rng: random.Random) -> List[StandardTrade]:
+    return [rng.choice(trades) for _ in range(len(trades))]
+
+
+def _sample_block(
+    trades: Sequence[StandardTrade],
+    rng: random.Random,
+    *,
+    block_size: int,
+    overlapping: bool,
+) -> List[StandardTrade]:
+    sample_size = len(trades)
+    starts = _block_start_indices(sample_size, block_size, overlapping)
+    if not starts:
+        return _sample_bootstrap(trades, rng)
+    num_blocks = ceil(sample_size / block_size)
+    indices: List[int] = []
+    for _ in range(num_blocks):
+        start = rng.choice(starts)
+        indices.extend(range(start, min(start + block_size, sample_size)))
+    indices = indices[:sample_size]
+    return [trades[i] for i in indices]
+
+
+def _sample_block_multi_asset(
+    trades: Sequence[StandardTrade],
+    rng: random.Random,
+    *,
+    block_size: int,
+    overlapping: bool,
+) -> List[StandardTrade]:
+    by_symbol: Dict[str, List[StandardTrade]] = {}
+    for tr in trades:
+        if tr.symbol is None:
+            return _sample_block(trades, rng, block_size=block_size, overlapping=overlapping)
+        by_symbol.setdefault(tr.symbol, []).append(tr)
+
+    all_exit_times = [t.exit_time_utc for t in trades if t.exit_time_utc is not None]
+    if len(all_exit_times) != len(trades):
+        return _sample_block(trades, rng, block_size=block_size, overlapping=overlapping)
+
+    sorted_times = sorted(set(all_exit_times))
+    starts = _block_start_indices(len(sorted_times), block_size, overlapping)
+    if not starts:
+        return _sample_block(trades, rng, block_size=block_size, overlapping=overlapping)
+
+    num_blocks = ceil(len(sorted_times) / block_size)
+    sampled: List[StandardTrade] = []
+    ordered_by_symbol = {
+        symbol: sorted(symbol_trades, key=lambda t: t.exit_time_utc)
+        for symbol, symbol_trades in by_symbol.items()
+    }
+    for _ in range(num_blocks):
+        start_idx = rng.choice(starts)
+        end_idx = min(start_idx + block_size, len(sorted_times)) - 1
+        start_ts = sorted_times[start_idx]
+        end_ts = sorted_times[end_idx]
+        for symbol, ordered in ordered_by_symbol.items():
+            for tr in ordered:
+                if tr.exit_time_utc is not None and start_ts <= tr.exit_time_utc <= end_ts:
+                    sampled.append(tr)
+    sampled.sort(key=lambda t: t.exit_time_utc or datetime.min)
+    if not sampled:
+        return _sample_block(trades, rng, block_size=block_size, overlapping=overlapping)
+    return sampled
+
+
 def _monte_carlo_bootstrap(
     trades: Sequence[StandardTrade],
     *,
@@ -200,6 +374,10 @@ def _monte_carlo_bootstrap(
     seed = params.get("seed")
     initial_capital = float(params.get("initial_capital", 0.0))
     ruin_threshold = float(params.get("ruin_threshold", 0.0))
+    method = str(params.get("method", "bootstrap")).lower()
+    block_size = max(int(params.get("block_size", 5)), 1)
+    overlapping = bool(params.get("overlapping", True))
+    multi_asset = bool(params.get("multi_asset", False))
     rng = random.Random(seed)
 
     if not trades:
@@ -209,6 +387,7 @@ def _monte_carlo_bootstrap(
             "parameters": {
                 "n_simulations": n_simulations,
                 "seed": seed,
+                "method": method,
             },
             "warnings": ["No trades available for bootstrap."],
         }
@@ -228,14 +407,43 @@ def _monte_carlo_bootstrap(
     cagrs: List[float] = []
     time_to_recovery: List[float] = []
     ruin_flags: List[bool] = []
+    level1_metrics: Dict[str, List[float]] = {
+        "final_capital": [],
+        "return_pct": [],
+        "max_drawdown": [],
+        "max_drawdown_pct": [],
+        "volatility_pct": [],
+        "sharpe": [],
+        "sortino": [],
+        "winrate_pct": [],
+        "total_return": [],
+        "average_trade": [],
+        "win_count": [],
+        "loss_count": [],
+    }
 
     base_period_days: Optional[float] = None
     if base_timestamps:
         base_period_days = (base_timestamps[-1] - base_timestamps[0]).total_seconds() / 86400.0
 
+    ordered_trades = sorted(
+        trades, key=lambda t: t.exit_time_utc if t.exit_time_utc is not None else datetime.min
+    )
+
     for _ in range(n_simulations):
-        indices = [rng.randrange(sample_size) for _ in range(sample_size)]
-        sampled_pnl = [pnl_values[i] for i in indices]
+        if method in {"iid", "shuffle"}:
+            sampled_trades = _sample_iid(ordered_trades, rng)
+        elif method in {"block", "block_bootstrap"}:
+            if multi_asset:
+                sampled_trades = _sample_block_multi_asset(
+                    ordered_trades, rng, block_size=block_size, overlapping=overlapping
+                )
+            else:
+                sampled_trades = _sample_block(ordered_trades, rng, block_size=block_size, overlapping=overlapping)
+        else:
+            sampled_trades = _sample_bootstrap(ordered_trades, rng)
+
+        sampled_pnl = [t.pnl for t in sampled_trades]
         equity = [initial_capital]
         for pnl in sampled_pnl:
             equity.append(equity[-1] + pnl)
@@ -243,8 +451,8 @@ def _monte_carlo_bootstrap(
 
         max_drawdowns.append(_max_drawdown(equity))
 
-        timestamps = None
-        if base_timestamps:
+        timestamps = _equity_timestamps_from_trades(sampled_trades)
+        if timestamps is None and base_timestamps:
             timestamps = _build_sampled_timestamps(base_start, deltas, len(equity), rng)
         ttr = _time_to_recovery(equity, timestamps)
         if ttr is not None:
@@ -261,32 +469,22 @@ def _monte_carlo_bootstrap(
             cagr = (equity[-1] / equity[0]) ** (1 / years) - 1
             cagrs.append(cagr)
 
+        level1 = _compute_level1_metrics(sampled_pnl, equity, initial_capital)
+        for key, value in level1.items():
+            if value is not None:
+                level1_metrics[key].append(float(value))
+
     ruin_probability = sum(ruin_flags) / len(ruin_flags) if ruin_flags else None
 
     metrics = {
-        "max_drawdown": {
-            "p5": _percentile(max_drawdowns, 0.05),
-            "p50": _percentile(max_drawdowns, 0.50),
-            "p95": _percentile(max_drawdowns, 0.95),
-            "mean": mean(max_drawdowns) if max_drawdowns else None,
-            "std": pstdev(max_drawdowns) if len(max_drawdowns) > 1 else None,
-        },
-        "cagr": {
-            "p5": _percentile(cagrs, 0.05),
-            "p50": _percentile(cagrs, 0.50),
-            "p95": _percentile(cagrs, 0.95),
-            "mean": mean(cagrs) if cagrs else None,
-            "std": pstdev(cagrs) if len(cagrs) > 1 else None,
-        },
-        "time_to_recovery_days": {
-            "p5": _percentile(time_to_recovery, 0.05),
-            "p50": _percentile(time_to_recovery, 0.50),
-            "p95": _percentile(time_to_recovery, 0.95),
-            "mean": mean(time_to_recovery) if time_to_recovery else None,
-            "std": pstdev(time_to_recovery) if len(time_to_recovery) > 1 else None,
-        },
+        "max_drawdown": _summary_stats(max_drawdowns),
+        "cagr": _summary_stats(cagrs),
+        "time_to_recovery_days": _summary_stats(time_to_recovery),
         "ruin_probability": ruin_probability,
     }
+
+    for key, values in level1_metrics.items():
+        metrics[key] = _summary_stats(values)
 
     distributions = {
         "max_drawdown": max_drawdowns,
@@ -294,6 +492,7 @@ def _monte_carlo_bootstrap(
         "time_to_recovery_days": time_to_recovery,
         "equity_curves": equity_curves,
         "ruin": ruin_flags,
+        "level1": level1_metrics,
     }
 
     return {
@@ -304,6 +503,10 @@ def _monte_carlo_bootstrap(
             "seed": seed,
             "initial_capital": initial_capital,
             "ruin_threshold": ruin_threshold,
+            "method": method,
+            "block_size": block_size,
+            "overlapping": overlapping,
+            "multi_asset": multi_asset,
         },
     }
 
@@ -371,11 +574,15 @@ def run_monte_carlo_on_returns(
                 r_multiple=None,
                 entry_time_utc=_parse_dt(ts),
                 exit_time_utc=_parse_dt(ts),
+                symbol=None,
             )
             for ts, value in ordered
         ]
     else:
-        trades = [StandardTrade(pnl=float(value), r_multiple=None, entry_time_utc=None, exit_time_utc=None) for value in returns]
+        trades = [
+            StandardTrade(pnl=float(value), r_multiple=None, entry_time_utc=None, exit_time_utc=None, symbol=None)
+            for value in returns
+        ]
     result = _monte_carlo_bootstrap(trades, parameters=parameters)
     if metadata:
         result.setdefault("parameters", {}).update({"metadata": dict(metadata)})
@@ -423,6 +630,7 @@ def run_monte_carlo_on_equity_curve(
                     r_multiple=None,
                     entry_time_utc=prev_ts,
                     exit_time_utc=_parse_dt(ts),
+                    symbol=None,
                 )
             )
             prev_value = val
@@ -435,8 +643,25 @@ def run_monte_carlo_on_equity_curve(
             if prev_value is None:
                 prev_value = val
                 continue
-            pnl_series.append(StandardTrade(pnl=val - prev_value, r_multiple=None, entry_time_utc=None, exit_time_utc=None))
+            pnl_series.append(
+                StandardTrade(pnl=val - prev_value, r_multiple=None, entry_time_utc=None, exit_time_utc=None, symbol=None)
+            )
             prev_value = val
+    if parameters is None:
+        parameters = {}
+    if parameters.get("initial_capital") is None:
+        if isinstance(equity_curve, Mapping):
+            ordered = sorted(equity_curve.items(), key=lambda item: item[0])
+            if ordered:
+                parameters = dict(parameters)
+                parameters["initial_capital"] = float(ordered[0][1])
+        else:
+            try:
+                first_value = next(iter(equity_curve))
+                parameters = dict(parameters)
+                parameters["initial_capital"] = float(first_value)
+            except StopIteration:
+                pass
     result = _monte_carlo_bootstrap(pnl_series, parameters=parameters)
     if metadata:
         result.setdefault("parameters", {}).update({"metadata": dict(metadata)})
