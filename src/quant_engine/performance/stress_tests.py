@@ -13,12 +13,13 @@ from datetime import datetime, timedelta
 from math import ceil
 import random
 from statistics import mean, pstdev
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, TypedDict, Union
+from typing import Any, Dict, List, Mapping, Optional, Sequence, TypedDict, Union
 
 from .models import CompletedTrade
 
 
 TimeSeries = Union[Sequence[float], Mapping[datetime, float]]
+MultiAssetReturns = Mapping[str, TimeSeries]
 
 
 class StressTestResult(TypedDict, total=False):
@@ -42,6 +43,18 @@ class StressTestResult(TypedDict, total=False):
     distributions: Dict[str, Any]
     parameters: Dict[str, Any]
     warnings: List[str]
+
+
+class ScenarioDefinition(TypedDict, total=False):
+    name: str
+    type: str
+    description: str
+    shock_pct: float
+    vol_multiplier: float
+    drawdown_pct: float
+    window: int
+    index: Union[int, str]
+    start_index: Optional[int]
 
 
 @dataclass(frozen=True)
@@ -218,6 +231,240 @@ def _equity_timestamps_from_trades(trades: Sequence[StandardTrade]) -> Optional[
     if len(exit_times) != len(trades) or not exit_times:
         return None
     return [exit_times[0]] + exit_times
+
+
+def _is_datetime_key(value: Any) -> bool:
+    return _parse_dt(value) is not None
+
+
+def _normalize_timeseries(returns: TimeSeries) -> tuple[List[float], Optional[List[datetime]]]:
+    if isinstance(returns, Mapping):
+        ordered = sorted(returns.items(), key=lambda item: _parse_dt(item[0]) or datetime.min)
+        timestamps = [_parse_dt(ts) for ts, _ in ordered]
+        values = [float(val) for _, val in ordered]
+        return values, timestamps
+    return [float(val) for val in returns], None
+
+
+def _is_multi_asset_returns(returns: Any) -> bool:
+    if not isinstance(returns, Mapping):
+        return False
+    if not returns:
+        return False
+    sample_key = next(iter(returns.keys()))
+    if _is_datetime_key(sample_key):
+        return False
+    sample_value = next(iter(returns.values()))
+    return isinstance(sample_value, (Mapping, Sequence)) and not isinstance(sample_value, (str, bytes))
+
+
+def _normalize_multi_asset_returns(
+    returns: MultiAssetReturns,
+) -> tuple[Dict[str, List[float]], Dict[str, Optional[List[datetime]]]]:
+    normalized: Dict[str, List[float]] = {}
+    timestamps: Dict[str, Optional[List[datetime]]] = {}
+    for symbol, series in returns.items():
+        values, ts = _normalize_timeseries(series)
+        normalized[str(symbol)] = values
+        timestamps[str(symbol)] = ts
+    return normalized, timestamps
+
+
+def _aggregate_multi_asset_returns(
+    per_asset: Mapping[str, List[float]],
+    timestamps: Mapping[str, Optional[List[datetime]]],
+) -> tuple[List[float], Optional[List[datetime]]]:
+    if per_asset and all(timestamps.get(symbol) for symbol in per_asset):
+        combined: Dict[datetime, float] = {}
+        for symbol, values in per_asset.items():
+            ts_list = timestamps.get(symbol) or []
+            for ts, value in zip(ts_list, values):
+                if ts is None:
+                    continue
+                combined[ts] = combined.get(ts, 0.0) + float(value)
+        if combined:
+            ordered = sorted(combined.items(), key=lambda item: item[0])
+            return [val for _, val in ordered], [ts for ts, _ in ordered]
+
+    max_len = max((len(values) for values in per_asset.values()), default=0)
+    aggregated = [0.0] * max_len
+    for values in per_asset.values():
+        for idx, value in enumerate(values):
+            aggregated[idx] += float(value)
+    return aggregated, None
+
+
+def _estimate_scale(returns: Sequence[float]) -> float:
+    if returns:
+        return max(mean([abs(val) for val in returns]), 1e-9)
+    return 1.0
+
+
+def _shock_value(shock_pct: float, returns: Sequence[float], initial_capital: float) -> float:
+    shock_pct = -abs(shock_pct)
+    scale = initial_capital if initial_capital else _estimate_scale(returns)
+    return scale * shock_pct
+
+
+def _scenario_index(returns: Sequence[float], scenario: Mapping[str, Any]) -> int:
+    if not returns:
+        return 0
+    index = scenario.get("index", "mid")
+    if isinstance(index, int):
+        return max(0, min(index, len(returns) - 1))
+    if str(index).lower() == "start":
+        return 0
+    if str(index).lower() == "end":
+        return len(returns) - 1
+    return len(returns) // 2
+
+
+def _apply_scenario_to_returns(
+    returns: Sequence[float],
+    scenario: Mapping[str, Any],
+    *,
+    initial_capital: float,
+) -> List[float]:
+    adjusted = [float(val) for val in returns]
+    if not adjusted:
+        return adjusted
+
+    scenario_type = str(scenario.get("type", "")).lower()
+    if scenario_type in {"crash", "gap"}:
+        shock_pct = float(scenario.get("shock_pct", -0.2))
+        idx = _scenario_index(adjusted, scenario)
+        adjusted[idx] += _shock_value(shock_pct, adjusted, initial_capital)
+        return adjusted
+
+    if scenario_type in {"vol", "volatility", "volatility_spike"}:
+        multiplier = float(scenario.get("vol_multiplier", 2.0))
+        avg = mean(adjusted)
+        return [avg + (val - avg) * multiplier for val in adjusted]
+
+    if scenario_type in {"drawdown", "prolonged_drawdown"}:
+        window = max(int(scenario.get("window", 10)), 1)
+        drawdown_pct = float(scenario.get("drawdown_pct", -0.2))
+        shock_total = _shock_value(drawdown_pct, adjusted, initial_capital)
+        start_idx = scenario.get("start_index")
+        if start_idx is None:
+            start_idx = max((len(adjusted) - window) // 2, 0)
+        start_idx = max(0, min(int(start_idx), max(len(adjusted) - window, 0)))
+        end_idx = min(start_idx + window, len(adjusted))
+        per_step = shock_total / max(end_idx - start_idx, 1)
+        for idx in range(start_idx, end_idx):
+            adjusted[idx] += per_step
+        return adjusted
+
+    return adjusted
+
+
+def _build_equity_curve(returns: Sequence[float], initial_capital: float) -> List[float]:
+    equity = [initial_capital]
+    for value in returns:
+        equity.append(equity[-1] + float(value))
+    return equity
+
+
+def _default_scenarios(parameters: Mapping[str, Any]) -> List[ScenarioDefinition]:
+    return [
+        {
+            "name": "crash",
+            "type": "crash",
+            "description": "Single-period crash shock applied mid-series.",
+            "shock_pct": float(parameters.get("crash_shock_pct", -0.25)),
+            "index": parameters.get("crash_index", "mid"),
+        },
+        {
+            "name": "gap",
+            "type": "gap",
+            "description": "Opening gap down applied at the start of the series.",
+            "shock_pct": float(parameters.get("gap_shock_pct", -0.1)),
+            "index": parameters.get("gap_index", "start"),
+        },
+        {
+            "name": "vol_x2",
+            "type": "volatility",
+            "description": "Volatility spike with returns scaled by 2x.",
+            "vol_multiplier": float(parameters.get("vol_multiplier", 2.0)),
+        },
+        {
+            "name": "drawdown_prolonged",
+            "type": "drawdown",
+            "description": "Prolonged drawdown applied across a rolling window.",
+            "drawdown_pct": float(parameters.get("drawdown_pct", -0.2)),
+            "window": int(parameters.get("drawdown_window", 10)),
+            "start_index": parameters.get("drawdown_start_index"),
+        },
+    ]
+
+
+def apply_scenarios_to_returns(
+    returns: Union[TimeSeries, MultiAssetReturns],
+    *,
+    parameters: Optional[Mapping[str, Any]] = None,
+) -> StressTestResult:
+    """Apply deterministic scenarios to a single or multi-asset returns series."""
+
+    params = parameters or {}
+    scenarios = params.get("scenarios") or _default_scenarios(params)
+    initial_capital = float(params.get("initial_capital", 0.0))
+    warnings: List[str] = []
+
+    scenario_results: Dict[str, Any] = {}
+    scenario_metrics: Dict[str, Any] = {}
+
+    if _is_multi_asset_returns(returns):
+        per_asset, timestamps = _normalize_multi_asset_returns(returns)
+        if not per_asset:
+            warnings.append("No returns available for scenarios.")
+        for scenario in scenarios:
+            name = str(scenario.get("name", "scenario"))
+            per_asset_results: Dict[str, Any] = {}
+            adjusted_assets: Dict[str, List[float]] = {}
+            for symbol, values in per_asset.items():
+                adjusted = _apply_scenario_to_returns(values, scenario, initial_capital=initial_capital)
+                adjusted_assets[symbol] = adjusted
+                metrics = _compute_level1_metrics(adjusted, _build_equity_curve(adjusted, initial_capital), initial_capital)
+                per_asset_results[symbol] = {
+                    "returns": adjusted,
+                    "timestamps": timestamps.get(symbol),
+                    "metrics": metrics,
+                }
+
+            portfolio_returns, portfolio_ts = _aggregate_multi_asset_returns(adjusted_assets, timestamps)
+            portfolio_metrics = _compute_level1_metrics(
+                portfolio_returns, _build_equity_curve(portfolio_returns, initial_capital), initial_capital
+            )
+            scenario_results[name] = {
+                "metrics": portfolio_metrics,
+                "returns": portfolio_returns,
+                "timestamps": portfolio_ts,
+                "per_asset": per_asset_results,
+                "parameters": dict(scenario),
+            }
+            scenario_metrics[name] = portfolio_metrics
+    else:
+        values, timestamps = _normalize_timeseries(returns)
+        if not values:
+            warnings.append("No returns available for scenarios.")
+        for scenario in scenarios:
+            name = str(scenario.get("name", "scenario"))
+            adjusted = _apply_scenario_to_returns(values, scenario, initial_capital=initial_capital)
+            metrics = _compute_level1_metrics(adjusted, _build_equity_curve(adjusted, initial_capital), initial_capital)
+            scenario_results[name] = {
+                "metrics": metrics,
+                "returns": adjusted,
+                "timestamps": timestamps,
+                "parameters": dict(scenario),
+            }
+            scenario_metrics[name] = metrics
+
+    return {
+        "metrics": {"scenarios": scenario_metrics},
+        "distributions": {"scenarios": scenario_results},
+        "parameters": {"initial_capital": initial_capital, "scenarios": list(scenarios)},
+        "warnings": warnings,
+    }
 
 
 def _compute_level1_metrics(
@@ -690,8 +937,40 @@ def run_scenarios_on_trades(
     StressTestResult
         Dict compatible with ``StrategyRunResult.extra``.
     """
+    params = parameters or {}
+    normalized = standardize_trades(trades)
+    if not normalized:
+        result: StressTestResult = {
+            "metrics": {"scenarios": {}},
+            "distributions": {"scenarios": {}},
+            "parameters": {"scenarios": []},
+            "warnings": ["No trades available for scenarios."],
+        }
+        if metadata:
+            result.setdefault("parameters", {}).update({"metadata": dict(metadata)})
+        return result
 
-    raise NotImplementedError("Scenario stress tests on trades are not implemented.")
+    multi_asset = bool(params.get("multi_asset"))
+    symbols = {trade.symbol for trade in normalized if trade.symbol}
+    if len(symbols) > 1:
+        multi_asset = True
+
+    if multi_asset:
+        returns_by_symbol: Dict[str, List[float]] = {}
+        for trade in normalized:
+            symbol = trade.symbol or "UNKNOWN"
+            returns_by_symbol.setdefault(symbol, []).append(trade.pnl)
+        result = apply_scenarios_to_returns(returns_by_symbol, parameters=params)
+    else:
+        ordered = sorted(
+            normalized, key=lambda t: t.exit_time_utc if t.exit_time_utc is not None else datetime.min
+        )
+        pnl_series = [trade.pnl for trade in ordered]
+        result = apply_scenarios_to_returns(pnl_series, parameters=params)
+
+    if metadata:
+        result.setdefault("parameters", {}).update({"metadata": dict(metadata)})
+    return result
 
 
 def run_scenarios_on_returns(
@@ -716,8 +995,10 @@ def run_scenarios_on_returns(
     StressTestResult
         Dict compatible with ``StrategyRunResult.extra``.
     """
-
-    raise NotImplementedError("Scenario stress tests on returns are not implemented.")
+    result = apply_scenarios_to_returns(returns, parameters=parameters)
+    if metadata:
+        result.setdefault("parameters", {}).update({"metadata": dict(metadata)})
+    return result
 
 
 def run_scenarios_on_equity_curve(
@@ -742,5 +1023,34 @@ def run_scenarios_on_equity_curve(
     StressTestResult
         Dict compatible with ``StrategyRunResult.extra``.
     """
+    if isinstance(equity_curve, Mapping):
+        ordered = sorted(equity_curve.items(), key=lambda item: item[0])
+        pnl_series: List[float] = []
+        prev_value: Optional[float] = None
+        for _, value in ordered:
+            val = float(value)
+            if prev_value is None:
+                prev_value = val
+                continue
+            pnl_series.append(val - prev_value)
+            prev_value = val
+        initial_capital = float(ordered[0][1]) if ordered else 0.0
+    else:
+        pnl_series = []
+        prev_value = None
+        values = list(equity_curve)
+        initial_capital = float(values[0]) if values else 0.0
+        for value in values:
+            val = float(value)
+            if prev_value is None:
+                prev_value = val
+                continue
+            pnl_series.append(val - prev_value)
+            prev_value = val
 
-    raise NotImplementedError("Scenario stress tests on equity curve are not implemented.")
+    params = dict(parameters or {})
+    params.setdefault("initial_capital", initial_capital)
+    result = apply_scenarios_to_returns(pnl_series, parameters=params)
+    if metadata:
+        result.setdefault("parameters", {}).update({"metadata": dict(metadata)})
+    return result
