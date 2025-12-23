@@ -16,6 +16,7 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Protocol, Tuple
 import pandas as pd
 
 from .models import CompletedTrade, StrategyRunResult, to_backend_payload
+from .stress_tests import run_monte_carlo_on_trades
 
 LOGGER = logging.getLogger(__name__)
 
@@ -332,6 +333,8 @@ def build_dca_performance_from_signals(
         },
     )
 
+    _attach_stress_tests(run, trades, config=config, initial_capital=initial_capital)
+
     LOGGER.info(
         "Performance built | strategy=%s run=%s trades=%d wins=%d losses=%d total_return=%.4f avg_trade=%.4f",
         strategy_id,
@@ -344,6 +347,77 @@ def build_dca_performance_from_signals(
     )
 
     return run, trades
+
+
+def _stress_tests_enabled(config: Mapping[str, Any]) -> bool:
+    stress_config = config.get("stress_tests", {}) if isinstance(config.get("stress_tests"), Mapping) else {}
+    if "enabled" in stress_config:
+        return bool(stress_config.get("enabled"))
+    return bool(config.get("stress_tests_enabled", False))
+
+
+def _build_monte_carlo_level1(
+    trades: List[CompletedTrade],
+    *,
+    initial_capital: float,
+    config: Mapping[str, Any],
+) -> Dict[str, Any]:
+    stress_config = config.get("stress_tests", {}) if isinstance(config.get("stress_tests"), Mapping) else {}
+    monte_carlo_config = stress_config.get("monte_carlo", {}) if isinstance(stress_config.get("monte_carlo"), Mapping) else {}
+    parameters = {"initial_capital": initial_capital, **monte_carlo_config}
+    metadata = {
+        "strategy_id": trades[0].strategy_id if trades else None,
+        "run_id": trades[0].run_id if trades else None,
+        "asset_class": trades[0].asset_class if trades else None,
+    }
+    result = run_monte_carlo_on_trades(trades, metadata=metadata, parameters=parameters)
+    metrics = result.get("metrics", {}) if isinstance(result, Mapping) else {}
+    level1_keys = {
+        "final_capital",
+        "return_pct",
+        "max_drawdown",
+        "max_drawdown_pct",
+        "volatility_pct",
+        "sharpe",
+        "sortino",
+        "winrate_pct",
+        "total_return",
+        "average_trade",
+        "win_count",
+        "loss_count",
+    }
+    level1_metrics = {key: metrics.get(key) for key in level1_keys if key in metrics}
+    payload: Dict[str, Any] = {
+        "metrics": level1_metrics,
+        "parameters": result.get("parameters", {}) if isinstance(result, Mapping) else {},
+    }
+    warnings = result.get("warnings") if isinstance(result, Mapping) else None
+    if warnings:
+        payload["warnings"] = warnings
+    return payload
+
+
+def _attach_stress_tests(
+    run: StrategyRunResult,
+    trades: List[CompletedTrade],
+    *,
+    config: Mapping[str, Any],
+    initial_capital: float,
+) -> None:
+    if not _stress_tests_enabled(config):
+        return
+    if not trades:
+        return
+    stress_payload = {
+        "monte_carlo_level1": _build_monte_carlo_level1(
+            trades,
+            initial_capital=initial_capital,
+            config=config,
+        )
+    }
+    if run.extra is None:
+        run.extra = {}
+    run.extra["stress_tests"] = stress_payload
 
 
 def build_backend_payload_for_java(
