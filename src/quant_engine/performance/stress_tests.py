@@ -15,6 +15,8 @@ import random
 from statistics import mean, pstdev
 from typing import Any, Dict, List, Mapping, Optional, Sequence, TypedDict, Union
 
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
+
 from .models import CompletedTrade
 
 
@@ -116,6 +118,73 @@ class ScenarioDefinition(TypedDict, total=False):
     window: int
     index: Union[int, str]
     start_index: Optional[int]
+
+
+class ScenarioConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    type: str
+    description: Optional[str] = None
+    shock_pct: Optional[float] = None
+    vol_multiplier: Optional[float] = None
+    drawdown_pct: Optional[float] = None
+    window: Optional[int] = None
+    index: Optional[Union[int, str]] = None
+    start_index: Optional[int] = None
+
+    @model_validator(mode="after")
+    def validate_scenario_fields(self) -> "ScenarioConfig":
+        scenario_type = self.type.lower()
+        if scenario_type in {"crash", "gap"} and self.shock_pct is None:
+            raise ValueError(f"Scenario '{self.name}' requires shock_pct for type '{self.type}'.")
+        if scenario_type in {"vol", "volatility", "volatility_spike"} and self.vol_multiplier is None:
+            raise ValueError(f"Scenario '{self.name}' requires vol_multiplier for type '{self.type}'.")
+        if scenario_type in {"drawdown", "prolonged_drawdown"}:
+            if self.drawdown_pct is None:
+                raise ValueError(f"Scenario '{self.name}' requires drawdown_pct for type '{self.type}'.")
+            if self.window is None:
+                raise ValueError(f"Scenario '{self.name}' requires window for type '{self.type}'.")
+        return self
+
+
+class MonteCarloConfig(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    n_sims: int = Field(
+        1_000,
+        validation_alias=AliasChoices("n_sims", "n_simulations"),
+    )
+    seed: Optional[int] = 42
+    method: str = "bootstrap"
+    block_size: int = Field(5, validation_alias=AliasChoices("block_size", "blockSize"))
+    overlapping: bool = True
+    initial_capital: float = 0.0
+    ruin_threshold: float = 0.0
+    multi_asset: bool = False
+
+    @field_validator("n_sims", "block_size")
+    @classmethod
+    def validate_positive_ints(cls, value: int) -> int:
+        if value <= 0:
+            raise ValueError("n_sims and block_size must be positive integers.")
+        return value
+
+    @field_validator("method")
+    @classmethod
+    def validate_method(cls, value: str) -> str:
+        method = value.lower()
+        allowed = {"bootstrap", "iid", "shuffle", "block", "block_bootstrap"}
+        if method not in allowed:
+            raise ValueError(f"method must be one of {sorted(allowed)}.")
+        return method
+
+
+class StressTestConfig(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    monte_carlo: MonteCarloConfig
+    scenarios: List[ScenarioConfig]
 
 
 @dataclass(frozen=True)
@@ -426,6 +495,32 @@ def _build_equity_curve(returns: Sequence[float], initial_capital: float) -> Lis
     return equity
 
 
+def _parse_scenarios(params: Mapping[str, Any]) -> List[ScenarioConfig]:
+    scenarios = params.get("scenarios")
+    if scenarios is None:
+        scenarios = _default_scenarios(params)
+    if isinstance(scenarios, Mapping) or isinstance(scenarios, (str, bytes)):
+        raise ValueError("Scenarios must be provided as a list of scenario definitions.")
+    if not isinstance(scenarios, Sequence):
+        raise ValueError("Scenarios must be provided as a list of scenario definitions.")
+    if not scenarios:
+        raise ValueError("Scenario list cannot be empty.")
+    try:
+        return [ScenarioConfig.model_validate(scenario) for scenario in scenarios]
+    except ValidationError as exc:
+        raise ValueError(f"Invalid scenario configuration: {exc}") from exc
+
+
+def _parse_monte_carlo_config(parameters: Optional[Mapping[str, Any]]) -> MonteCarloConfig:
+    params = parameters or {}
+    if not isinstance(params, Mapping):
+        raise ValueError("Monte Carlo parameters must be provided as a mapping.")
+    try:
+        return MonteCarloConfig.model_validate(params)
+    except ValidationError as exc:
+        raise ValueError(f"Invalid Monte Carlo configuration: {exc}") from exc
+
+
 def _default_scenarios(parameters: Mapping[str, Any]) -> List[ScenarioDefinition]:
     return [
         {
@@ -467,7 +562,9 @@ def apply_scenarios_to_returns(
     """Apply deterministic scenarios to a single or multi-asset returns series."""
 
     params = parameters or {}
-    scenarios = params.get("scenarios") or _default_scenarios(params)
+    if not isinstance(params, Mapping):
+        raise ValueError("Scenario parameters must be provided as a mapping.")
+    scenarios = _parse_scenarios(params)
     initial_capital = float(params.get("initial_capital", 0.0))
     warnings: List[str] = []
 
@@ -479,11 +576,12 @@ def apply_scenarios_to_returns(
         if not per_asset:
             warnings.append("No returns available for scenarios.")
         for scenario in scenarios:
-            name = str(scenario.get("name", "scenario"))
+            scenario_data = scenario.model_dump()
+            name = str(scenario_data.get("name", "scenario"))
             per_asset_results: Dict[str, Any] = {}
             adjusted_assets: Dict[str, List[float]] = {}
             for symbol, values in per_asset.items():
-                adjusted = _apply_scenario_to_returns(values, scenario, initial_capital=initial_capital)
+                adjusted = _apply_scenario_to_returns(values, scenario_data, initial_capital=initial_capital)
                 adjusted_assets[symbol] = adjusted
                 metrics = _normalize_metric_names(
                     _compute_level1_metrics(adjusted, _build_equity_curve(adjusted, initial_capital), initial_capital)
@@ -505,7 +603,7 @@ def apply_scenarios_to_returns(
                 "returns": portfolio_returns,
                 "timestamps": portfolio_ts,
                 "per_asset": per_asset_results,
-                "parameters": dict(scenario),
+                "parameters": scenario_data,
             }
             scenario_metrics[name] = portfolio_metrics
     else:
@@ -513,8 +611,9 @@ def apply_scenarios_to_returns(
         if not values:
             warnings.append("No returns available for scenarios.")
         for scenario in scenarios:
-            name = str(scenario.get("name", "scenario"))
-            adjusted = _apply_scenario_to_returns(values, scenario, initial_capital=initial_capital)
+            scenario_data = scenario.model_dump()
+            name = str(scenario_data.get("name", "scenario"))
+            adjusted = _apply_scenario_to_returns(values, scenario_data, initial_capital=initial_capital)
             metrics = _normalize_metric_names(
                 _compute_level1_metrics(adjusted, _build_equity_curve(adjusted, initial_capital), initial_capital)
             )
@@ -522,14 +621,17 @@ def apply_scenarios_to_returns(
                 "metrics": metrics,
                 "returns": adjusted,
                 "timestamps": timestamps,
-                "parameters": dict(scenario),
+                "parameters": scenario_data,
             }
             scenario_metrics[name] = metrics
 
     return {
         "metrics": {"scenarios": _normalize_scenario_metrics(scenario_metrics)},
         "distributions": {"scenarios": scenario_results},
-        "parameters": {"initial_capital": initial_capital, "scenarios": list(scenarios)},
+        "parameters": {
+            "initial_capital": initial_capital,
+            "scenarios": [scenario.model_dump() for scenario in scenarios],
+        },
         "warnings": warnings,
     }
 
@@ -683,15 +785,15 @@ def _monte_carlo_bootstrap(
     *,
     parameters: Optional[Mapping[str, Any]] = None,
 ) -> StressTestResult:
-    params = parameters or {}
-    n_simulations = int(params.get("n_simulations", 1_000))
-    seed = params.get("seed")
-    initial_capital = float(params.get("initial_capital", 0.0))
-    ruin_threshold = float(params.get("ruin_threshold", 0.0))
-    method = str(params.get("method", "bootstrap")).lower()
-    block_size = max(int(params.get("block_size", 5)), 1)
-    overlapping = bool(params.get("overlapping", True))
-    multi_asset = bool(params.get("multi_asset", False))
+    config = _parse_monte_carlo_config(parameters)
+    n_simulations = config.n_sims
+    seed = config.seed
+    initial_capital = float(config.initial_capital)
+    ruin_threshold = float(config.ruin_threshold)
+    method = config.method
+    block_size = config.block_size
+    overlapping = config.overlapping
+    multi_asset = config.multi_asset
     rng = random.Random(seed)
 
     if not trades:
