@@ -21,6 +21,67 @@ from .models import CompletedTrade
 TimeSeries = Union[Sequence[float], Mapping[datetime, float]]
 MultiAssetReturns = Mapping[str, TimeSeries]
 
+METRIC_NAME_MAP = {
+    "maxDrawdown": "max_drawdown",
+    "max_drawdown": "max_drawdown",
+    "maxDrawdownPct": "max_drawdown_pct",
+    "max_drawdown_pct": "max_drawdown_pct",
+    "cagr": "cagr",
+    "cagr_pct": "cagr",
+    "ruinProbability": "ruin_probability",
+    "ruin_probability": "ruin_probability",
+    "time_to_recovery": "time_to_recovery_days",
+    "time_to_recovery_days": "time_to_recovery_days",
+}
+
+EXPECTED_STRESS_TEST_METRICS: Dict[str, Dict[str, List[str]]] = {
+    "monte_carlo": {
+        "summary": ["max_drawdown", "max_drawdown_pct", "cagr", "ruin_probability", "time_to_recovery_days"],
+        "level1": [
+            "final_capital",
+            "return_pct",
+            "max_drawdown",
+            "max_drawdown_pct",
+            "volatility_pct",
+            "sharpe",
+            "sortino",
+            "winrate_pct",
+            "total_return",
+            "average_trade",
+            "win_count",
+            "loss_count",
+        ],
+    },
+    "scenarios": {
+        "level1": [
+            "final_capital",
+            "return_pct",
+            "max_drawdown",
+            "max_drawdown_pct",
+            "volatility_pct",
+            "sharpe",
+            "sortino",
+            "winrate_pct",
+            "total_return",
+            "average_trade",
+            "win_count",
+            "loss_count",
+        ]
+    },
+}
+
+
+def _normalize_metric_names(metrics: Mapping[str, Any]) -> Dict[str, Any]:
+    normalized: Dict[str, Any] = {}
+    for key, value in metrics.items():
+        target = METRIC_NAME_MAP.get(key, key)
+        normalized[target] = value
+    return normalized
+
+
+def _normalize_scenario_metrics(metrics_map: Mapping[str, Any]) -> Dict[str, Any]:
+    return {name: _normalize_metric_names(metrics) for name, metrics in metrics_map.items()}
+
 
 class StressTestResult(TypedDict, total=False):
     """Standardized output keys for stress tests.
@@ -424,7 +485,9 @@ def apply_scenarios_to_returns(
             for symbol, values in per_asset.items():
                 adjusted = _apply_scenario_to_returns(values, scenario, initial_capital=initial_capital)
                 adjusted_assets[symbol] = adjusted
-                metrics = _compute_level1_metrics(adjusted, _build_equity_curve(adjusted, initial_capital), initial_capital)
+                metrics = _normalize_metric_names(
+                    _compute_level1_metrics(adjusted, _build_equity_curve(adjusted, initial_capital), initial_capital)
+                )
                 per_asset_results[symbol] = {
                     "returns": adjusted,
                     "timestamps": timestamps.get(symbol),
@@ -432,8 +495,10 @@ def apply_scenarios_to_returns(
                 }
 
             portfolio_returns, portfolio_ts = _aggregate_multi_asset_returns(adjusted_assets, timestamps)
-            portfolio_metrics = _compute_level1_metrics(
-                portfolio_returns, _build_equity_curve(portfolio_returns, initial_capital), initial_capital
+            portfolio_metrics = _normalize_metric_names(
+                _compute_level1_metrics(
+                    portfolio_returns, _build_equity_curve(portfolio_returns, initial_capital), initial_capital
+                )
             )
             scenario_results[name] = {
                 "metrics": portfolio_metrics,
@@ -450,7 +515,9 @@ def apply_scenarios_to_returns(
         for scenario in scenarios:
             name = str(scenario.get("name", "scenario"))
             adjusted = _apply_scenario_to_returns(values, scenario, initial_capital=initial_capital)
-            metrics = _compute_level1_metrics(adjusted, _build_equity_curve(adjusted, initial_capital), initial_capital)
+            metrics = _normalize_metric_names(
+                _compute_level1_metrics(adjusted, _build_equity_curve(adjusted, initial_capital), initial_capital)
+            )
             scenario_results[name] = {
                 "metrics": metrics,
                 "returns": adjusted,
@@ -460,7 +527,7 @@ def apply_scenarios_to_returns(
             scenario_metrics[name] = metrics
 
     return {
-        "metrics": {"scenarios": scenario_metrics},
+        "metrics": {"scenarios": _normalize_scenario_metrics(scenario_metrics)},
         "distributions": {"scenarios": scenario_results},
         "parameters": {"initial_capital": initial_capital, "scenarios": list(scenarios)},
         "warnings": warnings,
@@ -733,13 +800,16 @@ def _monte_carlo_bootstrap(
     for key, values in level1_metrics.items():
         metrics[key] = _summary_stats(values)
 
+    metrics = _normalize_metric_names(metrics)
+    normalized_level1 = _normalize_metric_names(level1_metrics)
+
     distributions = {
         "max_drawdown": max_drawdowns,
         "cagr": cagrs,
         "time_to_recovery_days": time_to_recovery,
         "equity_curves": equity_curves,
         "ruin": ruin_flags,
-        "level1": level1_metrics,
+        "level1": normalized_level1,
     }
 
     return {
