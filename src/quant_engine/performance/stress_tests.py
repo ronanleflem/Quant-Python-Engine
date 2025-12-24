@@ -403,25 +403,58 @@ def _normalize_multi_asset_returns(
 def _aggregate_multi_asset_returns(
     per_asset: Mapping[str, List[float]],
     timestamps: Mapping[str, Optional[List[datetime]]],
+    weights: Optional[Mapping[str, float]] = None,
 ) -> tuple[List[float], Optional[List[datetime]]]:
     if per_asset and all(timestamps.get(symbol) for symbol in per_asset):
         combined: Dict[datetime, float] = {}
         for symbol, values in per_asset.items():
+            weight = float(weights.get(symbol, 1.0)) if weights else 1.0
             ts_list = timestamps.get(symbol) or []
             for ts, value in zip(ts_list, values):
                 if ts is None:
                     continue
-                combined[ts] = combined.get(ts, 0.0) + float(value)
+                combined[ts] = combined.get(ts, 0.0) + float(value) * weight
         if combined:
             ordered = sorted(combined.items(), key=lambda item: item[0])
             return [val for _, val in ordered], [ts for ts, _ in ordered]
 
     max_len = max((len(values) for values in per_asset.values()), default=0)
     aggregated = [0.0] * max_len
-    for values in per_asset.values():
+    for symbol, values in per_asset.items():
+        weight = float(weights.get(symbol, 1.0)) if weights else 1.0
         for idx, value in enumerate(values):
-            aggregated[idx] += float(value)
+            aggregated[idx] += float(value) * weight
     return aggregated, None
+
+
+def _normalize_weights(
+    symbols: Sequence[str],
+    raw_weights: Mapping[str, float],
+) -> Optional[Dict[str, float]]:
+    if not symbols:
+        return None
+    weights = {symbol: float(raw_weights.get(symbol, 0.0)) for symbol in symbols}
+    total = sum(weights.values())
+    if total == 0:
+        return None
+    return {symbol: value / total for symbol, value in weights.items()}
+
+
+def _volatility_weights(per_asset: Mapping[str, Sequence[float]]) -> Optional[Dict[str, float]]:
+    if not per_asset:
+        return None
+    volatilities: Dict[str, float] = {}
+    for symbol, values in per_asset.items():
+        if len(values) > 1:
+            vol = pstdev(values)
+            if vol > 0:
+                volatilities[symbol] = vol
+    if len(volatilities) != len(per_asset):
+        return None
+    total = sum(volatilities.values())
+    if total == 0:
+        return None
+    return {symbol: value / total for symbol, value in volatilities.items()}
 
 
 def _estimate_scale(returns: Sequence[float]) -> float:
@@ -567,6 +600,9 @@ def apply_scenarios_to_returns(
     scenarios = _parse_scenarios(params)
     initial_capital = float(params.get("initial_capital", 0.0))
     warnings: List[str] = []
+    aggregation = str(params.get("aggregation", "equal_weight")).lower()
+    raw_weights = params.get("weights")
+    weights_used: Optional[Dict[str, float]] = None
 
     scenario_results: Dict[str, Any] = {}
     scenario_metrics: Dict[str, Any] = {}
@@ -575,6 +611,25 @@ def apply_scenarios_to_returns(
         per_asset, timestamps = _normalize_multi_asset_returns(returns)
         if not per_asset:
             warnings.append("No returns available for scenarios.")
+        symbols = list(per_asset.keys())
+        if aggregation == "value_weighted":
+            if isinstance(raw_weights, Mapping) and raw_weights:
+                weights_used = _normalize_weights(symbols, raw_weights)
+                if weights_used is None:
+                    warnings.append("Value-weighted aggregation requires non-zero weights; falling back to equal weights.")
+            else:
+                warnings.append("Value-weighted aggregation requires weights; falling back to equal weights.")
+        elif aggregation == "vol_weighted":
+            weights_used = _volatility_weights(per_asset)
+            if weights_used is None:
+                warnings.append("Volatility-weighted aggregation unavailable; falling back to equal weights.")
+        elif aggregation != "equal_weight":
+            warnings.append(f"Unknown aggregation '{aggregation}'; falling back to equal weights.")
+
+        if weights_used is None and symbols:
+            weights_used = {symbol: 1.0 / len(symbols) for symbol in symbols}
+            aggregation = "equal_weight"
+
         for scenario in scenarios:
             scenario_data = scenario.model_dump()
             name = str(scenario_data.get("name", "scenario"))
@@ -593,7 +648,11 @@ def apply_scenarios_to_returns(
                     "parameters": scenario_data,
                 }
 
-            portfolio_returns, portfolio_ts = _aggregate_multi_asset_returns(adjusted_assets, timestamps)
+            portfolio_returns, portfolio_ts = _aggregate_multi_asset_returns(
+                adjusted_assets,
+                timestamps,
+                weights_used,
+            )
             portfolio_metrics = _normalize_metric_names(
                 _compute_level1_metrics(
                     portfolio_returns, _build_equity_curve(portfolio_returns, initial_capital), initial_capital
@@ -634,6 +693,7 @@ def apply_scenarios_to_returns(
         "parameters": {
             "initial_capital": initial_capital,
             "scenarios": [scenario.model_dump() for scenario in scenarios],
+            **({"aggregation": aggregation, "weights": weights_used} if weights_used is not None else {}),
         },
         "warnings": warnings,
     }
