@@ -590,6 +590,7 @@ def apply_scenarios_to_returns(
                     "returns": adjusted,
                     "timestamps": timestamps.get(symbol),
                     "metrics": metrics,
+                    "parameters": scenario_data,
                 }
 
             portfolio_returns, portfolio_ts = _aggregate_multi_asset_returns(adjusted_assets, timestamps)
@@ -599,11 +600,13 @@ def apply_scenarios_to_returns(
                 )
             )
             scenario_results[name] = {
-                "metrics": portfolio_metrics,
-                "returns": portfolio_returns,
-                "timestamps": portfolio_ts,
-                "per_asset": per_asset_results,
-                "parameters": scenario_data,
+                "portfolio_level": {
+                    "metrics": portfolio_metrics,
+                    "returns": portfolio_returns,
+                    "timestamps": portfolio_ts,
+                    "parameters": scenario_data,
+                },
+                "by_symbol": per_asset_results,
             }
             scenario_metrics[name] = portfolio_metrics
     else:
