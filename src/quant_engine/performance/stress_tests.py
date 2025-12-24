@@ -602,6 +602,7 @@ def apply_scenarios_to_returns(
     warnings: List[str] = []
     aggregation = str(params.get("aggregation", "equal_weight")).lower()
     raw_weights = params.get("weights")
+    weights_source = params.get("weights_source")
     weights_used: Optional[Dict[str, float]] = None
 
     scenario_results: Dict[str, Any] = {}
@@ -635,6 +636,12 @@ def apply_scenarios_to_returns(
             name = str(scenario_data.get("name", "scenario"))
             per_asset_results: Dict[str, Any] = {}
             adjusted_assets: Dict[str, List[float]] = {}
+            scenario_parameters = {
+                **scenario_data,
+                "aggregation": aggregation,
+                "weights": weights_used,
+                "weights_source": weights_source,
+            }
             for symbol, values in per_asset.items():
                 adjusted = _apply_scenario_to_returns(values, scenario_data, initial_capital=initial_capital)
                 adjusted_assets[symbol] = adjusted
@@ -645,7 +652,7 @@ def apply_scenarios_to_returns(
                     "returns": adjusted,
                     "timestamps": timestamps.get(symbol),
                     "metrics": metrics,
-                    "parameters": scenario_data,
+                    "parameters": scenario_parameters,
                 }
 
             portfolio_returns, portfolio_ts = _aggregate_multi_asset_returns(
@@ -663,7 +670,7 @@ def apply_scenarios_to_returns(
                     "metrics": portfolio_metrics,
                     "returns": portfolio_returns,
                     "timestamps": portfolio_ts,
-                    "parameters": scenario_data,
+                    "parameters": scenario_parameters,
                 },
                 "by_symbol": per_asset_results,
             }
@@ -679,11 +686,17 @@ def apply_scenarios_to_returns(
             metrics = _normalize_metric_names(
                 _compute_level1_metrics(adjusted, _build_equity_curve(adjusted, initial_capital), initial_capital)
             )
+            scenario_parameters = {
+                **scenario_data,
+                "aggregation": None,
+                "weights": None,
+                "weights_source": None,
+            }
             scenario_results[name] = {
                 "metrics": metrics,
                 "returns": adjusted,
                 "timestamps": timestamps,
-                "parameters": scenario_data,
+                "parameters": scenario_parameters,
             }
             scenario_metrics[name] = metrics
 
