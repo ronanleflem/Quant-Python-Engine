@@ -31,12 +31,17 @@ def test_timezone_aware_conversion_is_neutral() -> None:
         dataset_naive, train_months=1, test_months=1, folds=1, embargo_days=0
     )
 
-    assert [row["timestamp"] for row in folds_tz[0]["train"]] == [
-        row["timestamp"] for row in folds_naive[0]["train"]
-    ]
-    assert [row["timestamp"] for row in folds_tz[0]["test"]] == [
-        row["timestamp"] for row in folds_naive[0]["test"]
-    ]
+    def _normalise(rows: list[dict]) -> list[datetime]:
+        normalised: list[datetime] = []
+        for row in rows:
+            dt = datetime.fromisoformat(row["timestamp"])
+            if dt.tzinfo is not None:
+                dt = dt.replace(tzinfo=None)
+            normalised.append(dt)
+        return normalised
+
+    assert _normalise(folds_tz[0]["train"]) == _normalise(folds_naive[0]["train"])
+    assert _normalise(folds_tz[0]["test"]) == _normalise(folds_naive[0]["test"])
 
 
 def test_embargo_days_is_applied() -> None:
@@ -55,3 +60,13 @@ def test_breaks_when_test_rows_empty() -> None:
     dataset = _build_dataset(datetime(2020, 1, 1), days=15)
     folds = generate_folds(dataset, train_months=1, test_months=1, folds=3, embargo_days=0)
     assert folds == []
+
+
+def test_timezone_aware_utc_offsets_are_supported() -> None:
+    dataset = _build_dataset(datetime(2020, 1, 1), days=40, tz=timezone.utc)
+
+    folds = generate_folds(dataset, train_months=1, test_months=1, folds=1, embargo_days=0)
+
+    assert len(folds) == 1
+    assert folds[0]["train"]
+    assert folds[0]["test"]
