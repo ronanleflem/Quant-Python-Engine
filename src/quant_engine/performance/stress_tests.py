@@ -121,7 +121,7 @@ class ScenarioDefinition(TypedDict, total=False):
 
 
 class ScenarioConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="allow")
 
     name: str
     type: str
@@ -404,14 +404,28 @@ def _aggregate_multi_asset_returns(
     per_asset: Mapping[str, List[float]],
     timestamps: Mapping[str, Optional[List[datetime]]],
     weights: Optional[Mapping[str, float]] = None,
+    *,
+    timestamp_alignment: str = "union",
 ) -> tuple[List[float], Optional[List[datetime]]]:
     if per_asset and all(timestamps.get(symbol) for symbol in per_asset):
         combined: Dict[datetime, float] = {}
+        common_timestamps: Optional[set[datetime]] = None
+        if timestamp_alignment == "intersection":
+            for symbol in per_asset:
+                symbol_ts = set(timestamps.get(symbol) or [])
+                if common_timestamps is None:
+                    common_timestamps = symbol_ts
+                else:
+                    common_timestamps &= symbol_ts
+            if not common_timestamps:
+                return [], []
         for symbol, values in per_asset.items():
             weight = float(weights.get(symbol, 1.0)) if weights else 1.0
             ts_list = timestamps.get(symbol) or []
             for ts, value in zip(ts_list, values):
                 if ts is None:
+                    continue
+                if common_timestamps is not None and ts not in common_timestamps:
                     continue
                 combined[ts] = combined.get(ts, 0.0) + float(value) * weight
         if combined:
@@ -440,7 +454,11 @@ def _normalize_weights(
     return {symbol: value / total for symbol, value in weights.items()}
 
 
-def _volatility_weights(per_asset: Mapping[str, Sequence[float]]) -> Optional[Dict[str, float]]:
+def _volatility_weights(
+    per_asset: Mapping[str, Sequence[float]],
+    *,
+    weighting: str,
+) -> Optional[Dict[str, float]]:
     if not per_asset:
         return None
     volatilities: Dict[str, float] = {}
@@ -448,7 +466,10 @@ def _volatility_weights(per_asset: Mapping[str, Sequence[float]]) -> Optional[Di
         if len(values) > 1:
             vol = pstdev(values)
             if vol > 0:
-                volatilities[symbol] = vol
+                if weighting == "inverse":
+                    volatilities[symbol] = 1.0 / vol
+                else:
+                    volatilities[symbol] = vol
     if len(volatilities) != len(per_asset):
         return None
     total = sum(volatilities.values())
@@ -603,6 +624,8 @@ def apply_scenarios_to_returns(
     aggregation = str(params.get("aggregation", "equal_weight")).lower()
     raw_weights = params.get("weights")
     weights_source = params.get("weights_source")
+    volatility_weighting = str(params.get("volatility_weighting", "inverse")).lower()
+    timestamp_alignment = str(params.get("timestamp_alignment", "union")).lower()
     weights_used: Optional[Dict[str, float]] = None
 
     scenario_results: Dict[str, Any] = {}
@@ -621,7 +644,12 @@ def apply_scenarios_to_returns(
             else:
                 warnings.append("Value-weighted aggregation requires weights; falling back to equal weights.")
         elif aggregation == "vol_weighted":
-            weights_used = _volatility_weights(per_asset)
+            if volatility_weighting not in {"direct", "inverse"}:
+                warnings.append(
+                    f"Unknown volatility_weighting '{volatility_weighting}'; falling back to inverse weighting."
+                )
+                volatility_weighting = "inverse"
+            weights_used = _volatility_weights(per_asset, weighting=volatility_weighting)
             if weights_used is None:
                 warnings.append("Volatility-weighted aggregation unavailable; falling back to equal weights.")
         elif aggregation != "equal_weight":
@@ -630,6 +658,12 @@ def apply_scenarios_to_returns(
         if weights_used is None and symbols:
             weights_used = {symbol: 1.0 / len(symbols) for symbol in symbols}
             aggregation = "equal_weight"
+
+        if timestamp_alignment not in {"union", "intersection"}:
+            warnings.append(
+                f"Unknown timestamp_alignment '{timestamp_alignment}'; falling back to union alignment."
+            )
+            timestamp_alignment = "union"
 
         for scenario in scenarios:
             scenario_data = scenario.model_dump()
@@ -641,6 +675,8 @@ def apply_scenarios_to_returns(
                 "aggregation": aggregation,
                 "weights": weights_used,
                 "weights_source": weights_source,
+                "volatility_weighting": volatility_weighting if aggregation == "vol_weighted" else None,
+                "timestamp_alignment": timestamp_alignment,
             }
             for symbol, values in per_asset.items():
                 adjusted = _apply_scenario_to_returns(values, scenario_data, initial_capital=initial_capital)
@@ -659,6 +695,7 @@ def apply_scenarios_to_returns(
                 adjusted_assets,
                 timestamps,
                 weights_used,
+                timestamp_alignment=timestamp_alignment,
             )
             portfolio_metrics = _normalize_metric_names(
                 _compute_level1_metrics(
@@ -691,6 +728,8 @@ def apply_scenarios_to_returns(
                 "aggregation": None,
                 "weights": None,
                 "weights_source": None,
+                "volatility_weighting": None,
+                "timestamp_alignment": None,
             }
             scenario_results[name] = {
                 "metrics": metrics,
@@ -706,7 +745,11 @@ def apply_scenarios_to_returns(
         "parameters": {
             "initial_capital": initial_capital,
             "scenarios": [scenario.model_dump() for scenario in scenarios],
-            **({"aggregation": aggregation, "weights": weights_used} if weights_used is not None else {}),
+            "aggregation": aggregation if _is_multi_asset_returns(returns) else None,
+            "weights": weights_used,
+            "weights_source": weights_source if _is_multi_asset_returns(returns) else None,
+            "volatility_weighting": volatility_weighting if aggregation == "vol_weighted" else None,
+            "timestamp_alignment": timestamp_alignment if _is_multi_asset_returns(returns) else None,
         },
         "warnings": warnings,
     }
@@ -734,6 +777,8 @@ def _compute_level1_metrics(
     returns_pct: List[float] = []
     if initial_capital:
         returns_pct = [pnl / initial_capital * 100.0 for pnl in pnl_values]
+    else:
+        returns_pct = [float(pnl) for pnl in pnl_values]
 
     win_count = sum(1 for r in returns_pct if r > 0)
     loss_count = sum(1 for r in returns_pct if r <= 0)
