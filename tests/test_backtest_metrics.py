@@ -27,6 +27,20 @@ def test_simple_drawdown():
     assert metrics.max_drawdown(equity) == 1.0
 
 
+def test_known_trades_metrics():
+    trades = [
+        {"pnl": -1.0, "r_multiple": -1.0},
+        {"pnl": 2.0, "r_multiple": 2.0},
+        {"pnl": 2.0, "r_multiple": 2.0},
+    ]
+    equity = [0.0, -1.0, 1.0, 3.0, 2.0, 4.0, 1.0]
+    result = metrics.compute(trades, equity)
+
+    assert result["sharpe"] == pytest.approx((3 ** 0.5) / (2 ** 0.5))
+    assert result["sortino"] == pytest.approx(3.0)
+    assert result["max_drawdown"] == pytest.approx(3.0)
+
+
 def test_hit_rate_and_avg_r():
     trades = [
         {"pnl": 1.0, "r_multiple": 2.0},
