@@ -37,6 +37,7 @@ def _make_signal(
     ts: datetime,
     qty: float = 1.0,
     action: str | None = None,
+    symbol: str = "ABC",
     extra_meta: Mapping[str, Any] | None = None,
 ) -> FakeSignal:
     meta: dict[str, Any] = {"cycle_id": cycle_id}
@@ -46,7 +47,7 @@ def _make_signal(
         meta.update(extra_meta)
     return FakeSignal(
         strategy_id="dca",
-        symbol="ABC",
+        symbol=symbol,
         asset_class="EQUITY",
         side=side,
         ts_open_utc=ts,
@@ -96,6 +97,72 @@ def test_build_dca_performance_from_signals_handles_cycles_and_metrics() -> None
     assert run.win_count == 1
     assert run.loss_count == 1
     assert run.total_return == pytest.approx(trades[0].gross_pnl_pct + trades[1].gross_pnl_pct)
+
+
+def test_build_dca_performance_multiple_buys_and_tp_metrics() -> None:
+    base = datetime(2024, 3, 1, tzinfo=timezone.utc)
+    signals = [
+        _make_signal(cycle_id=1, side="BUY", ts=base, qty=1.0),
+        _make_signal(cycle_id=1, side="BUY", ts=base.replace(day=2), qty=1.0),
+        _make_signal(cycle_id=1, side="BUY", ts=base.replace(day=3), qty=1.0),
+        _make_signal(cycle_id=1, side="SELL", ts=base.replace(day=4), action="take_profit"),
+        _make_signal(cycle_id=2, side="BUY", ts=base.replace(day=5), qty=1.0),
+        _make_signal(cycle_id=2, side="BUY", ts=base.replace(day=6), qty=1.0),
+        _make_signal(cycle_id=2, side="SELL", ts=base.replace(day=7), action="take_profit"),
+    ]
+    ohlc = {"ABC": _make_ohlc([100.0, 90.0, 80.0, 120.0, 110.0, 105.0, 90.0], start="2024-03-01")}
+    run, trades = build_dca_performance_from_signals(
+        strategy_id="dca",
+        run_id="run-3",
+        asset_class="EQUITY",
+        universe="ABC",
+        timeframe="1D",
+        signals_by_symbol={"ABC": signals},
+        ohlc_by_symbol=ohlc,
+        config={"initial_capital": 1_000.0, "capital_per_unit": 100.0},
+    )
+
+    trades_by_cycle = {trade.cycle_id: trade for trade in trades}
+    assert trades_by_cycle[1].gross_pnl_pct == pytest.approx(33.333333, rel=1e-5)
+    assert trades_by_cycle[2].gross_pnl_pct == pytest.approx(-16.279070, rel=1e-5)
+    assert trades_by_cycle[1].meta["avg_entry_price"] == pytest.approx(90.0)
+    assert trades_by_cycle[2].meta["avg_entry_price"] == pytest.approx(107.5)
+    assert run.win_count == 1
+    assert run.loss_count == 1
+    assert run.max_drawdown == pytest.approx(16.279070, rel=1e-5)
+    assert run.total_return == pytest.approx(
+        trades_by_cycle[1].gross_pnl_pct + trades_by_cycle[2].gross_pnl_pct,
+        rel=1e-5,
+    )
+
+
+def test_build_dca_performance_multi_symbol_sets_symbol_none() -> None:
+    base = datetime(2024, 4, 1, tzinfo=timezone.utc)
+    signals_abc = [
+        _make_signal(cycle_id=1, side="BUY", ts=base, qty=1.0, symbol="ABC"),
+        _make_signal(cycle_id=1, side="SELL", ts=base.replace(day=2), action="take_profit", symbol="ABC"),
+    ]
+    signals_xyz = [
+        _make_signal(cycle_id=1, side="BUY", ts=base, qty=1.0, symbol="XYZ"),
+        _make_signal(cycle_id=1, side="SELL", ts=base.replace(day=2), action="take_profit", symbol="XYZ"),
+    ]
+    ohlc = {
+        "ABC": _make_ohlc([100.0, 110.0], start="2024-04-01"),
+        "XYZ": _make_ohlc([200.0, 210.0], start="2024-04-01"),
+    }
+    run, trades = build_dca_performance_from_signals(
+        strategy_id="dca",
+        run_id="run-4",
+        asset_class="EQUITY",
+        universe="MULTI",
+        timeframe="1D",
+        signals_by_symbol={"ABC": signals_abc, "XYZ": signals_xyz},
+        ohlc_by_symbol=ohlc,
+        config={"capital_per_unit": 100.0},
+    )
+
+    assert run.symbol is None
+    assert {trade.symbol for trade in trades} == {"ABC", "XYZ"}
 
 
 def test_build_backend_payload_for_java_structure_and_meta() -> None:
@@ -148,3 +215,79 @@ def test_build_backend_payload_for_java_structure_and_meta() -> None:
     ):
         assert key in trade
     assert trade["meta"]["break_even_reached"] is True
+
+
+def test_to_backend_payload_has_non_null_required_fields() -> None:
+    base = datetime(2024, 5, 1, tzinfo=timezone.utc)
+    signals = [
+        _make_signal(cycle_id=1, side="BUY", ts=base, qty=1.0),
+        _make_signal(cycle_id=1, side="BUY", ts=base.replace(day=2), qty=1.0),
+        _make_signal(cycle_id=1, side="SELL", ts=base.replace(day=3), action="take_profit"),
+    ]
+    ohlc = {"ABC": _make_ohlc([100.0, 95.0, 105.0], start="2024-05-01")}
+    run, trades = build_dca_performance_from_signals(
+        strategy_id="dca",
+        run_id="run-5",
+        asset_class="EQUITY",
+        universe="ABC",
+        timeframe="1D",
+        signals_by_symbol={"ABC": signals},
+        ohlc_by_symbol=ohlc,
+        config={"initial_capital": 1_000.0, "capital_per_unit": 100.0},
+    )
+    payload = build_backend_payload_for_java(
+        strategy_id="dca",
+        run_id="run-5",
+        asset_class="EQUITY",
+        universe="ABC",
+        timeframe="1D",
+        signals_by_symbol={"ABC": signals},
+        ohlc_by_symbol=ohlc,
+        config={"initial_capital": 1_000.0, "capital_per_unit": 100.0},
+    )
+
+    run_payload = payload["run"]
+    trade_payload = payload["trades"][0]
+
+    for key in (
+        "strategyId",
+        "runId",
+        "assetClass",
+        "startTsUtc",
+        "endTsUtc",
+        "winCount",
+        "lossCount",
+        "totalReturn",
+        "maxDrawdown",
+        "averageTrade",
+        "totalNetReturn",
+        "netWinCount",
+        "netLossCount",
+        "averageNetTrade",
+        "initialCapital",
+        "finalCapital",
+        "returnPct",
+        "maxDrawdownPct",
+        "winratePct",
+    ):
+        assert run_payload[key] is not None
+
+    for key in (
+        "strategyId",
+        "runId",
+        "symbol",
+        "assetClass",
+        "side",
+        "cycleId",
+        "entryTimeUtc",
+        "exitTimeUtc",
+        "entryPrice",
+        "exitPrice",
+        "quantity",
+        "grossPnl",
+        "grossPnlPct",
+        "meta",
+    ):
+        assert trade_payload[key] is not None
+
+    assert trade_payload["grossPnlPct"] == pytest.approx(trades[0].gross_pnl_pct)
