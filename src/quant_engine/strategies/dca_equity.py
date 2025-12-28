@@ -131,7 +131,8 @@ class DcaEquityStrategy(Strategy):
         strategy_ctx = context.setdefault("state", {})
         state = self._state_from_dict(strategy_ctx)
         last_ts = df.index.max() if not df.empty else None
-        signals = self._process(df, context, state, only_last_ts=last_ts)
+        only_last_ts = None if state.last_processed_ts is None else last_ts
+        signals = self._process(df, context, state, only_last_ts=only_last_ts)
         self._update_context_dict(strategy_ctx, state)
         return signals
 
@@ -265,9 +266,10 @@ class DcaEquityStrategy(Strategy):
         if avg_entry == 0:
             return signals
         pnl_pct = (price / avg_entry - 1.0) * 100.0
+        rebound_pct = (price / state.cycle_low - 1.0) * 100.0
 
-        should_tp = pnl_pct >= float(tp_pct)
-        should_be = be_pct is not None and pnl_pct >= float(be_pct)
+        should_tp = rebound_pct >= float(tp_pct)
+        should_be = be_pct is not None and rebound_pct >= float(be_pct)
 
         # Debug trace for TP/BE decisions (muted; re-enable for troubleshooting)
         # print(
@@ -289,7 +291,7 @@ class DcaEquityStrategy(Strategy):
                 "cycle_id": state.cycle_id,
                 "grid_config": self.grid,
                 "grid_level": None,
-                "rebound_pct": None,
+                "rebound_pct": rebound_pct,
                 "avg_entry_price": avg_entry,
                 "pnl_pct_at_exit": pnl_pct,
                 "break_even_reached": should_be,

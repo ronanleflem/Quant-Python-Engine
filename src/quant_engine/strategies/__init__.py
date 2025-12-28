@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, Type
 
-from .base import Strategy
+from .base import Strategy, StrategySignal
 from .crypto_grid import CryptoGridStrategy
 from .dca_equity import DcaEquityStrategy
 from .dca_etf import DcaEtfStrategy
@@ -29,6 +29,7 @@ def create_strategy(strategy_type: str, strategy_id: str, params: Dict[str, Any]
 __all__ = [
     "create_strategy",
     "Strategy",
+    "StrategySignal",
     "STRATEGY_REGISTRY",
     "CryptoGridStrategy",
     "DcaEquityStrategy",

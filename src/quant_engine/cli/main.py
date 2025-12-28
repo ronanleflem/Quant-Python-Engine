@@ -1,6 +1,7 @@
 
 
 import json
+from dataclasses import asdict
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -65,7 +66,11 @@ def submit(
     """Submit a spec to the HTTP API and print the returned run identifier."""
 
     sp = spec_module.load_spec(spec)
-    data = json.dumps(sp.model_dump()).encode()
+    if hasattr(sp, "model_dump"):
+        payload = sp.model_dump()  # type: ignore[union-attr]
+    else:
+        payload = asdict(sp)
+    data = json.dumps(payload).encode()
     req = request.Request(
         "http://127.0.0.1:8000/submit", data=data, headers={"Content-Type": "application/json"}
     )

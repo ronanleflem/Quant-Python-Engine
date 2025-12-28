@@ -125,8 +125,7 @@ class CryptoGridStrategy(Strategy):
             return
         state.cycle_active = True
         state.cycle_id += 1
-        first_idx = max(eligible)
-        state.consumed_levels = [idx < first_idx for idx in range(len(self.grid))]
+        state.consumed_levels = [False] * len(self.grid)
         state.cycle_high_ref = ref_high
         state.cycle_low = price
         state.max_dd = dd

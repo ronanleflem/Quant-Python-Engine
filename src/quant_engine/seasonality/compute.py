@@ -98,6 +98,19 @@ def _wilson_dict(successes: int, trials: int) -> dict[str, float]:
     }
 
 
+def _wilson_struct_dtype() -> "pl.PolarsDataType":
+    """Return the Polars struct dtype for Wilson interval output."""
+
+    _require_polars()
+    return pl.Struct(
+        [
+            pl.Field("p_hat", pl.Float64),
+            pl.Field("ci_low", pl.Float64),
+            pl.Field("ci_high", pl.Float64),
+        ]
+    )
+
+
 def _ensure_metric_columns(table: "pl.DataFrame") -> "pl.DataFrame":
     """Ensure the conditional metric columns exist in the table."""
 
@@ -154,7 +167,13 @@ def add_time_bins(df: pl.DataFrame) -> pl.DataFrame:
     month_expr = pl.col("timestamp").dt.month()
     day_expr = pl.col("timestamp").dt.day()
     month_end_expr = pl.col("timestamp").dt.month_end().dt.day()
-    days_from_end_expr = month_end_expr - day_expr
+    max_day_expr = (
+        pl.col("timestamp")
+        .dt.day()
+        .max()
+        .over([pl.col("symbol"), pl.col("timestamp").dt.year(), month_expr])
+    )
+    days_from_end_expr = max_day_expr - day_expr
     week_in_month_expr = (
         ((day_expr - 1) / 7).floor() + 1
     ).cast(pl.Int64)
@@ -164,7 +183,7 @@ def add_time_bins(df: pl.DataFrame) -> pl.DataFrame:
         for idx, name in enumerate(MONTH_FLAG_COLUMNS, start=1)
     ]
     last_day_exprs = [
-        days_from_end_expr.eq(offset - 1).alias(name)
+        days_from_end_expr.eq(offset).alias(name)
         for offset, name in enumerate(LAST_DAY_COLUMNS, start=1)
     ]
     df = df.with_columns(
@@ -330,10 +349,11 @@ def _aggregate_conditional_metrics(
                 .mean()
                 .alias("p_reversal_baseline")
             )
-            runs = runs.join(baseline, on="symbol", how="left")
+            runs = runs.join(baseline, on="symbol", how="left", coalesce=True)
             runs = runs.with_columns(
                 pl.struct(["reversal_successes", "n_runs"]).map_elements(
-                    lambda s: _wilson_dict(int(s["reversal_successes"]), int(s["n_runs"]))
+                    lambda s: _wilson_dict(int(s["reversal_successes"]), int(s["n_runs"])),
+                    return_dtype=_wilson_struct_dtype(),
                 ).alias("_rev")
             )
             runs = runs.with_columns(
@@ -348,7 +368,7 @@ def _aggregate_conditional_metrics(
                 .alias("p_reversal_lift"),
             )
             runs = runs.drop("reversal_successes")
-            result = result.join(runs, on=group_cols, how="left")
+            result = result.join(runs, on=group_cols, how="left", coalesce=True)
     # Amplitude metrics
     if "amplitude" in df.columns:
         amp_stats = df.group_by(group_cols).agg(
@@ -371,13 +391,13 @@ def _aggregate_conditional_metrics(
             .quantile(0.90)
             .alias("amp_p90"),
         )
-        result = result.join(amp_stats, on=group_cols, how="left")
+        result = result.join(amp_stats, on=group_cols, how="left", coalesce=True)
     # ATR mean if available
     if "atr" in df.columns:
         atr_stats = df.group_by(group_cols).agg(
             pl.col("atr").mean().alias("atr_mean")
         )
-        result = result.join(atr_stats, on=group_cols, how="left")
+        result = result.join(atr_stats, on=group_cols, how="left", coalesce=True)
     # Return quantiles
     return_col = f"return_h{horizon}"
     if return_col in df.columns:
@@ -399,7 +419,7 @@ def _aggregate_conditional_metrics(
             .quantile(0.90)
             .alias("ret_p90"),
         )
-        result = result.join(ret_quantiles, on=group_cols, how="left")
+        result = result.join(ret_quantiles, on=group_cols, how="left", coalesce=True)
     # Breakout probabilities
     breakout_cols = {"breakout_up", "breakout_down", "in_range"}
     if breakout_cols.issubset(set(df.columns)):
@@ -408,7 +428,7 @@ def _aggregate_conditional_metrics(
             pl.col("breakout_down").cast(pl.Float64).mean().alias("p_breakout_down"),
             pl.col("in_range").cast(pl.Float64).mean().alias("p_in_range"),
         )
-        result = result.join(breakout_stats, on=group_cols, how="left")
+        result = result.join(breakout_stats, on=group_cols, how="left", coalesce=True)
 
     result = _ensure_metric_columns(result)
     return result
@@ -443,10 +463,11 @@ def profile_direction(
         pl.col(direction_col).cast(pl.Float64).mean().alias("baseline")
     )
 
-    grouped = grouped.join(baseline, on="symbol", how="left")
+    grouped = grouped.join(baseline, on="symbol", how="left", coalesce=True)
     grouped = grouped.with_columns(
         pl.struct(["successes", "n"]).map_elements(
-            lambda s: _wilson_dict(int(s["successes"]), int(s["n"]))
+            lambda s: _wilson_dict(int(s["successes"]), int(s["n"])),
+            return_dtype=_wilson_struct_dtype(),
         ).alias("wilson")
     )
     grouped = grouped.with_columns(
@@ -476,7 +497,7 @@ def profile_direction(
         .alias("lift")
     )
     extras = _aggregate_conditional_metrics(filtered, group_cols, horizon)
-    grouped = grouped.join(extras, on=group_cols, how="left")
+    grouped = grouped.join(extras, on=group_cols, how="left", coalesce=True)
     grouped = _ensure_metric_columns(grouped)
     return grouped.sort(group_cols)
 
@@ -511,7 +532,7 @@ def profile_return(
     baseline = filtered.group_by("symbol").agg(
         pl.col(return_col).mean().alias("baseline")
     )
-    grouped = grouped.join(baseline, on="symbol", how="left")
+    grouped = grouped.join(baseline, on="symbol", how="left", coalesce=True)
     grouped = grouped.with_columns((pl.col("n") < min_samples).alias("insufficient"))
     grouped = grouped.with_columns(
         pl.when(pl.col("insufficient"))
@@ -534,7 +555,7 @@ def profile_return(
         .alias("lift")
     )
     extras = _aggregate_conditional_metrics(filtered, group_cols, horizon)
-    grouped = grouped.join(extras, on=group_cols, how="left")
+    grouped = grouped.join(extras, on=group_cols, how="left", coalesce=True)
     grouped = _ensure_metric_columns(grouped)
     return grouped.sort(group_cols)
 
@@ -573,7 +594,7 @@ def prepare_features(dataset: pl.DataFrame, profile: SeasonalityProfileSpec) -> 
         df = df.with_columns(
             pl.col("_run_start")
             .cast(pl.Int64)
-            .cumsum()
+            .cum_sum()
             .over("symbol")
             .alias("_run_id"),
         )
@@ -621,7 +642,7 @@ def prepare_features(dataset: pl.DataFrame, profile: SeasonalityProfileSpec) -> 
             )
             .select(["symbol", "_trade_date", "_prev_day_high", "_prev_day_low"])
         )
-        df = df.join(daily, on=["symbol", "_trade_date"], how="left")
+        df = df.join(daily, on=["symbol", "_trade_date"], how="left", coalesce=True)
         df = df.with_columns(
             pl.when(pl.col("_prev_day_high").is_not_null())
             .then(pl.col("high") >= pl.col("_prev_day_high"))
@@ -757,7 +778,10 @@ def compute_profiles(
         if table.is_empty():
             continue
         table = table.rename({dim: "bin"})
-        table = table.with_columns(pl.lit(dim).alias("dim"))
+        table = table.with_columns(
+            pl.col("bin").cast(pl.Utf8),
+            pl.lit(dim).alias("dim"),
+        )
         tables.append(table)
 
     if tables:

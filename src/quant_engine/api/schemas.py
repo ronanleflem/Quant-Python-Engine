@@ -134,13 +134,13 @@ class StatsPersistenceSpec(BaseModel):
     dataset_id: Optional[str] = None
 
     @model_validator(mode="after")
-    def _resolve_enabled(cls, model: "StatsPersistenceSpec") -> "StatsPersistenceSpec":
-        if model.enabled is None:
-            if model.store_stats_in_db is not None:
-                model.enabled = bool(model.store_stats_in_db)
+    def _resolve_enabled(self) -> "StatsPersistenceSpec":
+        if self.enabled is None:
+            if self.store_stats_in_db is not None:
+                self.enabled = bool(self.store_stats_in_db)
             else:
-                model.enabled = False
-        return model
+                self.enabled = False
+        return self
 
 
 class StatsSpec(BaseModel):

@@ -1,10 +1,10 @@
 {
   "params": {
-    "ema_fast": 9,
-    "ema_slow": 55,
-    "R": 2
+    "ema_fast": 2,
+    "ema_slow": 3,
+    "R": 1
   },
   "metrics": {
-    "sharpe": -0.6386601796756687
+    "sharpe": 0.0
   }
 }

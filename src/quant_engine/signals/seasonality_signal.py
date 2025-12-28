@@ -76,7 +76,8 @@ def make_seasonality_signals(dataset: pl.DataFrame, rules: SeasonalityRules) -> 
         column = DIMENSION_TO_COLUMN.get(dim)
         if column is None or not bins:
             continue
-        masks.append(pl.col(column).is_in(list(bins)))
+        bin_values = [str(val) for val in bins]
+        masks.append(pl.col(column).cast(pl.Utf8).is_in(bin_values))
     if masks:
         sum_threshold = int(rules.metadata.get("sum_threshold", 1)) if rules.metadata else 1
         long_expr = _combine_masks(masks, rules.combine, sum_threshold=sum_threshold)
