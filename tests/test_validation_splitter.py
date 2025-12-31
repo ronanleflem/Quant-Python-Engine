@@ -70,3 +70,17 @@ def test_timezone_aware_utc_offsets_are_supported() -> None:
     assert len(folds) == 1
     assert folds[0]["train"]
     assert folds[0]["test"]
+
+
+def test_train_test_boundaries_with_embargo() -> None:
+    dataset = _build_dataset(datetime(2020, 1, 1), days=62)
+
+    folds = generate_folds(dataset, train_months=1, test_months=1, folds=1, embargo_days=2)
+
+    train_rows = folds[0]["train"]
+    test_rows = folds[0]["test"]
+
+    assert train_rows[0]["timestamp"].startswith("2020-01-01")
+    assert train_rows[-1]["timestamp"].startswith("2020-01-31")
+    assert test_rows[0]["timestamp"].startswith("2020-02-03")
+    assert test_rows[-1]["timestamp"].startswith("2020-03-02")
