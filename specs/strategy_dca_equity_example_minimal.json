@@ -15,13 +15,14 @@
       "tp_sl": {
         "enabled": true,
         "mode": "per_grid_max_dd",
+        "sl_dd": -70.0,
         "rules": [
-          {"max_dd_reached": -20.0, "tp_pct": 20.0},
+          {"max_dd_reached": -20.0, "tp_pct": 20.0, "be_pct": 10.0},
           {"max_dd_reached": -30.0, "tp_pct": 20.0, "be_pct": 10.0},
           {"max_dd_reached": -40.0, "tp_pct": 20.0, "be_pct": 10.0},
           {"max_dd_reached": -50.0, "tp_pct": 20.0, "be_pct": 10.0},
           {"max_dd_reached": -60.0, "tp_pct": 20.0, "be_pct": 10.0},
-          {"max_dd_reached": -70.0, "tp_pct": 0.0}
+          {"max_dd_reached": -70.0, "tp_pct": 0.0, "be_pct": 10.0}
         ]
       }
     }

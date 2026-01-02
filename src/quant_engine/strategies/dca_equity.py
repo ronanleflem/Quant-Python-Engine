@@ -22,6 +22,7 @@ class _CycleState:
     prev_dd: Optional[float] = None
     last_processed_ts: Optional[pd.Timestamp] = None
     tp_emitted: bool = False
+    be_armed: bool = False
     position_qty: float = 0.0
     position_cost: float = 0.0  # somme prix*qty pour prix moyen
 
@@ -33,6 +34,7 @@ class _CycleState:
         self.cycle_high_ref = None
         self.prev_dd = None
         self.tp_emitted = False
+        self.be_armed = False
         self.position_qty = 0.0
         self.position_cost = 0.0
 
@@ -164,7 +166,7 @@ class DcaEquityStrategy(Strategy):
             if state.cycle_active:
                 self._update_cycle_stats(state, float(dd), float(price))
                 buys = self._check_buy_levels(state, float(dd), ts, symbol, asset_class)
-                sells = self._check_take_profit(state, float(price), ts, symbol, asset_class)
+                sells = self._check_take_profit(state, float(price), float(dd), ts, symbol, asset_class)
                 for sig in (*buys, *sells):
                     if only_last_ts is None or sig.ts_open_utc == only_last_ts:
                         results.append(sig)
@@ -247,18 +249,17 @@ class DcaEquityStrategy(Strategy):
         self,
         state: _CycleState,
         price: float,
+        dd: float,
         ts: pd.Timestamp,
         symbol: str,
         asset_class: str,
     ) -> List[StrategySignal]:
         signals: List[StrategySignal] = []
+        cfg = self.tp_sl_config or {}
         tp_rule = self._resolve_tp_rule(state.max_dd)
-        if not tp_rule or state.cycle_low is None:
-            return signals
-        tp_pct = tp_rule.get("tp_pct")
-        be_pct = tp_rule.get("be_pct")
-        if tp_pct is None:
-            return signals
+        tp_pct = tp_rule.get("tp_pct") if tp_rule else None
+        be_pct = tp_rule.get("be_pct") if tp_rule else None
+        sl_dd = cfg.get("sl_dd")
         if state.position_qty <= 0:
             return signals
 
@@ -266,10 +267,11 @@ class DcaEquityStrategy(Strategy):
         if avg_entry == 0:
             return signals
         pnl_pct = (price / avg_entry - 1.0) * 100.0
-        rebound_pct = (price / state.cycle_low - 1.0) * 100.0
-
-        should_tp = rebound_pct >= float(tp_pct)
-        should_be = be_pct is not None and rebound_pct >= float(be_pct)
+        should_tp = tp_pct is not None and pnl_pct >= float(tp_pct)
+        if be_pct is not None and pnl_pct >= float(be_pct):
+            state.be_armed = True
+        should_be_exit = state.be_armed and pnl_pct <= 0.0
+        should_sl = sl_dd is not None and dd <= float(sl_dd)
 
         # Debug trace for TP/BE decisions (muted; re-enable for troubleshooting)
         # print(
@@ -279,22 +281,30 @@ class DcaEquityStrategy(Strategy):
         #     f"pos_qty={state.position_qty:.4f}"
         # )
 
-        if should_tp and not state.tp_emitted:
+        action = None
+        if should_sl and not state.tp_emitted:
+            action = "stop_loss"
+        elif should_tp and not state.tp_emitted:
+            action = "take_profit"
+        elif should_be_exit and not state.tp_emitted:
+            action = "break_even"
+
+        if action:
             state.tp_emitted = True
             meta = {
-                "action": "take_profit",
+                "action": action,
                 "tp_mode": self.tp_sl_config.get("mode"),
-                "tp_pct": tp_rule.get("tp_pct"),
-                "be_pct": tp_rule.get("be_pct"),
+                "tp_pct": tp_pct,
+                "be_pct": be_pct,
+                "sl_dd": sl_dd,
                 "max_dd_reached": state.max_dd,
                 "drawdown_pct": state.max_dd,
                 "cycle_id": state.cycle_id,
                 "grid_config": self.grid,
                 "grid_level": None,
-                "rebound_pct": rebound_pct,
                 "avg_entry_price": avg_entry,
                 "pnl_pct_at_exit": pnl_pct,
-                "break_even_reached": should_be,
+                "break_even_armed": state.be_armed,
             }
             signals.append(
                 StrategySignal(
@@ -395,6 +405,7 @@ class DcaEquityStrategy(Strategy):
             pd.Timestamp(last_ts).tz_convert("UTC") if last_ts is not None else None
         )
         state.tp_emitted = bool(data.get("tp_emitted", False))
+        state.be_armed = bool(data.get("be_armed", False))
         state.position_qty = float(data.get("position_qty", 0.0))
         state.position_cost = float(data.get("position_cost", 0.0))
         state.current_price = float(data.get("current_price", 0.0))
@@ -415,6 +426,7 @@ class DcaEquityStrategy(Strategy):
                 if state.last_processed_ts is not None
                 else None,
                 "tp_emitted": state.tp_emitted,
+                "be_armed": state.be_armed,
                 "position_qty": state.position_qty,
                 "position_cost": state.position_cost,
                 "current_price": state.current_price,
