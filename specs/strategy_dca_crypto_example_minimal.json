@@ -40,15 +40,15 @@
     "mysql_env": "QE_MARKETDATA_MYSQL_URL"
   },
   "universe": [
-    {"symbol": "TAOUSDT", "asset_class": "CRYPTO"},
-    {"symbol": "SOLUSDT", "asset_class": "CRYPTO"},
-    {"symbol": "NEARUSDT", "asset_class": "CRYPTO"},
-    {"symbol": "ARUSDT", "asset_class": "CRYPTO"},
-    {"symbol": "AVAXUSDT", "asset_class": "CRYPTO"},
-    {"symbol": "ONDOUSDT", "asset_class": "CRYPTO"},
-    {"symbol": "IMXUSDT", "asset_class": "CRYPTO"},
-    {"symbol": "JUPUSDT", "asset_class": "CRYPTO"},
-    {"symbol": "LINKUSDT", "asset_class": "CRYPTO"}
+    {"symbol": "BTC", "asset_class": "CRYPTO"},
+    {"symbol": "ETH", "asset_class": "CRYPTO"},
+    {"symbol": "SOL", "asset_class": "CRYPTO"},
+    {"symbol": "BNB", "asset_class": "CRYPTO"},
+    {"symbol": "XRP", "asset_class": "CRYPTO"},
+    {"symbol": "ADA", "asset_class": "CRYPTO"},
+    {"symbol": "AVAX", "asset_class": "CRYPTO"},
+    {"symbol": "DOGE", "asset_class": "CRYPTO"},
+    {"symbol": "LINK", "asset_class": "CRYPTO"}
   ],
   "performance": {
     "initial_capital": 10000,

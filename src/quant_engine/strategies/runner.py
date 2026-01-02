@@ -11,7 +11,7 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence
 
 import pandas as pd
 import requests
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, inspect, text
 
 from . import create_strategy
 from .base import StrategySignal
@@ -213,6 +213,8 @@ def _fetch_from_delta(symbol: str, asset_class: Optional[str], spec: Mapping[str
     delta_prefix = str(delta_prefix).strip().strip("/")
     exchange = spec.get("delta_exchange") or spec.get("exchange") or os.getenv("DELTA_EXCHANGE") or "GENERIC"
     exchange = str(exchange).strip().upper() or "GENERIC"
+    market_type = spec.get("delta_market_type") or spec.get("market_type") or os.getenv("DELTA_MARKET_TYPE") or "SPOT"
+    market_type = str(market_type).strip().upper() or "SPOT"
     quotes: List[str] = []
     if "delta_quotes" in spec:
         quotes = [q.strip() for q in str(spec["delta_quotes"]).split(",") if q.strip()]
@@ -245,6 +247,8 @@ def _fetch_from_delta(symbol: str, asset_class: Optional[str], spec: Mapping[str
             parts.append(asset_dir.strip("/"))
             if broker:
                 parts.append(str(broker).strip().upper())
+            if market_type:
+                parts.append(market_type.strip("/"))
             if use_exchange_dir:
                 parts.append(exchange.strip("/"))
             parts.extend([quote.strip("/"), table_name])
@@ -736,6 +740,94 @@ def _truncate_json(obj: Any, limit: int = 250) -> str:
     return s
 
 
+def _filter_row_for_table(engine, table: str, row: Dict[str, Any]) -> Dict[str, Any]:
+    try:
+        inspector = inspect(engine)
+        if not inspector.has_table(table):
+            return row
+        cols = {col["name"] for col in inspector.get_columns(table)}
+    except Exception:
+        return row
+    filtered = {k: v for k, v in row.items() if k in cols}
+    dropped = set(row.keys()) - set(filtered.keys())
+    if dropped:
+        LOGGER.warning("Dropping columns not in %s: %s", table, sorted(dropped))
+    return filtered
+
+
+def _first_token(value: Any) -> Optional[str]:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        parts = [p.strip() for p in value.split(",") if p.strip()]
+        return parts[0] if parts else None
+    if isinstance(value, Iterable) and not isinstance(value, (bytes, dict)):
+        for item in value:
+            token = _first_token(item)
+            if token:
+                return token
+    return str(value).strip() if str(value).strip() else None
+
+
+def _build_trade_context(
+    spec: Mapping[str, Any],
+    default_asset_class: str,
+) -> tuple[Dict[str, Dict[str, Any]], Dict[str, Any]]:
+    data_spec = spec.get("data", {}) or {}
+    default_asset = str(default_asset_class or data_spec.get("asset_class") or "").upper()
+
+    default_market_type = _first_token(
+        data_spec.get("delta_market_type")
+        or data_spec.get("market_type")
+        or os.getenv("DELTA_MARKET_TYPE")
+        or "SPOT"
+    ) or "SPOT"
+    default_exchange = _first_token(data_spec.get("delta_exchange") or data_spec.get("exchange"))
+
+    default_broker = _first_token(data_spec.get("broker") or data_spec.get("delta_broker"))
+    if not default_broker:
+        default_broker = _first_token(data_spec.get("brokers") or data_spec.get("delta_brokers"))
+    if not default_broker:
+        brokers = _delta_brokers(default_asset, data_spec)
+        default_broker = brokers[0] if brokers else None
+
+    default_currency = _first_token(
+        data_spec.get("currency") or data_spec.get("delta_quote") or data_spec.get("delta_quotes") or os.getenv("DELTA_QUOTES")
+    )
+    if not default_currency:
+        default_currency = "USDT" if default_asset == "CRYPTO" else "USD"
+
+    if not default_exchange and default_asset == "CRYPTO" and default_broker:
+        default_exchange = default_broker
+
+    default_context = {
+        "broker": default_broker or "UNKNOWN",
+        "exchange": default_exchange or "UNKNOWN",
+        "currency": default_currency or "UNKNOWN",
+        "market_type": default_market_type or "UNKNOWN",
+    }
+
+    context_by_symbol: Dict[str, Dict[str, Any]] = {}
+    for inst in spec.get("universe", []) or []:
+        symbol = inst.get("symbol")
+        if not symbol:
+            continue
+        asset = str(inst.get("asset_class") or default_asset).upper()
+        broker = _first_token(inst.get("broker")) or default_context["broker"]
+        exchange = _first_token(inst.get("exchange")) or default_context["exchange"]
+        currency = _first_token(inst.get("currency") or inst.get("quote")) or default_context["currency"]
+        market_type = _first_token(inst.get("market_type") or inst.get("delta_market_type")) or default_context["market_type"]
+        if asset == "CRYPTO" and (not exchange or exchange == "UNKNOWN"):
+            exchange = broker
+        context_by_symbol[str(symbol)] = {
+            "broker": broker,
+            "exchange": exchange,
+            "currency": currency,
+            "market_type": market_type,
+        }
+    return context_by_symbol, default_context
+
+
 def _persist_results_to_db(result: Dict[str, Any], spec: Mapping[str, Any], ohlc_by_symbol: Optional[Dict[str, pd.DataFrame]] = None) -> None:
     dsn = os.getenv("DB_DSN")
     if not dsn:
@@ -821,6 +913,7 @@ def _persist_results_to_db(result: Dict[str, Any], spec: Mapping[str, Any], ohlc
             "value": 0.0,
             "extra_json": json.dumps(run.get("extra", {}), ensure_ascii=False),
         }
+        perf_row = _filter_row_for_table(engine, "performance", perf_row)
         pd.DataFrame([perf_row]).to_sql("performance", engine, if_exists="append", index=False)
         LOGGER.info("Persisted performance row for run %s to DB", run_id)
     except Exception as exc:
@@ -830,14 +923,20 @@ def _persist_results_to_db(result: Dict[str, Any], spec: Mapping[str, Any], ohlc
         LOGGER.info("No trades to persist for run %s", run_id)
         return
 
+    context_by_symbol, default_context = _build_trade_context(spec, asset_class)
     trade_rows: List[Dict[str, Any]] = []
     for t in trades:
+        trade_ctx = context_by_symbol.get(str(t.get("symbol")), default_context)
         trade_rows.append(
             {
                 "strategy_name": t.get("strategyId"),
                 "run_id": t.get("runId"),
                 "symbol": t.get("symbol"),
                 "asset_class": t.get("assetClass"),
+                "broker": trade_ctx.get("broker"),
+                "exchange": trade_ctx.get("exchange"),
+                "currency": trade_ctx.get("currency"),
+                "market_type": trade_ctx.get("market_type"),
                 "cycle_id": t.get("cycleId"),
                 "trade_type": t.get("side") or "LONG",
                 "entry_timestamp": pd.to_datetime(t.get("entryTimeUtc"), utc=True),
@@ -855,7 +954,8 @@ def _persist_results_to_db(result: Dict[str, Any], spec: Mapping[str, Any], ohlc
             }
         )
     try:
-        pd.DataFrame(trade_rows).to_sql("trades_completed", engine, if_exists="append", index=False)
+        filtered_rows = [_filter_row_for_table(engine, "trades_completed", row) for row in trade_rows]
+        pd.DataFrame(filtered_rows).to_sql("trades_completed", engine, if_exists="append", index=False)
         LOGGER.info("Persisted %d trades for run %s to DB", len(trade_rows), run_id)
     except Exception as exc:
         LOGGER.warning("Failed to persist trades for run %s: %s", run_id, exc)
