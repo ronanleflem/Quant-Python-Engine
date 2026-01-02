@@ -51,6 +51,9 @@ class DcaEquityStrategy(Strategy):
         self.grid: List[Dict[str, Any]] = sorted(grid, key=lambda item: float(item["dd"]))
         self.asset_class = self.params.get("asset_class", "EQUITY").upper()
         self.tp_sl_config: Dict[str, Any] = self.params.get("tp_sl", {})
+        self.execution_mode = str(self.params.get("execution_mode", "bar_close")).strip().lower()
+        if self.execution_mode not in {"bar_close", "intracandle"}:
+            raise ValueError("execution_mode must be 'bar_close' or 'intracandle'")
         self.dd_reference_mode, self.dd_reference_window = self._parse_drawdown_reference(
             self.params.get("drawdown_reference")
         )
@@ -155,7 +158,9 @@ class DcaEquityStrategy(Strategy):
         asset_class = context.get("asset_class", self.asset_class)
         results: List[StrategySignal] = []
         last_processed = state.last_processed_ts
-        for ts, price, dd, ref_h in zip(dd_series.index, close, dd_series, ref_high):
+        for ts, price, dd, ref_h, high, low in zip(
+            dd_series.index, close, dd_series, ref_high, df["high"].astype(float), df["low"].astype(float)
+        ):
             if last_processed is not None and ts <= last_processed:
                 continue
             state.current_price = float(price)
@@ -166,7 +171,17 @@ class DcaEquityStrategy(Strategy):
             if state.cycle_active:
                 self._update_cycle_stats(state, float(dd), float(price))
                 buys = self._check_buy_levels(state, float(dd), ts, symbol, asset_class)
-                sells = self._check_take_profit(state, float(price), float(dd), ts, symbol, asset_class)
+                sells = self._check_take_profit(
+                    state,
+                    close=float(price),
+                    high=float(high),
+                    low=float(low),
+                    dd=float(dd),
+                    ref_high=ref_high_value,
+                    ts=ts,
+                    symbol=symbol,
+                    asset_class=asset_class,
+                )
                 for sig in (*buys, *sells):
                     if only_last_ts is None or sig.ts_open_utc == only_last_ts:
                         results.append(sig)
@@ -248,8 +263,12 @@ class DcaEquityStrategy(Strategy):
     def _check_take_profit(
         self,
         state: _CycleState,
-        price: float,
+        *,
+        close: float,
+        high: float,
+        low: float,
         dd: float,
+        ref_high: float,
         ts: pd.Timestamp,
         symbol: str,
         asset_class: str,
@@ -263,15 +282,25 @@ class DcaEquityStrategy(Strategy):
         if state.position_qty <= 0:
             return signals
 
-        avg_entry = state.position_cost / state.position_qty if state.position_qty > 0 else price
+        avg_entry = state.position_cost / state.position_qty if state.position_qty > 0 else close
         if avg_entry == 0:
             return signals
-        pnl_pct = (price / avg_entry - 1.0) * 100.0
-        should_tp = tp_pct is not None and pnl_pct >= float(tp_pct)
-        if be_pct is not None and pnl_pct >= float(be_pct):
-            state.be_armed = True
-        should_be_exit = state.be_armed and pnl_pct <= 0.0
-        should_sl = sl_dd is not None and dd <= float(sl_dd)
+        if self.execution_mode == "intracandle":
+            tp_price = avg_entry * (1.0 + float(tp_pct) / 100.0) if tp_pct is not None else None
+            be_arm_price = avg_entry * (1.0 + float(be_pct) / 100.0) if be_pct is not None else None
+            sl_price = ref_high * (1.0 + float(sl_dd) / 100.0) if sl_dd is not None else None
+            should_tp = tp_price is not None and high >= tp_price
+            if be_arm_price is not None and high >= be_arm_price:
+                state.be_armed = True
+            should_be_exit = state.be_armed and low <= avg_entry
+            should_sl = sl_price is not None and low <= sl_price
+        else:
+            pnl_pct = (close / avg_entry - 1.0) * 100.0
+            should_tp = tp_pct is not None and pnl_pct >= float(tp_pct)
+            if be_pct is not None and pnl_pct >= float(be_pct):
+                state.be_armed = True
+            should_be_exit = state.be_armed and pnl_pct <= 0.0
+            should_sl = sl_dd is not None and dd <= float(sl_dd)
 
         # Debug trace for TP/BE decisions (muted; re-enable for troubleshooting)
         # print(
@@ -290,6 +319,18 @@ class DcaEquityStrategy(Strategy):
             action = "break_even"
 
         if action:
+            if self.execution_mode == "intracandle":
+                if action == "stop_loss":
+                    exit_price = sl_price
+                elif action == "take_profit":
+                    exit_price = tp_price
+                else:
+                    exit_price = avg_entry
+            else:
+                exit_price = close
+            if exit_price is None:
+                exit_price = close
+            pnl_pct = (exit_price / avg_entry - 1.0) * 100.0
             state.tp_emitted = True
             meta = {
                 "action": action,

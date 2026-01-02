@@ -927,6 +927,9 @@ def _persist_results_to_db(result: Dict[str, Any], spec: Mapping[str, Any], ohlc
     trade_rows: List[Dict[str, Any]] = []
     for t in trades:
         trade_ctx = context_by_symbol.get(str(t.get("symbol")), default_context)
+        meta_payload = dict(t.get("meta", {}) or {})
+        if "be_pct" not in meta_payload:
+            meta_payload["be_pct"] = meta_payload.get("break_even_pct")
         trade_rows.append(
             {
                 "strategy_name": t.get("strategyId"),
@@ -947,7 +950,7 @@ def _persist_results_to_db(result: Dict[str, Any], spec: Mapping[str, Any], ohlc
                 "profit_or_loss": t.get("grossPnl") or 0.0,
                 "pnl_pct": t.get("grossPnlPct"),
                 "max_drawdown_pct": t.get("maxDdPct"),
-                "meta_json": json.dumps(t.get("meta", {}), ensure_ascii=False),
+                "meta_json": json.dumps(meta_payload, ensure_ascii=False),
                 "confidence_score": 0.0,
                 "stop_loss": 0.0,
                 "take_profit": 0.0,

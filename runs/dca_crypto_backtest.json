@@ -2,15 +2,15 @@
   "strategy_id": "DCA_CRYPTO_DEMO",
   "strategy_type": "dca_equity",
   "counts": {
-    "BTC": 8,
-    "ETH": 11,
-    "SOL": 16,
-    "BNB": 10,
-    "XRP": 15,
-    "ADA": 12,
-    "AVAX": 10,
-    "DOGE": 19,
-    "LINK": 18
+    "BTC": 10,
+    "ETH": 17,
+    "SOL": 22,
+    "BNB": 8,
+    "XRP": 18,
+    "ADA": 26,
+    "AVAX": 25,
+    "DOGE": 20,
+    "LINK": 31
   },
   "signals": {
     "BTC": [
@@ -53,11 +53,11 @@
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -20.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.0,
           "position_cost": 0.0
@@ -74,7 +74,7 @@
           "action": "take_profit",
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "sl_dd": -70.0,
           "max_dd_reached": -20.127213540650978,
           "drawdown_pct": -20.127213540650978,
@@ -146,11 +146,11 @@
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -20.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.0,
           "position_cost": 0.0
@@ -161,16 +161,16 @@
         "symbol": "BTC",
         "asset_class": "CRYPTO",
         "side": "SELL",
-        "ts_open_utc": "2024-08-05T00:00:00+00:00",
+        "ts_open_utc": "2024-07-07T00:00:00+00:00",
         "qty": 0.2,
         "meta": {
           "action": "break_even",
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "sl_dd": -70.0,
-          "max_dd_reached": -26.074957702914148,
-          "drawdown_pct": -26.074957702914148,
+          "max_dd_reached": -23.558275962158636,
+          "drawdown_pct": -23.558275962158636,
           "cycle_id": 2,
           "grid_config": [
             {
@@ -196,7 +196,7 @@
           ],
           "grid_level": null,
           "avg_entry_price": 57050.01,
-          "pnl_pct_at_exit": -5.313233073929357,
+          "pnl_pct_at_exit": -2.089745470684412,
           "break_even_armed": true
         }
       },
@@ -205,11 +205,11 @@
         "symbol": "BTC",
         "asset_class": "CRYPTO",
         "side": "BUY",
-        "ts_open_utc": "2024-08-15T00:00:00+00:00",
+        "ts_open_utc": "2024-08-04T00:00:00+00:00",
         "qty": 0.2,
         "meta": {
-          "dd_pct": -21.254738963721064,
-          "drawdown_pct": -21.254738963721064,
+          "dd_pct": -20.40634762148943,
+          "drawdown_pct": -20.40634762148943,
           "grid_level": -20.0,
           "palier_used": 0.2,
           "grid_config": [
@@ -235,15 +235,15 @@
             }
           ],
           "cycle_id": 3,
-          "max_dd_reached": -26.074957702914148,
+          "max_dd_reached": -23.558275962158636,
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -20.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.0,
           "position_cost": 0.0
@@ -254,13 +254,13 @@
         "symbol": "BTC",
         "asset_class": "CRYPTO",
         "side": "SELL",
-        "ts_open_utc": "2024-09-01T00:00:00+00:00",
+        "ts_open_utc": "2024-08-15T00:00:00+00:00",
         "qty": 0.2,
         "meta": {
           "action": "break_even",
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "sl_dd": -70.0,
           "max_dd_reached": -26.074957702914148,
           "drawdown_pct": -26.074957702914148,
@@ -288,8 +288,101 @@
             }
           ],
           "grid_level": null,
-          "avg_entry_price": 57541.06,
-          "pnl_pct_at_exit": -0.4157031518015053,
+          "avg_entry_price": 58161.0,
+          "pnl_pct_at_exit": -1.0659032685132686,
+          "break_even_armed": true
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "BTC",
+        "asset_class": "CRYPTO",
+        "side": "BUY",
+        "ts_open_utc": "2024-08-18T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "dd_pct": -20.041846163278322,
+          "drawdown_pct": -20.041846163278322,
+          "grid_level": -20.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 4,
+          "max_dd_reached": -21.254738963721064,
+          "tp_target": 20.0,
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "tp_rule": {
+            "max_dd_reached": -20.0,
+            "tp_pct": 20.0,
+            "be_pct": 1.0
+          },
+          "position_qty": 0.0,
+          "position_cost": 0.0
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "BTC",
+        "asset_class": "CRYPTO",
+        "side": "SELL",
+        "ts_open_utc": "2024-09-01T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "action": "break_even",
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "sl_dd": -70.0,
+          "max_dd_reached": -21.582085495743197,
+          "drawdown_pct": -21.582085495743197,
+          "cycle_id": 4,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "grid_level": null,
+          "avg_entry_price": 58427.350000000006,
+          "pnl_pct_at_exit": -1.926306772427644,
           "break_even_armed": true
         }
       },
@@ -327,16 +420,16 @@
               "weight": 0.2
             }
           ],
-          "cycle_id": 4,
+          "cycle_id": 5,
           "max_dd_reached": -21.582085495743197,
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -20.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.0,
           "position_cost": 0.0
@@ -353,11 +446,11 @@
           "action": "take_profit",
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "sl_dd": -70.0,
           "max_dd_reached": -26.1513750538678,
           "drawdown_pct": -26.1513750538678,
-          "cycle_id": 4,
+          "cycle_id": 5,
           "grid_config": [
             {
               "dd": -60.0,
@@ -427,11 +520,11 @@
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -20.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.0,
           "position_cost": 0.0
@@ -448,7 +541,7 @@
           "action": "break_even",
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "sl_dd": -70.0,
           "max_dd_reached": -26.02317457193466,
           "drawdown_pct": -26.02317457193466,
@@ -520,11 +613,11 @@
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -20.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.0,
           "position_cost": 0.0
@@ -541,7 +634,7 @@
           "action": "take_profit",
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "sl_dd": -70.0,
           "max_dd_reached": -29.10032473922457,
           "drawdown_pct": -29.10032473922457,
@@ -613,11 +706,11 @@
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -20.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.0,
           "position_cost": 0.0
@@ -634,7 +727,7 @@
           "action": "break_even",
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "sl_dd": -70.0,
           "max_dd_reached": -27.893131273371385,
           "drawdown_pct": -27.893131273371385,
@@ -706,11 +799,11 @@
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -30.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.0,
           "position_cost": 0.0
@@ -755,11 +848,11 @@
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -40.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.2,
           "position_cost": 537.784
@@ -770,16 +863,16 @@
         "symbol": "ETH",
         "asset_class": "CRYPTO",
         "side": "SELL",
-        "ts_open_utc": "2024-11-09T00:00:00+00:00",
+        "ts_open_utc": "2024-08-27T00:00:00+00:00",
         "qty": 0.4,
         "meta": {
-          "action": "take_profit",
+          "action": "break_even",
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "sl_dd": -70.0,
-          "max_dd_reached": -45.256101161188745,
-          "drawdown_pct": -45.256101161188745,
+          "max_dd_reached": -42.363707931509545,
+          "drawdown_pct": -42.363707931509545,
           "cycle_id": 4,
           "grid_config": [
             {
@@ -805,7 +898,286 @@
           ],
           "grid_level": null,
           "avg_entry_price": 2554.2549999999997,
-          "pnl_pct_at_exit": 22.392243530892596,
+          "pnl_pct_at_exit": -3.7946485374404593,
+          "break_even_armed": true
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "ETH",
+        "asset_class": "CRYPTO",
+        "side": "BUY",
+        "ts_open_utc": "2024-09-01T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "dd_pct": -40.32375516630585,
+          "drawdown_pct": -40.32375516630585,
+          "grid_level": -40.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 5,
+          "max_dd_reached": -40.32375516630585,
+          "tp_target": 20.0,
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "tp_rule": {
+            "max_dd_reached": -40.0,
+            "tp_pct": 20.0,
+            "be_pct": 1.0
+          },
+          "position_qty": 0.0,
+          "position_cost": 0.0
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "ETH",
+        "asset_class": "CRYPTO",
+        "side": "SELL",
+        "ts_open_utc": "2024-09-03T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "action": "break_even",
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "sl_dd": -70.0,
+          "max_dd_reached": -40.33433379256053,
+          "drawdown_pct": -40.33433379256053,
+          "cycle_id": 5,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "grid_level": null,
+          "avg_entry_price": 2425.72,
+          "pnl_pct_at_exit": -0.0177266955790345,
+          "break_even_armed": true
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "ETH",
+        "asset_class": "CRYPTO",
+        "side": "BUY",
+        "ts_open_utc": "2024-09-05T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "dd_pct": -41.72382405038378,
+          "drawdown_pct": -41.72382405038378,
+          "grid_level": -40.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 6,
+          "max_dd_reached": -41.72382405038378,
+          "tp_target": 20.0,
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "tp_rule": {
+            "max_dd_reached": -40.0,
+            "tp_pct": 20.0,
+            "be_pct": 1.0
+          },
+          "position_qty": 0.0,
+          "position_cost": 0.0
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "ETH",
+        "asset_class": "CRYPTO",
+        "side": "SELL",
+        "ts_open_utc": "2024-09-15T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "action": "break_even",
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "sl_dd": -70.0,
+          "max_dd_reached": -45.256101161188745,
+          "drawdown_pct": -45.256101161188745,
+          "cycle_id": 6,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "grid_level": null,
+          "avg_entry_price": 2368.81,
+          "pnl_pct_at_exit": -2.2251679113141187,
+          "break_even_armed": true
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "ETH",
+        "asset_class": "CRYPTO",
+        "side": "BUY",
+        "ts_open_utc": "2024-10-21T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "dd_pct": -31.521588405380285,
+          "drawdown_pct": -31.521588405380285,
+          "grid_level": -30.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 7,
+          "max_dd_reached": -41.04904191339986,
+          "tp_target": 20.0,
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "tp_rule": {
+            "max_dd_reached": -40.0,
+            "tp_pct": 20.0,
+            "be_pct": 1.0
+          },
+          "position_qty": 0.0,
+          "position_cost": 0.0
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "ETH",
+        "asset_class": "CRYPTO",
+        "side": "SELL",
+        "ts_open_utc": "2024-11-11T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "action": "take_profit",
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "sl_dd": -70.0,
+          "max_dd_reached": -41.04904191339986,
+          "drawdown_pct": -41.04904191339986,
+          "cycle_id": 7,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "grid_level": null,
+          "avg_entry_price": 2666.7,
+          "pnl_pct_at_exit": 26.433044586942668,
           "break_even_armed": true
         }
       },
@@ -843,16 +1215,16 @@
               "weight": 0.2
             }
           ],
-          "cycle_id": 5,
+          "cycle_id": 8,
           "max_dd_reached": -21.452306238476503,
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -20.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.0,
           "position_cost": 0.0
@@ -869,11 +1241,11 @@
           "action": "take_profit",
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "sl_dd": -70.0,
           "max_dd_reached": -21.452306238476503,
           "drawdown_pct": -21.452306238476503,
-          "cycle_id": 5,
+          "cycle_id": 8,
           "grid_config": [
             {
               "dd": -60.0,
@@ -943,11 +1315,11 @@
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -20.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.0,
           "position_cost": 0.0
@@ -964,7 +1336,7 @@
           "action": "take_profit",
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "sl_dd": -70.0,
           "max_dd_reached": -23.719406787371476,
           "drawdown_pct": -23.719406787371476,
@@ -1036,11 +1408,11 @@
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -20.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.0,
           "position_cost": 0.0
@@ -1085,11 +1457,11 @@
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -30.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.2,
           "position_cost": 30.632
@@ -1100,16 +1472,16 @@
         "symbol": "SOL",
         "asset_class": "CRYPTO",
         "side": "SELL",
-        "ts_open_utc": "2024-05-20T00:00:00+00:00",
+        "ts_open_utc": "2024-04-15T00:00:00+00:00",
         "qty": 0.4,
         "meta": {
-          "action": "take_profit",
+          "action": "break_even",
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "sl_dd": -70.0,
-          "max_dd_reached": -37.38206964682638,
-          "drawdown_pct": -37.38206964682638,
+          "max_dd_reached": -31.602864904914796,
+          "drawdown_pct": -31.602864904914796,
           "cycle_id": 2,
           "grid_config": [
             {
@@ -1135,7 +1507,100 @@
           ],
           "grid_level": null,
           "avg_entry_price": 145.815,
-          "pnl_pct_at_exit": 28.038953468436034,
+          "pnl_pct_at_exit": -5.009772657134048,
+          "break_even_armed": true
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "SOL",
+        "asset_class": "CRYPTO",
+        "side": "BUY",
+        "ts_open_utc": "2024-04-26T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "dd_pct": -31.227463571252166,
+          "drawdown_pct": -31.227463571252166,
+          "grid_level": -30.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 3,
+          "max_dd_reached": -34.87774759199802,
+          "tp_target": 20.0,
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "tp_rule": {
+            "max_dd_reached": -30.0,
+            "tp_pct": 20.0,
+            "be_pct": 1.0
+          },
+          "position_qty": 0.0,
+          "position_cost": 0.0
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "SOL",
+        "asset_class": "CRYPTO",
+        "side": "SELL",
+        "ts_open_utc": "2024-04-28T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "action": "break_even",
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "sl_dd": -70.0,
+          "max_dd_reached": -34.87774759199802,
+          "drawdown_pct": -34.87774759199802,
+          "cycle_id": 3,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "grid_level": null,
+          "avg_entry_price": 139.23,
+          "pnl_pct_at_exit": -0.8906126553185234,
           "break_even_armed": true
         }
       },
@@ -1173,19 +1638,63 @@
               "weight": 0.2
             }
           ],
-          "cycle_id": 3,
-          "max_dd_reached": -22.04000987898246,
+          "cycle_id": 4,
+          "max_dd_reached": -37.38206964682638,
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
-            "max_dd_reached": -20.0,
+            "max_dd_reached": -30.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.0,
           "position_cost": 0.0
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "SOL",
+        "asset_class": "CRYPTO",
+        "side": "SELL",
+        "ts_open_utc": "2024-06-11T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "action": "break_even",
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "sl_dd": -70.0,
+          "max_dd_reached": -37.38206964682638,
+          "drawdown_pct": -37.38206964682638,
+          "cycle_id": 4,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "grid_level": null,
+          "avg_entry_price": 157.83,
+          "pnl_pct_at_exit": -5.3982132674396555,
+          "break_even_armed": true
         }
       },
       {
@@ -1222,19 +1731,19 @@
               "weight": 0.2
             }
           ],
-          "cycle_id": 3,
+          "cycle_id": 5,
           "max_dd_reached": -32.12645097554952,
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -30.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
-          "position_qty": 0.2,
-          "position_cost": 31.566000000000003
+          "position_qty": 0.0,
+          "position_cost": 0.0
         }
       },
       {
@@ -1242,17 +1751,17 @@
         "symbol": "SOL",
         "asset_class": "CRYPTO",
         "side": "SELL",
-        "ts_open_utc": "2024-07-21T00:00:00+00:00",
-        "qty": 0.4,
+        "ts_open_utc": "2024-07-04T00:00:00+00:00",
+        "qty": 0.2,
         "meta": {
-          "action": "take_profit",
+          "action": "break_even",
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "sl_dd": -70.0,
           "max_dd_reached": -36.84366510249444,
           "drawdown_pct": -36.84366510249444,
-          "cycle_id": 3,
+          "cycle_id": 5,
           "grid_config": [
             {
               "dd": -60.0,
@@ -1276,8 +1785,101 @@
             }
           ],
           "grid_level": null,
-          "avg_entry_price": 147.62,
-          "pnl_pct_at_exit": 24.976290475545326,
+          "avg_entry_price": 137.41,
+          "pnl_pct_at_exit": -6.950003638745361,
+          "break_even_armed": true
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "SOL",
+        "asset_class": "CRYPTO",
+        "side": "BUY",
+        "ts_open_utc": "2024-07-07T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "dd_pct": -34.97653741664609,
+          "drawdown_pct": -34.97653741664609,
+          "grid_level": -30.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 6,
+          "max_dd_reached": -36.84366510249444,
+          "tp_target": 20.0,
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "tp_rule": {
+            "max_dd_reached": -30.0,
+            "tp_pct": 20.0,
+            "be_pct": 1.0
+          },
+          "position_qty": 0.0,
+          "position_cost": 0.0
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "SOL",
+        "asset_class": "CRYPTO",
+        "side": "SELL",
+        "ts_open_utc": "2024-07-15T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "action": "take_profit",
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "sl_dd": -70.0,
+          "max_dd_reached": -36.84366510249444,
+          "drawdown_pct": -36.84366510249444,
+          "cycle_id": 6,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "grid_level": null,
+          "avg_entry_price": 131.64,
+          "pnl_pct_at_exit": 21.072622303251308,
           "break_even_armed": true
         }
       },
@@ -1315,16 +1917,16 @@
               "weight": 0.2
             }
           ],
-          "cycle_id": 4,
+          "cycle_id": 7,
           "max_dd_reached": -24.5393924425784,
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -20.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.0,
           "position_cost": 0.0
@@ -1364,16 +1966,16 @@
               "weight": 0.2
             }
           ],
-          "cycle_id": 4,
+          "cycle_id": 7,
           "max_dd_reached": -31.672017782168428,
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -30.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.2,
           "position_cost": 30.554000000000002
@@ -1390,11 +1992,11 @@
           "action": "break_even",
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "sl_dd": -70.0,
           "max_dd_reached": -35.89528278587305,
           "drawdown_pct": -35.89528278587305,
-          "cycle_id": 4,
+          "cycle_id": 7,
           "grid_config": [
             {
               "dd": -60.0,
@@ -1457,16 +2059,16 @@
               "weight": 0.2
             }
           ],
-          "cycle_id": 5,
+          "cycle_id": 8,
           "max_dd_reached": -31.321313904667825,
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -30.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.0,
           "position_cost": 0.0
@@ -1483,11 +2085,11 @@
           "action": "break_even",
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "sl_dd": -70.0,
           "max_dd_reached": -31.83996048407013,
           "drawdown_pct": -31.83996048407013,
-          "cycle_id": 5,
+          "cycle_id": 8,
           "grid_config": [
             {
               "dd": -60.0,
@@ -1550,16 +2152,16 @@
               "weight": 0.2
             }
           ],
-          "cycle_id": 6,
+          "cycle_id": 9,
           "max_dd_reached": -38.231662138799706,
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -30.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.0,
           "position_cost": 0.0
@@ -1576,11 +2178,11 @@
           "action": "take_profit",
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "sl_dd": -70.0,
           "max_dd_reached": -38.231662138799706,
           "drawdown_pct": -38.231662138799706,
-          "cycle_id": 6,
+          "cycle_id": 9,
           "grid_config": [
             {
               "dd": -60.0,
@@ -1643,19 +2245,63 @@
               "weight": 0.2
             }
           ],
-          "cycle_id": 7,
+          "cycle_id": 10,
           "max_dd_reached": -24.558193849746978,
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -20.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.0,
           "position_cost": 0.0
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "SOL",
+        "asset_class": "CRYPTO",
+        "side": "SELL",
+        "ts_open_utc": "2024-12-26T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "action": "break_even",
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "sl_dd": -70.0,
+          "max_dd_reached": -29.731413001167763,
+          "drawdown_pct": -29.731413001167763,
+          "cycle_id": 10,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "grid_level": null,
+          "avg_entry_price": 193.81,
+          "pnl_pct_at_exit": -2.7604354780455087,
+          "break_even_armed": true
         }
       }
     ],
@@ -1699,11 +2345,104 @@
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -20.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
+          },
+          "position_qty": 0.0,
+          "position_cost": 0.0
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "BNB",
+        "asset_class": "CRYPTO",
+        "side": "SELL",
+        "ts_open_utc": "2024-06-28T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "action": "break_even",
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "sl_dd": -70.0,
+          "max_dd_reached": -20.219347581552316,
+          "drawdown_pct": -20.219347581552316,
+          "cycle_id": 1,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "grid_level": null,
+          "avg_entry_price": 568.1,
+          "pnl_pct_at_exit": -0.12321774335505298,
+          "break_even_armed": true
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "BNB",
+        "asset_class": "CRYPTO",
+        "side": "BUY",
+        "ts_open_utc": "2024-07-03T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "dd_pct": -21.723847019122612,
+          "drawdown_pct": -21.723847019122612,
+          "grid_level": -20.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 2,
+          "max_dd_reached": -21.723847019122612,
+          "tp_target": 20.0,
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "tp_rule": {
+            "max_dd_reached": -20.0,
+            "tp_pct": 20.0,
+            "be_pct": 1.0
           },
           "position_qty": 0.0,
           "position_cost": 0.0
@@ -1743,19 +2482,19 @@
               "weight": 0.2
             }
           ],
-          "cycle_id": 1,
+          "cycle_id": 2,
           "max_dd_reached": -30.01968503937008,
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -30.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.2,
-          "position_cost": 113.62
+          "position_cost": 111.34000000000002
         }
       },
       {
@@ -1763,17 +2502,17 @@
         "symbol": "BNB",
         "asset_class": "CRYPTO",
         "side": "SELL",
-        "ts_open_utc": "2024-08-03T00:00:00+00:00",
+        "ts_open_utc": "2024-08-04T00:00:00+00:00",
         "qty": 0.4,
         "meta": {
           "action": "break_even",
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "sl_dd": -70.0,
           "max_dd_reached": -31.00393700787403,
           "drawdown_pct": -31.00393700787403,
-          "cycle_id": 1,
+          "cycle_id": 2,
           "grid_config": [
             {
               "dd": -60.0,
@@ -1797,58 +2536,9 @@
             }
           ],
           "grid_level": null,
-          "avg_entry_price": 532.9,
-          "pnl_pct_at_exit": -0.6192531431788217,
+          "avg_entry_price": 527.2,
+          "pnl_pct_at_exit": -5.7473444613050155,
           "break_even_armed": true
-        }
-      },
-      {
-        "strategy_id": "DCA_CRYPTO_DEMO",
-        "symbol": "BNB",
-        "asset_class": "CRYPTO",
-        "side": "BUY",
-        "ts_open_utc": "2024-08-04T00:00:00+00:00",
-        "qty": 0.2,
-        "meta": {
-          "dd_pct": -30.13217097862768,
-          "drawdown_pct": -30.13217097862768,
-          "grid_level": -30.0,
-          "palier_used": 0.2,
-          "grid_config": [
-            {
-              "dd": -60.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -50.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            }
-          ],
-          "cycle_id": 2,
-          "max_dd_reached": -30.13217097862768,
-          "tp_target": 20.0,
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 20.0,
-          "be_pct": 10.0,
-          "tp_rule": {
-            "max_dd_reached": -30.0,
-            "tp_pct": 20.0,
-            "be_pct": 10.0
-          },
-          "position_qty": 0.0,
-          "position_cost": 0.0
         }
       },
       {
@@ -1885,63 +2575,19 @@
               "weight": 0.2
             }
           ],
-          "cycle_id": 2,
+          "cycle_id": 3,
           "max_dd_reached": -34.73003374578178,
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -30.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
-          "position_qty": 0.2,
-          "position_cost": 99.38
-        }
-      },
-      {
-        "strategy_id": "DCA_CRYPTO_DEMO",
-        "symbol": "BNB",
-        "asset_class": "CRYPTO",
-        "side": "SELL",
-        "ts_open_utc": "2024-09-01T00:00:00+00:00",
-        "qty": 0.4,
-        "meta": {
-          "action": "break_even",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 20.0,
-          "be_pct": 10.0,
-          "sl_dd": -70.0,
-          "max_dd_reached": -34.73003374578178,
-          "drawdown_pct": -34.73003374578178,
-          "cycle_id": 2,
-          "grid_config": [
-            {
-              "dd": -60.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -50.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            }
-          ],
-          "grid_level": null,
-          "avg_entry_price": 522.55,
-          "pnl_pct_at_exit": -1.942397856664435,
-          "break_even_armed": true
+          "position_qty": 0.0,
+          "position_cost": 0.0
         }
       },
       {
@@ -1979,18 +2625,18 @@
             }
           ],
           "cycle_id": 3,
-          "max_dd_reached": -31.496062992125996,
+          "max_dd_reached": -34.73003374578178,
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -30.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
-          "position_qty": 0.0,
-          "position_cost": 0.0
+          "position_qty": 0.2,
+          "position_cost": 109.64000000000001
         }
       },
       {
@@ -1998,16 +2644,16 @@
         "symbol": "BNB",
         "asset_class": "CRYPTO",
         "side": "SELL",
-        "ts_open_utc": "2024-09-21T00:00:00+00:00",
-        "qty": 0.2,
+        "ts_open_utc": "2024-11-09T00:00:00+00:00",
+        "qty": 0.4,
         "meta": {
           "action": "take_profit",
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "sl_dd": -70.0,
-          "max_dd_reached": -31.496062992125996,
-          "drawdown_pct": -31.496062992125996,
+          "max_dd_reached": -34.73003374578178,
+          "drawdown_pct": -34.73003374578178,
           "cycle_id": 3,
           "grid_config": [
             {
@@ -2032,101 +2678,8 @@
             }
           ],
           "grid_level": null,
-          "avg_entry_price": 487.2,
-          "pnl_pct_at_exit": 20.8128078817734,
-          "break_even_armed": true
-        }
-      },
-      {
-        "strategy_id": "DCA_CRYPTO_DEMO",
-        "symbol": "BNB",
-        "asset_class": "CRYPTO",
-        "side": "BUY",
-        "ts_open_utc": "2024-09-30T00:00:00+00:00",
-        "qty": 0.2,
-        "meta": {
-          "dd_pct": -20.219347581552316,
-          "drawdown_pct": -20.219347581552316,
-          "grid_level": -20.0,
-          "palier_used": 0.2,
-          "grid_config": [
-            {
-              "dd": -60.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -50.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            }
-          ],
-          "cycle_id": 4,
-          "max_dd_reached": -20.219347581552316,
-          "tp_target": 20.0,
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 20.0,
-          "be_pct": 10.0,
-          "tp_rule": {
-            "max_dd_reached": -20.0,
-            "tp_pct": 20.0,
-            "be_pct": 10.0
-          },
-          "position_qty": 0.0,
-          "position_cost": 0.0
-        }
-      },
-      {
-        "strategy_id": "DCA_CRYPTO_DEMO",
-        "symbol": "BNB",
-        "asset_class": "CRYPTO",
-        "side": "SELL",
-        "ts_open_utc": "2024-12-03T00:00:00+00:00",
-        "qty": 0.2,
-        "meta": {
-          "action": "take_profit",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 20.0,
-          "be_pct": 10.0,
-          "sl_dd": -70.0,
-          "max_dd_reached": -23.720472440944885,
-          "drawdown_pct": -23.720472440944885,
-          "cycle_id": 4,
-          "grid_config": [
-            {
-              "dd": -60.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -50.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            }
-          ],
-          "grid_level": null,
-          "avg_entry_price": 567.4,
-          "pnl_pct_at_exit": 29.474797321113865,
+          "avg_entry_price": 517.7,
+          "pnl_pct_at_exit": 20.660614255360233,
           "break_even_armed": true
         }
       }
@@ -2171,11 +2724,11 @@
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -20.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.0,
           "position_cost": 0.0
@@ -2186,13 +2739,13 @@
         "symbol": "XRP",
         "asset_class": "CRYPTO",
         "side": "SELL",
-        "ts_open_utc": "2024-03-02T00:00:00+00:00",
+        "ts_open_utc": "2024-02-04T00:00:00+00:00",
         "qty": 0.2,
         "meta": {
-          "action": "take_profit",
+          "action": "break_even",
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "sl_dd": -70.0,
           "max_dd_reached": -20.050842071814422,
           "drawdown_pct": -20.050842071814422,
@@ -2221,7 +2774,7 @@
           ],
           "grid_level": null,
           "avg_entry_price": 0.5033,
-          "pnl_pct_at_exit": 27.99523147228293,
+          "pnl_pct_at_exit": -0.019868865487782106,
           "break_even_armed": true
         }
       },
@@ -2264,14 +2817,58 @@
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -20.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.0,
           "position_cost": 0.0
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "XRP",
+        "asset_class": "CRYPTO",
+        "side": "SELL",
+        "ts_open_utc": "2024-04-12T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "action": "break_even",
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "sl_dd": -70.0,
+          "max_dd_reached": -24.370677731673585,
+          "drawdown_pct": -24.370677731673585,
+          "cycle_id": 2,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "grid_level": null,
+          "avg_entry_price": 0.5742,
+          "pnl_pct_at_exit": -4.771856495994442,
+          "break_even_armed": true
         }
       },
       {
@@ -2308,19 +2905,63 @@
               "weight": 0.2
             }
           ],
-          "cycle_id": 2,
+          "cycle_id": 3,
           "max_dd_reached": -33.77593360995851,
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -30.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
-          "position_qty": 0.2,
-          "position_cost": 0.11484000000000001
+          "position_qty": 0.0,
+          "position_cost": 0.0
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "XRP",
+        "asset_class": "CRYPTO",
+        "side": "SELL",
+        "ts_open_utc": "2024-06-13T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "action": "break_even",
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "sl_dd": -70.0,
+          "max_dd_reached": -34.0387275242047,
+          "drawdown_pct": -34.0387275242047,
+          "cycle_id": 3,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "grid_level": null,
+          "avg_entry_price": 0.47880000000000006,
+          "pnl_pct_at_exit": -0.3968253968254065,
+          "break_even_armed": true
         }
       },
       {
@@ -2357,19 +2998,19 @@
               "weight": 0.2
             }
           ],
-          "cycle_id": 2,
+          "cycle_id": 4,
           "max_dd_reached": -40.12448132780083,
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -40.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
-          "position_qty": 0.4,
-          "position_cost": 0.2106
+          "position_qty": 0.0,
+          "position_cost": 0.0
         }
       },
       {
@@ -2377,17 +3018,17 @@
         "symbol": "XRP",
         "asset_class": "CRYPTO",
         "side": "SELL",
-        "ts_open_utc": "2024-07-17T00:00:00+00:00",
-        "qty": 0.6000000000000001,
+        "ts_open_utc": "2024-07-07T00:00:00+00:00",
+        "qty": 0.2,
         "meta": {
-          "action": "take_profit",
+          "action": "break_even",
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "sl_dd": -70.0,
           "max_dd_reached": -41.977869986168734,
           "drawdown_pct": -41.977869986168734,
-          "cycle_id": 2,
+          "cycle_id": 4,
           "grid_config": [
             {
               "dd": -60.0,
@@ -2411,8 +3052,8 @@
             }
           ],
           "grid_level": null,
-          "avg_entry_price": 0.4952999999999999,
-          "pnl_pct_at_exit": 26.3880476478902,
+          "avg_entry_price": 0.4329,
+          "pnl_pct_at_exit": -3.095403095403104,
           "break_even_armed": true
         }
       },
@@ -2450,16 +3091,16 @@
               "weight": 0.2
             }
           ],
-          "cycle_id": 3,
-          "max_dd_reached": -21.20331950207469,
+          "cycle_id": 5,
+          "max_dd_reached": -41.977869986168734,
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
-            "max_dd_reached": -20.0,
+            "max_dd_reached": -40.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.0,
           "position_cost": 0.0
@@ -2476,11 +3117,11 @@
           "action": "break_even",
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "sl_dd": -70.0,
-          "max_dd_reached": -22.448132780082986,
-          "drawdown_pct": -22.448132780082986,
-          "cycle_id": 3,
+          "max_dd_reached": -41.977869986168734,
+          "drawdown_pct": -41.977869986168734,
+          "cycle_id": 5,
           "grid_config": [
             {
               "dd": -60.0,
@@ -2543,16 +3184,16 @@
               "weight": 0.2
             }
           ],
-          "cycle_id": 4,
+          "cycle_id": 6,
           "max_dd_reached": -32.3789764868603,
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -30.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.0,
           "position_cost": 0.0
@@ -2569,11 +3210,11 @@
           "action": "take_profit",
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "sl_dd": -70.0,
           "max_dd_reached": -32.3789764868603,
           "drawdown_pct": -32.3789764868603,
-          "cycle_id": 4,
+          "cycle_id": 6,
           "grid_config": [
             {
               "dd": -60.0,
@@ -2636,16 +3277,16 @@
               "weight": 0.2
             }
           ],
-          "cycle_id": 5,
+          "cycle_id": 7,
           "max_dd_reached": -23.54080221300139,
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -20.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.0,
           "position_cost": 0.0
@@ -2662,11 +3303,11 @@
           "action": "break_even",
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "sl_dd": -70.0,
           "max_dd_reached": -24.315352697095427,
           "drawdown_pct": -24.315352697095427,
-          "cycle_id": 5,
+          "cycle_id": 7,
           "grid_config": [
             {
               "dd": -60.0,
@@ -2729,16 +3370,16 @@
               "weight": 0.2
             }
           ],
-          "cycle_id": 6,
+          "cycle_id": 8,
           "max_dd_reached": -27.925311203319502,
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -20.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.0,
           "position_cost": 0.0
@@ -2755,11 +3396,11 @@
           "action": "take_profit",
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "sl_dd": -70.0,
           "max_dd_reached": -27.925311203319502,
           "drawdown_pct": -27.925311203319502,
-          "cycle_id": 6,
+          "cycle_id": 8,
           "grid_config": [
             {
               "dd": -60.0,
@@ -2822,19 +3463,63 @@
               "weight": 0.2
             }
           ],
-          "cycle_id": 7,
+          "cycle_id": 9,
           "max_dd_reached": -20.869884382455496,
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -20.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.0,
           "position_cost": 0.0
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "XRP",
+        "asset_class": "CRYPTO",
+        "side": "SELL",
+        "ts_open_utc": "2024-12-29T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "action": "break_even",
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "sl_dd": -70.0,
+          "max_dd_reached": -23.134520095430354,
+          "drawdown_pct": -23.134520095430354,
+          "cycle_id": 9,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "grid_level": null,
+          "avg_entry_price": 2.1559,
+          "pnl_pct_at_exit": -2.8619138178950787,
+          "break_even_armed": true
         }
       }
     ],
@@ -2878,11 +3563,11 @@
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -20.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.0,
           "position_cost": 0.0
@@ -2899,7 +3584,7 @@
           "action": "break_even",
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "sl_dd": -70.0,
           "max_dd_reached": -23.202824133504485,
           "drawdown_pct": -23.202824133504485,
@@ -2971,11 +3656,11 @@
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -20.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.0,
           "position_cost": 0.0
@@ -2986,13 +3671,13 @@
         "symbol": "ADA",
         "asset_class": "CRYPTO",
         "side": "SELL",
-        "ts_open_utc": "2024-02-15T00:00:00+00:00",
+        "ts_open_utc": "2024-02-04T00:00:00+00:00",
         "qty": 0.2,
         "meta": {
-          "action": "take_profit",
+          "action": "break_even",
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "sl_dd": -70.0,
           "max_dd_reached": -25.128369704749677,
           "drawdown_pct": -25.128369704749677,
@@ -3021,7 +3706,7 @@
           ],
           "grid_level": null,
           "avg_entry_price": 0.4976,
-          "pnl_pct_at_exit": 22.327170418006446,
+          "pnl_pct_at_exit": -0.8440514469453375,
           "break_even_armed": true
         }
       },
@@ -3064,11 +3749,11 @@
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -20.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.0,
           "position_cost": 0.0
@@ -3085,7 +3770,7 @@
           "action": "break_even",
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "sl_dd": -70.0,
           "max_dd_reached": -25.10962084085633,
           "drawdown_pct": -25.10962084085633,
@@ -3157,11 +3842,11 @@
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -30.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.0,
           "position_cost": 0.0
@@ -3206,14 +3891,200 @@
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -40.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.2,
           "position_cost": 0.10054000000000002
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "ADA",
+        "asset_class": "CRYPTO",
+        "side": "SELL",
+        "ts_open_utc": "2024-04-25T00:00:00+00:00",
+        "qty": 0.4,
+        "meta": {
+          "action": "break_even",
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "sl_dd": -70.0,
+          "max_dd_reached": -42.739231364457055,
+          "drawdown_pct": -42.739231364457055,
+          "cycle_id": 4,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "grid_level": null,
+          "avg_entry_price": 0.47380000000000005,
+          "pnl_pct_at_exit": -0.6964964119882011,
+          "break_even_armed": true
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "ADA",
+        "asset_class": "CRYPTO",
+        "side": "BUY",
+        "ts_open_utc": "2024-04-26T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "dd_pct": -40.2759865875677,
+          "drawdown_pct": -40.2759865875677,
+          "grid_level": -40.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 5,
+          "max_dd_reached": -40.2759865875677,
+          "tp_target": 20.0,
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "tp_rule": {
+            "max_dd_reached": -40.0,
+            "tp_pct": 20.0,
+            "be_pct": 1.0
+          },
+          "position_qty": 0.0,
+          "position_cost": 0.0
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "ADA",
+        "asset_class": "CRYPTO",
+        "side": "SELL",
+        "ts_open_utc": "2024-05-24T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "action": "break_even",
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "sl_dd": -70.0,
+          "max_dd_reached": -44.73819963889605,
+          "drawdown_pct": -44.73819963889605,
+          "cycle_id": 5,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "grid_level": null,
+          "avg_entry_price": 0.4631,
+          "pnl_pct_at_exit": -0.6478082487583636,
+          "break_even_armed": true
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "ADA",
+        "asset_class": "CRYPTO",
+        "side": "BUY",
+        "ts_open_utc": "2024-05-28T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "dd_pct": -40.98529791075573,
+          "drawdown_pct": -40.98529791075573,
+          "grid_level": -40.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 6,
+          "max_dd_reached": -40.98529791075573,
+          "tp_target": 20.0,
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "tp_rule": {
+            "max_dd_reached": -40.0,
+            "tp_pct": 20.0,
+            "be_pct": 1.0
+          },
+          "position_qty": 0.0,
+          "position_cost": 0.0
         }
       },
       {
@@ -3250,19 +4121,19 @@
               "weight": 0.2
             }
           ],
-          "cycle_id": 4,
+          "cycle_id": 6,
           "max_dd_reached": -50.515862780500385,
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -50.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
-          "position_qty": 0.4,
-          "position_cost": 0.18952000000000002
+          "position_qty": 0.2,
+          "position_cost": 0.09152
         }
       },
       {
@@ -3270,17 +4141,17 @@
         "symbol": "ADA",
         "asset_class": "CRYPTO",
         "side": "SELL",
-        "ts_open_utc": "2024-11-10T00:00:00+00:00",
-        "qty": 0.6000000000000001,
+        "ts_open_utc": "2024-07-23T00:00:00+00:00",
+        "qty": 0.4,
         "meta": {
-          "action": "take_profit",
+          "action": "break_even",
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "sl_dd": -70.0,
-          "max_dd_reached": -59.77559969048233,
-          "drawdown_pct": -59.77559969048233,
-          "cycle_id": 4,
+          "max_dd_reached": -55.30049006964147,
+          "drawdown_pct": -55.30049006964147,
+          "cycle_id": 6,
           "grid_config": [
             {
               "dd": -60.0,
@@ -3304,8 +4175,473 @@
             }
           ],
           "grid_level": null,
-          "avg_entry_price": 0.4437666666666667,
-          "pnl_pct_at_exit": 32.975287313152535,
+          "avg_entry_price": 0.42065,
+          "pnl_pct_at_exit": -2.531796029953659,
+          "break_even_armed": true
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "ADA",
+        "asset_class": "CRYPTO",
+        "side": "BUY",
+        "ts_open_utc": "2024-08-02T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "dd_pct": -53.10807325251483,
+          "drawdown_pct": -53.10807325251483,
+          "grid_level": -50.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 7,
+          "max_dd_reached": -53.10807325251483,
+          "tp_target": 20.0,
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "tp_rule": {
+            "max_dd_reached": -50.0,
+            "tp_pct": 20.0,
+            "be_pct": 1.0
+          },
+          "position_qty": 0.0,
+          "position_cost": 0.0
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "ADA",
+        "asset_class": "CRYPTO",
+        "side": "SELL",
+        "ts_open_utc": "2024-08-27T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "action": "break_even",
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "sl_dd": -70.0,
+          "max_dd_reached": -59.77559969048233,
+          "drawdown_pct": -59.77559969048233,
+          "cycle_id": 7,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "grid_level": null,
+          "avg_entry_price": 0.3635999999999999,
+          "pnl_pct_at_exit": -3.65786578657864,
+          "break_even_armed": true
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "ADA",
+        "asset_class": "CRYPTO",
+        "side": "BUY",
+        "ts_open_utc": "2024-09-16T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "dd_pct": -50.33082706766918,
+          "drawdown_pct": -50.33082706766918,
+          "grid_level": -50.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 8,
+          "max_dd_reached": -59.40159917461955,
+          "tp_target": 20.0,
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "tp_rule": {
+            "max_dd_reached": -50.0,
+            "tp_pct": 20.0,
+            "be_pct": 1.0
+          },
+          "position_qty": 0.0,
+          "position_cost": 0.0
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "ADA",
+        "asset_class": "CRYPTO",
+        "side": "SELL",
+        "ts_open_utc": "2024-09-26T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "action": "take_profit",
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "sl_dd": -70.0,
+          "max_dd_reached": -59.40159917461955,
+          "drawdown_pct": -59.40159917461955,
+          "cycle_id": 8,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "grid_level": null,
+          "avg_entry_price": 0.3302999999999999,
+          "pnl_pct_at_exit": 21.525885558583123,
+          "break_even_armed": true
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "ADA",
+        "asset_class": "CRYPTO",
+        "side": "BUY",
+        "ts_open_utc": "2024-10-01T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "dd_pct": -42.6429851719081,
+          "drawdown_pct": -42.6429851719081,
+          "grid_level": -40.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 9,
+          "max_dd_reached": -42.6429851719081,
+          "tp_target": 20.0,
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "tp_rule": {
+            "max_dd_reached": -40.0,
+            "tp_pct": 20.0,
+            "be_pct": 1.0
+          },
+          "position_qty": 0.0,
+          "position_cost": 0.0
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "ADA",
+        "asset_class": "CRYPTO",
+        "side": "SELL",
+        "ts_open_utc": "2024-10-07T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "action": "break_even",
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "sl_dd": -70.0,
+          "max_dd_reached": -44.07691054261039,
+          "drawdown_pct": -44.07691054261039,
+          "cycle_id": 9,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "grid_level": null,
+          "avg_entry_price": 0.352,
+          "pnl_pct_at_exit": -0.2272727272727204,
+          "break_even_armed": true
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "ADA",
+        "asset_class": "CRYPTO",
+        "side": "BUY",
+        "ts_open_utc": "2024-10-15T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "dd_pct": -30.501257983355924,
+          "drawdown_pct": -30.501257983355924,
+          "grid_level": -30.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 10,
+          "max_dd_reached": -40.04779788323659,
+          "tp_target": 20.0,
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "tp_rule": {
+            "max_dd_reached": -40.0,
+            "tp_pct": 20.0,
+            "be_pct": 1.0
+          },
+          "position_qty": 0.0,
+          "position_cost": 0.0
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "ADA",
+        "asset_class": "CRYPTO",
+        "side": "SELL",
+        "ts_open_utc": "2024-10-23T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "action": "break_even",
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "sl_dd": -70.0,
+          "max_dd_reached": -40.04779788323659,
+          "drawdown_pct": -40.04779788323659,
+          "cycle_id": 10,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "grid_level": null,
+          "avg_entry_price": 0.3591,
+          "pnl_pct_at_exit": -2.6176552492341854,
+          "break_even_armed": true
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "ADA",
+        "asset_class": "CRYPTO",
+        "side": "BUY",
+        "ts_open_utc": "2024-10-31T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "dd_pct": -31.912350597609564,
+          "drawdown_pct": -31.912350597609564,
+          "grid_level": -30.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 11,
+          "max_dd_reached": -35.039840637450204,
+          "tp_target": 20.0,
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "tp_rule": {
+            "max_dd_reached": -30.0,
+            "tp_pct": 20.0,
+            "be_pct": 1.0
+          },
+          "position_qty": 0.0,
+          "position_cost": 0.0
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "ADA",
+        "asset_class": "CRYPTO",
+        "side": "SELL",
+        "ts_open_utc": "2024-11-03T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "action": "break_even",
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "sl_dd": -70.0,
+          "max_dd_reached": -35.039840637450204,
+          "drawdown_pct": -35.039840637450204,
+          "cycle_id": 11,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "grid_level": null,
+          "avg_entry_price": 0.3418,
+          "pnl_pct_at_exit": -2.2527794031597326,
           "break_even_armed": true
         }
       },
@@ -3343,16 +4679,16 @@
               "weight": 0.2
             }
           ],
-          "cycle_id": 5,
-          "max_dd_reached": -21.15165336374003,
+          "cycle_id": 12,
+          "max_dd_reached": -35.00000000000001,
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
-            "max_dd_reached": -20.0,
+            "max_dd_reached": -30.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.0,
           "position_cost": 0.0
@@ -3392,16 +4728,16 @@
               "weight": 0.2
             }
           ],
-          "cycle_id": 5,
-          "max_dd_reached": -30.0374653852419,
+          "cycle_id": 12,
+          "max_dd_reached": -35.00000000000001,
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -30.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.2,
           "position_cost": 0.19362000000000001
@@ -3448,11 +4784,11 @@
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -20.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.0,
           "position_cost": 0.0
@@ -3469,7 +4805,7 @@
           "action": "take_profit",
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "sl_dd": -70.0,
           "max_dd_reached": -29.589890319504043,
           "drawdown_pct": -29.589890319504043,
@@ -3541,14 +4877,58 @@
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -20.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.0,
           "position_cost": 0.0
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "AVAX",
+        "asset_class": "CRYPTO",
+        "side": "SELL",
+        "ts_open_utc": "2024-04-09T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "action": "break_even",
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "sl_dd": -70.0,
+          "max_dd_reached": -25.30915086562243,
+          "drawdown_pct": -25.30915086562243,
+          "cycle_id": 2,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "grid_level": null,
+          "avg_entry_price": 46.86,
+          "pnl_pct_at_exit": -0.8322663252240736,
+          "break_even_armed": true
         }
       },
       {
@@ -3585,19 +4965,19 @@
               "weight": 0.2
             }
           ],
-          "cycle_id": 2,
+          "cycle_id": 3,
           "max_dd_reached": -35.136026380873865,
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -30.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
-          "position_qty": 0.2,
-          "position_cost": 9.372
+          "position_qty": 0.0,
+          "position_cost": 0.0
         }
       },
       {
@@ -3634,19 +5014,298 @@
               "weight": 0.2
             }
           ],
-          "cycle_id": 2,
+          "cycle_id": 3,
           "max_dd_reached": -44.12201154163231,
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -40.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
-          "position_qty": 0.4,
-          "position_cost": 17.240000000000002
+          "position_qty": 0.2,
+          "position_cost": 7.868000000000001
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "AVAX",
+        "asset_class": "CRYPTO",
+        "side": "SELL",
+        "ts_open_utc": "2024-04-15T00:00:00+00:00",
+        "qty": 0.4,
+        "meta": {
+          "action": "break_even",
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "sl_dd": -70.0,
+          "max_dd_reached": -44.12201154163231,
+          "drawdown_pct": -44.12201154163231,
+          "cycle_id": 3,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "grid_level": null,
+          "avg_entry_price": 36.615,
+          "pnl_pct_at_exit": -3.973781237197882,
+          "break_even_armed": true
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "AVAX",
+        "asset_class": "CRYPTO",
+        "side": "BUY",
+        "ts_open_utc": "2024-04-24T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "dd_pct": -40.03297609233306,
+          "drawdown_pct": -40.03297609233306,
+          "grid_level": -40.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 4,
+          "max_dd_reached": -44.63314097279473,
+          "tp_target": 20.0,
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "tp_rule": {
+            "max_dd_reached": -40.0,
+            "tp_pct": 20.0,
+            "be_pct": 1.0
+          },
+          "position_qty": 0.0,
+          "position_cost": 0.0
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "AVAX",
+        "asset_class": "CRYPTO",
+        "side": "SELL",
+        "ts_open_utc": "2024-05-07T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "action": "break_even",
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "sl_dd": -70.0,
+          "max_dd_reached": -46.06760098928277,
+          "drawdown_pct": -46.06760098928277,
+          "cycle_id": 4,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "grid_level": null,
+          "avg_entry_price": 36.37,
+          "pnl_pct_at_exit": -2.9144899642562394,
+          "break_even_armed": true
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "AVAX",
+        "asset_class": "CRYPTO",
+        "side": "BUY",
+        "ts_open_utc": "2024-05-19T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "dd_pct": -41.302555647155806,
+          "drawdown_pct": -41.302555647155806,
+          "grid_level": -40.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 5,
+          "max_dd_reached": -47.93075020610058,
+          "tp_target": 20.0,
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "tp_rule": {
+            "max_dd_reached": -40.0,
+            "tp_pct": 20.0,
+            "be_pct": 1.0
+          },
+          "position_qty": 0.0,
+          "position_cost": 0.0
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "AVAX",
+        "asset_class": "CRYPTO",
+        "side": "SELL",
+        "ts_open_utc": "2024-06-02T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "action": "break_even",
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "sl_dd": -70.0,
+          "max_dd_reached": -47.93075020610058,
+          "drawdown_pct": -47.93075020610058,
+          "cycle_id": 5,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "grid_level": null,
+          "avg_entry_price": 35.6,
+          "pnl_pct_at_exit": -1.9382022471910232,
+          "break_even_armed": true
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "AVAX",
+        "asset_class": "CRYPTO",
+        "side": "BUY",
+        "ts_open_utc": "2024-06-06T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "dd_pct": -40.824402308326455,
+          "drawdown_pct": -40.824402308326455,
+          "grid_level": -40.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 6,
+          "max_dd_reached": -42.44023083264633,
+          "tp_target": 20.0,
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "tp_rule": {
+            "max_dd_reached": -40.0,
+            "tp_pct": 20.0,
+            "be_pct": 1.0
+          },
+          "position_qty": 0.0,
+          "position_cost": 0.0
         }
       },
       {
@@ -3683,19 +5342,19 @@
               "weight": 0.2
             }
           ],
-          "cycle_id": 2,
+          "cycle_id": 6,
           "max_dd_reached": -50.05770816158286,
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -50.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
-          "position_qty": 0.6000000000000001,
-          "position_cost": 24.018
+          "position_qty": 0.2,
+          "position_cost": 7.178000000000001
         }
       },
       {
@@ -3732,19 +5391,19 @@
               "weight": 0.2
             }
           ],
-          "cycle_id": 2,
+          "cycle_id": 6,
           "max_dd_reached": -61.08821104699093,
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -60.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
-          "position_qty": 0.8,
-          "position_cost": 30.076
+          "position_qty": 0.4,
+          "position_cost": 13.236
         }
       },
       {
@@ -3752,17 +5411,17 @@
         "symbol": "AVAX",
         "asset_class": "CRYPTO",
         "side": "SELL",
-        "ts_open_utc": "2024-11-22T00:00:00+00:00",
-        "qty": 1.0,
+        "ts_open_utc": "2024-09-28T00:00:00+00:00",
+        "qty": 0.6000000000000001,
         "meta": {
-          "action": "take_profit",
+          "action": "break_even",
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "sl_dd": -70.0,
           "max_dd_reached": -67.78235779060182,
           "drawdown_pct": -67.78235779060182,
-          "cycle_id": 2,
+          "cycle_id": 6,
           "grid_config": [
             {
               "dd": -60.0,
@@ -3786,8 +5445,336 @@
             }
           ],
           "grid_level": null,
-          "avg_entry_price": 34.796,
-          "pnl_pct_at_exit": 24.065984595930566,
+          "avg_entry_price": 29.926666666666666,
+          "pnl_pct_at_exit": -2.1608376030296195,
+          "break_even_armed": true
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "AVAX",
+        "asset_class": "CRYPTO",
+        "side": "BUY",
+        "ts_open_utc": "2024-10-03T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "dd_pct": -50.54151624548736,
+          "drawdown_pct": -50.54151624548736,
+          "grid_level": -50.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 7,
+          "max_dd_reached": -50.54151624548736,
+          "tp_target": 20.0,
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "tp_rule": {
+            "max_dd_reached": -50.0,
+            "tp_pct": 20.0,
+            "be_pct": 1.0
+          },
+          "position_qty": 0.0,
+          "position_cost": 0.0
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "AVAX",
+        "asset_class": "CRYPTO",
+        "side": "BUY",
+        "ts_open_utc": "2024-10-15T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "dd_pct": -31.52912621359224,
+          "drawdown_pct": -31.52912621359224,
+          "grid_level": -30.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 7,
+          "max_dd_reached": -50.54151624548736,
+          "tp_target": 20.0,
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "tp_rule": {
+            "max_dd_reached": -50.0,
+            "tp_pct": 20.0,
+            "be_pct": 1.0
+          },
+          "position_qty": 0.2,
+          "position_cost": 4.932
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "AVAX",
+        "asset_class": "CRYPTO",
+        "side": "SELL",
+        "ts_open_utc": "2024-10-25T00:00:00+00:00",
+        "qty": 0.4,
+        "meta": {
+          "action": "break_even",
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "sl_dd": -70.0,
+          "max_dd_reached": -50.54151624548736,
+          "drawdown_pct": -50.54151624548736,
+          "cycle_id": 7,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "grid_level": null,
+          "avg_entry_price": 26.435000000000002,
+          "pnl_pct_at_exit": -5.693209759788164,
+          "break_even_armed": true
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "AVAX",
+        "asset_class": "CRYPTO",
+        "side": "BUY",
+        "ts_open_utc": "2024-11-02T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "dd_pct": -41.456310679611654,
+          "drawdown_pct": -41.456310679611654,
+          "grid_level": -40.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 8,
+          "max_dd_reached": -41.456310679611654,
+          "tp_target": 20.0,
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "tp_rule": {
+            "max_dd_reached": -40.0,
+            "tp_pct": 20.0,
+            "be_pct": 1.0
+          },
+          "position_qty": 0.0,
+          "position_cost": 0.0
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "AVAX",
+        "asset_class": "CRYPTO",
+        "side": "SELL",
+        "ts_open_utc": "2024-11-09T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "action": "take_profit",
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "sl_dd": -70.0,
+          "max_dd_reached": -44.854368932038845,
+          "drawdown_pct": -44.854368932038845,
+          "cycle_id": 8,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "grid_level": null,
+          "avg_entry_price": 24.12,
+          "pnl_pct_at_exit": 25.87064676616915,
+          "break_even_armed": true
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "AVAX",
+        "asset_class": "CRYPTO",
+        "side": "BUY",
+        "ts_open_utc": "2024-11-14T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "dd_pct": -24.247572815533978,
+          "drawdown_pct": -24.247572815533978,
+          "grid_level": -20.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 9,
+          "max_dd_reached": -26.31067961165049,
+          "tp_target": 20.0,
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "tp_rule": {
+            "max_dd_reached": -20.0,
+            "tp_pct": 20.0,
+            "be_pct": 1.0
+          },
+          "position_qty": 0.0,
+          "position_cost": 0.0
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "AVAX",
+        "asset_class": "CRYPTO",
+        "side": "SELL",
+        "ts_open_utc": "2024-11-22T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "action": "take_profit",
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "sl_dd": -70.0,
+          "max_dd_reached": -26.31067961165049,
+          "drawdown_pct": -26.31067961165049,
+          "cycle_id": 9,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "grid_level": null,
+          "avg_entry_price": 31.210000000000004,
+          "pnl_pct_at_exit": 38.321050945209855,
           "break_even_armed": true
         }
       },
@@ -3825,16 +5812,16 @@
               "weight": 0.2
             }
           ],
-          "cycle_id": 3,
+          "cycle_id": 10,
           "max_dd_reached": -20.74842534271952,
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -20.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.0,
           "position_cost": 0.0
@@ -3874,19 +5861,63 @@
               "weight": 0.2
             }
           ],
-          "cycle_id": 3,
+          "cycle_id": 10,
           "max_dd_reached": -30.678028899592434,
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -30.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.2,
           "position_cost": 8.556000000000001
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "AVAX",
+        "asset_class": "CRYPTO",
+        "side": "SELL",
+        "ts_open_utc": "2024-12-26T00:00:00+00:00",
+        "qty": 0.4,
+        "meta": {
+          "action": "break_even",
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "sl_dd": -70.0,
+          "max_dd_reached": -32.25268618006669,
+          "drawdown_pct": -32.25268618006669,
+          "cycle_id": 10,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "grid_level": null,
+          "avg_entry_price": 40.1,
+          "pnl_pct_at_exit": -6.907730673316714,
+          "break_even_armed": true
         }
       }
     ],
@@ -3930,11 +5961,11 @@
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -20.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.0,
           "position_cost": 0.0
@@ -3945,13 +5976,13 @@
         "symbol": "DOGE",
         "asset_class": "CRYPTO",
         "side": "SELL",
-        "ts_open_utc": "2024-03-24T00:00:00+00:00",
+        "ts_open_utc": "2024-03-19T00:00:00+00:00",
         "qty": 0.2,
         "meta": {
-          "action": "take_profit",
+          "action": "break_even",
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "sl_dd": -70.0,
           "max_dd_reached": -29.22527472527472,
           "drawdown_pct": -29.22527472527472,
@@ -3980,7 +6011,7 @@
           ],
           "grid_level": null,
           "avg_entry_price": 0.14253,
-          "pnl_pct_at_exit": 23.840594962464046,
+          "pnl_pct_at_exit": -9.626043639935444,
           "break_even_armed": true
         }
       },
@@ -4019,15 +6050,15 @@
             }
           ],
           "cycle_id": 2,
-          "max_dd_reached": -20.358165537930105,
+          "max_dd_reached": -29.22527472527472,
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -20.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.0,
           "position_cost": 0.0
@@ -4044,10 +6075,10 @@
           "action": "break_even",
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "sl_dd": -70.0,
-          "max_dd_reached": -20.89905004317987,
-          "drawdown_pct": -20.89905004317987,
+          "max_dd_reached": -29.22527472527472,
+          "drawdown_pct": -29.22527472527472,
           "cycle_id": 2,
           "grid_config": [
             {
@@ -4116,11 +6147,104 @@
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -30.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
+          },
+          "position_qty": 0.0,
+          "position_cost": 0.0
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "DOGE",
+        "asset_class": "CRYPTO",
+        "side": "SELL",
+        "ts_open_utc": "2024-04-17T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "action": "break_even",
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "sl_dd": -70.0,
+          "max_dd_reached": -32.93032134902959,
+          "drawdown_pct": -32.93032134902959,
+          "cycle_id": 3,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "grid_level": null,
+          "avg_entry_price": 0.15254,
+          "pnl_pct_at_exit": -3.2647174511603594,
+          "break_even_armed": true
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "DOGE",
+        "asset_class": "CRYPTO",
+        "side": "BUY",
+        "ts_open_utc": "2024-04-24T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "dd_pct": -31.18949138675515,
+          "drawdown_pct": -31.18949138675515,
+          "grid_level": -30.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 4,
+          "max_dd_reached": -32.93032134902959,
+          "tp_target": 20.0,
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "tp_rule": {
+            "max_dd_reached": -30.0,
+            "tp_pct": 20.0,
+            "be_pct": 1.0
           },
           "position_qty": 0.0,
           "position_cost": 0.0
@@ -4160,19 +6284,19 @@
               "weight": 0.2
             }
           ],
-          "cycle_id": 3,
+          "cycle_id": 4,
           "max_dd_reached": -40.816326530612244,
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -40.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.2,
-          "position_cost": 0.030508000000000004
+          "position_cost": 0.030278
         }
       },
       {
@@ -4180,17 +6304,17 @@
         "symbol": "DOGE",
         "asset_class": "CRYPTO",
         "side": "SELL",
-        "ts_open_utc": "2024-05-12T00:00:00+00:00",
+        "ts_open_utc": "2024-05-21T00:00:00+00:00",
         "qty": 0.4,
         "meta": {
-          "action": "break_even",
+          "action": "take_profit",
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "sl_dd": -70.0,
           "max_dd_reached": -40.816326530612244,
           "drawdown_pct": -40.816326530612244,
-          "cycle_id": 3,
+          "cycle_id": 4,
           "grid_config": [
             {
               "dd": -60.0,
@@ -4214,8 +6338,8 @@
             }
           ],
           "grid_level": null,
-          "avg_entry_price": 0.141375,
-          "pnl_pct_at_exit": -0.10256410256410664,
+          "avg_entry_price": 0.14079999999999998,
+          "pnl_pct_at_exit": 20.90909090909092,
           "break_even_armed": true
         }
       },
@@ -4224,11 +6348,11 @@
         "symbol": "DOGE",
         "asset_class": "CRYPTO",
         "side": "BUY",
-        "ts_open_utc": "2024-05-16T00:00:00+00:00",
+        "ts_open_utc": "2024-06-07T00:00:00+00:00",
         "qty": 0.2,
         "meta": {
-          "dd_pct": -31.948547793282135,
-          "drawdown_pct": -31.948547793282135,
+          "dd_pct": -32.63942548065998,
+          "drawdown_pct": -32.63942548065998,
           "grid_level": -30.0,
           "palier_used": 0.2,
           "grid_config": [
@@ -4253,63 +6377,19 @@
               "weight": 0.2
             }
           ],
-          "cycle_id": 4,
-          "max_dd_reached": -35.807463297122865,
+          "cycle_id": 5,
+          "max_dd_reached": -32.63942548065998,
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -30.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.0,
           "position_cost": 0.0
-        }
-      },
-      {
-        "strategy_id": "DCA_CRYPTO_DEMO",
-        "symbol": "DOGE",
-        "asset_class": "CRYPTO",
-        "side": "SELL",
-        "ts_open_utc": "2024-06-07T00:00:00+00:00",
-        "qty": 0.2,
-        "meta": {
-          "action": "break_even",
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 20.0,
-          "be_pct": 10.0,
-          "sl_dd": -70.0,
-          "max_dd_reached": -35.807463297122865,
-          "drawdown_pct": -35.807463297122865,
-          "cycle_id": 4,
-          "grid_config": [
-            {
-              "dd": -60.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -50.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            }
-          ],
-          "grid_level": null,
-          "avg_entry_price": 0.14972,
-          "pnl_pct_at_exit": -1.015228426395931,
-          "break_even_armed": true
         }
       },
       {
@@ -4351,14 +6431,14 @@
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -40.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
-          "position_qty": 0.0,
-          "position_cost": 0.0
+          "position_qty": 0.2,
+          "position_cost": 0.02964
         }
       },
       {
@@ -4400,14 +6480,14 @@
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -50.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
-          "position_qty": 0.2,
-          "position_cost": 0.025758
+          "position_qty": 0.4,
+          "position_cost": 0.055398
         }
       },
       {
@@ -4415,13 +6495,13 @@
         "symbol": "DOGE",
         "asset_class": "CRYPTO",
         "side": "SELL",
-        "ts_open_utc": "2024-08-02T00:00:00+00:00",
-        "qty": 0.4,
+        "ts_open_utc": "2024-07-25T00:00:00+00:00",
+        "qty": 0.6000000000000001,
         "meta": {
           "action": "break_even",
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "sl_dd": -70.0,
           "max_dd_reached": -52.661242670787686,
           "drawdown_pct": -52.661242670787686,
@@ -4449,9 +6529,58 @@
             }
           ],
           "grid_level": null,
-          "avg_entry_price": 0.116905,
-          "pnl_pct_at_exit": -4.589196356015568,
+          "avg_entry_price": 0.12733666666666665,
+          "pnl_pct_at_exit": -1.6308473600167406,
           "break_even_armed": true
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "DOGE",
+        "asset_class": "CRYPTO",
+        "side": "BUY",
+        "ts_open_utc": "2024-07-27T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "dd_pct": -40.25726103358939,
+          "drawdown_pct": -40.25726103358939,
+          "grid_level": -40.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 6,
+          "max_dd_reached": -43.06622426253352,
+          "tp_target": 20.0,
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "tp_rule": {
+            "max_dd_reached": -40.0,
+            "tp_pct": 20.0,
+            "be_pct": 1.0
+          },
+          "position_qty": 0.0,
+          "position_cost": 0.0
         }
       },
       {
@@ -4493,63 +6622,14 @@
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -50.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
-          },
-          "position_qty": 0.0,
-          "position_cost": 0.0
-        }
-      },
-      {
-        "strategy_id": "DCA_CRYPTO_DEMO",
-        "symbol": "DOGE",
-        "asset_class": "CRYPTO",
-        "side": "BUY",
-        "ts_open_utc": "2024-09-30T00:00:00+00:00",
-        "qty": 0.2,
-        "meta": {
-          "dd_pct": -43.62783810463968,
-          "drawdown_pct": -43.62783810463968,
-          "grid_level": -40.0,
-          "palier_used": 0.2,
-          "grid_config": [
-            {
-              "dd": -60.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -50.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -40.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -30.0,
-              "weight": 0.2
-            },
-            {
-              "dd": -20.0,
-              "weight": 0.2
-            }
-          ],
-          "cycle_id": 6,
-          "max_dd_reached": -57.93827553293032,
-          "tp_target": 20.0,
-          "tp_mode": "per_grid_max_dd",
-          "tp_pct": 20.0,
-          "be_pct": 10.0,
-          "tp_rule": {
-            "max_dd_reached": -50.0,
-            "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.2,
-          "position_cost": 0.021622000000000002
+          "position_cost": 0.026288000000000002
         }
       },
       {
@@ -4557,13 +6637,13 @@
         "symbol": "DOGE",
         "asset_class": "CRYPTO",
         "side": "SELL",
-        "ts_open_utc": "2024-10-01T00:00:00+00:00",
+        "ts_open_utc": "2024-09-30T00:00:00+00:00",
         "qty": 0.4,
         "meta": {
           "action": "break_even",
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "sl_dd": -70.0,
           "max_dd_reached": -57.93827553293032,
           "drawdown_pct": -57.93827553293032,
@@ -4591,8 +6671,8 @@
             }
           ],
           "grid_level": null,
-          "avg_entry_price": 0.11116000000000001,
-          "pnl_pct_at_exit": -3.877293990644126,
+          "avg_entry_price": 0.11977500000000002,
+          "pnl_pct_at_exit": -4.646211646837828,
           "break_even_armed": true
         }
       },
@@ -4635,11 +6715,11 @@
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -40.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.0,
           "position_cost": 0.0
@@ -4656,7 +6736,7 @@
           "action": "take_profit",
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "sl_dd": -70.0,
           "max_dd_reached": -48.361303060217175,
           "drawdown_pct": -48.361303060217175,
@@ -4728,11 +6808,11 @@
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -20.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.0,
           "position_cost": 0.0
@@ -4777,11 +6857,11 @@
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -30.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.2,
           "position_cost": 0.071648
@@ -4828,11 +6908,11 @@
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -20.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.0,
           "position_cost": 0.0
@@ -4877,11 +6957,11 @@
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -30.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.2,
           "position_cost": 3.361
@@ -4898,7 +6978,7 @@
           "action": "break_even",
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "sl_dd": -70.0,
           "max_dd_reached": -30.092250922509223,
           "drawdown_pct": -30.092250922509223,
@@ -4970,11 +7050,11 @@
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -30.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.0,
           "position_cost": 0.0
@@ -5019,11 +7099,11 @@
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -40.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.2,
           "position_cost": 2.9072
@@ -5040,7 +7120,7 @@
           "action": "take_profit",
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "sl_dd": -70.0,
           "max_dd_reached": -40.12915129151291,
           "drawdown_pct": -40.12915129151291,
@@ -5112,11 +7192,11 @@
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -20.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.0,
           "position_cost": 0.0
@@ -5133,7 +7213,7 @@
           "action": "break_even",
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "sl_dd": -70.0,
           "max_dd_reached": -24.732472324723243,
           "drawdown_pct": -24.732472324723243,
@@ -5205,14 +7285,58 @@
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -30.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.0,
           "position_cost": 0.0
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "LINK",
+        "asset_class": "CRYPTO",
+        "side": "SELL",
+        "ts_open_utc": "2024-06-14T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "action": "break_even",
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "sl_dd": -70.0,
+          "max_dd_reached": -31.99261992619926,
+          "drawdown_pct": -31.99261992619926,
+          "cycle_id": 4,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "grid_level": null,
+          "avg_entry_price": 14.988000000000001,
+          "pnl_pct_at_exit": -1.6279690419002013,
+          "break_even_armed": true
         }
       },
       {
@@ -5249,19 +7373,156 @@
               "weight": 0.2
             }
           ],
-          "cycle_id": 4,
+          "cycle_id": 5,
           "max_dd_reached": -42.167896678966784,
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -40.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
-          "position_qty": 0.2,
-          "position_cost": 2.9976000000000003
+          "position_qty": 0.0,
+          "position_cost": 0.0
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "LINK",
+        "asset_class": "CRYPTO",
+        "side": "SELL",
+        "ts_open_utc": "2024-07-07T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "action": "break_even",
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "sl_dd": -70.0,
+          "max_dd_reached": -43.214944649446494,
+          "drawdown_pct": -43.214944649446494,
+          "cycle_id": 5,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "grid_level": null,
+          "avg_entry_price": 12.538,
+          "pnl_pct_at_exit": -1.4834901898229336,
+          "break_even_armed": true
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "LINK",
+        "asset_class": "CRYPTO",
+        "side": "BUY",
+        "ts_open_utc": "2024-07-09T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "dd_pct": -40.770295202952035,
+          "drawdown_pct": -40.770295202952035,
+          "grid_level": -40.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 6,
+          "max_dd_reached": -43.02583025830258,
+          "tp_target": 20.0,
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "tp_rule": {
+            "max_dd_reached": -40.0,
+            "tp_pct": 20.0,
+            "be_pct": 1.0
+          },
+          "position_qty": 0.0,
+          "position_cost": 0.0
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "LINK",
+        "asset_class": "CRYPTO",
+        "side": "SELL",
+        "ts_open_utc": "2024-07-31T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "action": "break_even",
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "sl_dd": -70.0,
+          "max_dd_reached": -43.048892988929886,
+          "drawdown_pct": -43.048892988929886,
+          "cycle_id": 6,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "grid_level": null,
+          "avg_entry_price": 12.841,
+          "pnl_pct_at_exit": -0.08566311034965413,
+          "break_even_armed": true
         }
       },
       {
@@ -5298,19 +7559,19 @@
               "weight": 0.2
             }
           ],
-          "cycle_id": 4,
+          "cycle_id": 7,
           "max_dd_reached": -56.22693726937269,
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -50.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
-          "position_qty": 0.4,
-          "position_cost": 5.5052
+          "position_qty": 0.0,
+          "position_cost": 0.0
         }
       },
       {
@@ -5318,17 +7579,17 @@
         "symbol": "LINK",
         "asset_class": "CRYPTO",
         "side": "SELL",
-        "ts_open_utc": "2024-11-11T00:00:00+00:00",
-        "qty": 0.6000000000000001,
+        "ts_open_utc": "2024-08-07T00:00:00+00:00",
+        "qty": 0.2,
         "meta": {
-          "action": "take_profit",
+          "action": "break_even",
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "sl_dd": -70.0,
           "max_dd_reached": -56.27306273062731,
           "drawdown_pct": -56.27306273062731,
-          "cycle_id": 4,
+          "cycle_id": 7,
           "grid_config": [
             {
               "dd": -60.0,
@@ -5352,8 +7613,380 @@
             }
           ],
           "grid_level": null,
-          "avg_entry_price": 12.338666666666665,
-          "pnl_pct_at_exit": 20.839636913767045,
+          "avg_entry_price": 9.49,
+          "pnl_pct_at_exit": -0.10537407797681642,
+          "break_even_armed": true
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "LINK",
+        "asset_class": "CRYPTO",
+        "side": "BUY",
+        "ts_open_utc": "2024-09-01T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "dd_pct": -52.1678966789668,
+          "drawdown_pct": -52.1678966789668,
+          "grid_level": -50.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 8,
+          "max_dd_reached": -56.27306273062731,
+          "tp_target": 20.0,
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "tp_rule": {
+            "max_dd_reached": -50.0,
+            "tp_pct": 20.0,
+            "be_pct": 1.0
+          },
+          "position_qty": 0.0,
+          "position_cost": 0.0
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "LINK",
+        "asset_class": "CRYPTO",
+        "side": "SELL",
+        "ts_open_utc": "2024-09-03T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "action": "break_even",
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "sl_dd": -70.0,
+          "max_dd_reached": -56.27306273062731,
+          "drawdown_pct": -56.27306273062731,
+          "cycle_id": 8,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "grid_level": null,
+          "avg_entry_price": 10.37,
+          "pnl_pct_at_exit": -0.5785920925747257,
+          "break_even_armed": true
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "LINK",
+        "asset_class": "CRYPTO",
+        "side": "BUY",
+        "ts_open_utc": "2024-10-01T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "dd_pct": -41.392526349409145,
+          "drawdown_pct": -41.392526349409145,
+          "grid_level": -40.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 9,
+          "max_dd_reached": -55.0218545847629,
+          "tp_target": 20.0,
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "tp_rule": {
+            "max_dd_reached": -50.0,
+            "tp_pct": 20.0,
+            "be_pct": 1.0
+          },
+          "position_qty": 0.0,
+          "position_cost": 0.0
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "LINK",
+        "asset_class": "CRYPTO",
+        "side": "SELL",
+        "ts_open_utc": "2024-10-08T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "action": "break_even",
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "sl_dd": -70.0,
+          "max_dd_reached": -55.0218545847629,
+          "drawdown_pct": -55.0218545847629,
+          "cycle_id": 9,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "grid_level": null,
+          "avg_entry_price": 11.01,
+          "pnl_pct_at_exit": -1.72570390554041,
+          "break_even_armed": true
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "LINK",
+        "asset_class": "CRYPTO",
+        "side": "BUY",
+        "ts_open_utc": "2024-10-16T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "dd_pct": -40.16821036942404,
+          "drawdown_pct": -40.16821036942404,
+          "grid_level": -40.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 10,
+          "max_dd_reached": -43.94762056850847,
+          "tp_target": 20.0,
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "tp_rule": {
+            "max_dd_reached": -40.0,
+            "tp_pct": 20.0,
+            "be_pct": 1.0
+          },
+          "position_qty": 0.0,
+          "position_cost": 0.0
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "LINK",
+        "asset_class": "CRYPTO",
+        "side": "SELL",
+        "ts_open_utc": "2024-10-25T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "action": "break_even",
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "sl_dd": -70.0,
+          "max_dd_reached": -43.94762056850847,
+          "drawdown_pct": -43.94762056850847,
+          "cycle_id": 10,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "grid_level": null,
+          "avg_entry_price": 11.24,
+          "pnl_pct_at_exit": -0.9786476868327343,
+          "break_even_armed": true
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "LINK",
+        "asset_class": "CRYPTO",
+        "side": "BUY",
+        "ts_open_utc": "2024-11-01T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "dd_pct": -40.11497923985947,
+          "drawdown_pct": -40.11497923985947,
+          "grid_level": -40.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 11,
+          "max_dd_reached": -41.498988608538276,
+          "tp_target": 20.0,
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "tp_rule": {
+            "max_dd_reached": -40.0,
+            "tp_pct": 20.0,
+            "be_pct": 1.0
+          },
+          "position_qty": 0.0,
+          "position_cost": 0.0
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "LINK",
+        "asset_class": "CRYPTO",
+        "side": "SELL",
+        "ts_open_utc": "2024-11-08T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "action": "take_profit",
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "sl_dd": -70.0,
+          "max_dd_reached": -45.384861066751846,
+          "drawdown_pct": -45.384861066751846,
+          "cycle_id": 11,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "grid_level": null,
+          "avg_entry_price": 11.25,
+          "pnl_pct_at_exit": 21.68888888888889,
           "break_even_armed": true
         }
       },
@@ -5391,16 +8024,16 @@
               "weight": 0.2
             }
           ],
-          "cycle_id": 5,
+          "cycle_id": 12,
           "max_dd_reached": -30.799531566059834,
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -30.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.0,
           "position_cost": 0.0
@@ -5440,16 +8073,16 @@
               "weight": 0.2
             }
           ],
-          "cycle_id": 5,
+          "cycle_id": 12,
           "max_dd_reached": -30.799531566059834,
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -30.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.2,
           "position_cost": 2.6
@@ -5466,11 +8099,11 @@
           "action": "take_profit",
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "sl_dd": -70.0,
           "max_dd_reached": -30.799531566059834,
           "drawdown_pct": -30.799531566059834,
-          "cycle_id": 5,
+          "cycle_id": 12,
           "grid_config": [
             {
               "dd": -60.0,
@@ -5533,16 +8166,16 @@
               "weight": 0.2
             }
           ],
-          "cycle_id": 6,
+          "cycle_id": 13,
           "max_dd_reached": -22.043745727956264,
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -20.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
           "position_qty": 0.0,
           "position_cost": 0.0
@@ -5553,17 +8186,17 @@
         "symbol": "LINK",
         "asset_class": "CRYPTO",
         "side": "SELL",
-        "ts_open_utc": "2024-12-26T00:00:00+00:00",
+        "ts_open_utc": "2024-12-21T00:00:00+00:00",
         "qty": 0.2,
         "meta": {
           "action": "break_even",
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "sl_dd": -70.0,
-          "max_dd_reached": -24.538619275461393,
-          "drawdown_pct": -24.538619275461393,
-          "cycle_id": 6,
+          "max_dd_reached": -24.367737525632272,
+          "drawdown_pct": -24.367737525632272,
+          "cycle_id": 13,
           "grid_config": [
             {
               "dd": -60.0,
@@ -5588,8 +8221,57 @@
           ],
           "grid_level": null,
           "avg_entry_price": 22.81,
-          "pnl_pct_at_exit": -0.5699254712845159,
+          "pnl_pct_at_exit": -2.981148619026741,
           "break_even_armed": true
+        }
+      },
+      {
+        "strategy_id": "DCA_CRYPTO_DEMO",
+        "symbol": "LINK",
+        "asset_class": "CRYPTO",
+        "side": "BUY",
+        "ts_open_utc": "2024-12-26T00:00:00+00:00",
+        "qty": 0.2,
+        "meta": {
+          "dd_pct": -22.48803827751197,
+          "drawdown_pct": -22.48803827751197,
+          "grid_level": -20.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -60.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -50.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -40.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 14,
+          "max_dd_reached": -24.538619275461393,
+          "tp_target": 20.0,
+          "tp_mode": "per_grid_max_dd",
+          "tp_pct": 20.0,
+          "be_pct": 1.0,
+          "tp_rule": {
+            "max_dd_reached": -20.0,
+            "tp_pct": 20.0,
+            "be_pct": 1.0
+          },
+          "position_qty": 0.0,
+          "position_cost": 0.0
         }
       },
       {
@@ -5626,19 +8308,19 @@
               "weight": 0.2
             }
           ],
-          "cycle_id": 7,
+          "cycle_id": 14,
           "max_dd_reached": -31.61312371838687,
           "tp_target": 20.0,
           "tp_mode": "per_grid_max_dd",
           "tp_pct": 20.0,
-          "be_pct": 10.0,
+          "be_pct": 1.0,
           "tp_rule": {
             "max_dd_reached": -30.0,
             "tp_pct": 20.0,
-            "be_pct": 10.0
+            "be_pct": 1.0
           },
-          "position_qty": 0.0,
-          "position_cost": 0.0
+          "position_qty": 0.2,
+          "position_cost": 4.5360000000000005
         }
       }
     ]

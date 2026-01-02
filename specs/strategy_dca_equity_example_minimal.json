@@ -4,6 +4,7 @@
     "type": "dca_equity",
     "params": {
       "asset_class": "EQUITY",
+      "execution_mode": "bar_close",
       "drawdown_reference": "3M",
       "grid": [
         {"dd": -20.0, "weight": 0.20},
