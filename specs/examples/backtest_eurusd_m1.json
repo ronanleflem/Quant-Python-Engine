@@ -1,0 +1,34 @@
+{
+  "strategy": {
+    "strategy_id": "BT_EURUSD_M1_EMA",
+    "asset_class": "FX"
+  },
+  "data": {
+    "dataset_path": "specs/examples/data/eurusd_m1_sample.json",
+    "symbols": ["EURUSD"],
+    "timeframe": "1m",
+    "start": "2024-01-01",
+    "end": "2024-01-01"
+  },
+  "signal": {
+    "type": "ema_cross",
+    "params": { "fast": 5, "slow": 20 }
+  },
+  "tpsl": {
+    "atr_window": 14,
+    "atr_k": 1.0,
+    "r_mult": 2.0,
+    "slippage_bps": 0.0,
+    "fee_bps": 0.0
+  },
+  "performance": {
+    "initial_capital": 10000
+  },
+  "persistence": {
+    "enabled": false
+  },
+  "output": {
+    "path": "runs/backtest_eurusd_m1.json",
+    "format": "json"
+  }
+}

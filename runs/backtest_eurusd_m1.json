@@ -1,0 +1,266 @@
+{
+  "run": {
+    "strategyId": "BT_EURUSD_M1_EMA",
+    "runId": "440c097e599e4d8e974770401c1e539e",
+    "assetClass": "FX",
+    "universe": null,
+    "timeframe": "1m",
+    "symbol": "EURUSD",
+    "comparedSymbol": null,
+    "startTsUtc": "2024-01-01T00:00:00+00:00",
+    "endTsUtc": "2024-01-01T01:59:00+00:00",
+    "winCount": 1,
+    "lossCount": 11,
+    "totalReturn": -1.6652561130487986,
+    "maxDrawdown": 0.018599999999423744,
+    "averageTrade": -0.13877134275406655,
+    "averageSL": null,
+    "averageTP": null,
+    "rrMoyen": 2.9622544939405415,
+    "totalNetReturn": -1.6652561130487986,
+    "netWinCount": 1,
+    "netLossCount": 11,
+    "averageNetTrade": -0.13877134275406655,
+    "initialCapital": 10000.0,
+    "finalCapital": 9999.9814,
+    "returnPct": -0.00018599999999423743,
+    "maxDrawdownPct": 0.00018599999999423743,
+    "volatilityPct": 0.26207487522097783,
+    "sharpe": -1.8342774451914257,
+    "sortino": -3.508698602159343,
+    "winratePct": 8.333333333333332,
+    "extra": {
+      "note": "Backtest performance computed from pct returns."
+    }
+  },
+  "trades": [
+    {
+      "strategyId": "BT_EURUSD_M1_EMA",
+      "runId": "440c097e599e4d8e974770401c1e539e",
+      "symbol": "EURUSD",
+      "assetClass": "FX",
+      "side": "LONG",
+      "cycleId": null,
+      "entryTimeUtc": "2024-01-01T00:02:00+00:00",
+      "exitTimeUtc": "2024-01-01T00:04:00+00:00",
+      "entryPrice": 1.108,
+      "exitPrice": 1.101,
+      "quantity": 1.0,
+      "grossPnl": -0.007000000000000117,
+      "grossPnlPct": -0.6317689530686026,
+      "maxDdPct": null,
+      "meta": {
+        "r_multiple": -0.552631578947374
+      }
+    },
+    {
+      "strategyId": "BT_EURUSD_M1_EMA",
+      "runId": "440c097e599e4d8e974770401c1e539e",
+      "symbol": "EURUSD",
+      "assetClass": "FX",
+      "side": "LONG",
+      "cycleId": null,
+      "entryTimeUtc": "2024-01-01T00:06:00+00:00",
+      "exitTimeUtc": "2024-01-01T00:48:00+00:00",
+      "entryPrice": 1.108,
+      "exitPrice": 1.1148,
+      "quantity": 1.0,
+      "grossPnl": 0.006799999999999917,
+      "grossPnlPct": 0.6137184115523391,
+      "maxDdPct": null,
+      "meta": {
+        "r_multiple": 0.7323076923076814
+      }
+    },
+    {
+      "strategyId": "BT_EURUSD_M1_EMA",
+      "runId": "440c097e599e4d8e974770401c1e539e",
+      "symbol": "EURUSD",
+      "assetClass": "FX",
+      "side": "LONG",
+      "cycleId": null,
+      "entryTimeUtc": "2024-01-01T00:50:00+00:00",
+      "exitTimeUtc": "2024-01-01T00:54:00+00:00",
+      "entryPrice": 1.116,
+      "exitPrice": 1.1148,
+      "quantity": 1.0,
+      "grossPnl": -0.0012000000000000899,
+      "grossPnlPct": -0.10752688172043816,
+      "maxDdPct": null,
+      "meta": {
+        "r_multiple": -0.6363636363637113
+      }
+    },
+    {
+      "strategyId": "BT_EURUSD_M1_EMA",
+      "runId": "440c097e599e4d8e974770401c1e539e",
+      "symbol": "EURUSD",
+      "assetClass": "FX",
+      "side": "LONG",
+      "cycleId": null,
+      "entryTimeUtc": "2024-01-01T00:57:00+00:00",
+      "exitTimeUtc": "2024-01-01T01:01:00+00:00",
+      "entryPrice": 1.116,
+      "exitPrice": 1.1148,
+      "quantity": 1.0,
+      "grossPnl": -0.0012000000000000899,
+      "grossPnlPct": -0.10752688172043816,
+      "maxDdPct": null,
+      "meta": {
+        "r_multiple": -0.6363636363637113
+      }
+    },
+    {
+      "strategyId": "BT_EURUSD_M1_EMA",
+      "runId": "440c097e599e4d8e974770401c1e539e",
+      "symbol": "EURUSD",
+      "assetClass": "FX",
+      "side": "LONG",
+      "cycleId": null,
+      "entryTimeUtc": "2024-01-01T01:05:00+00:00",
+      "exitTimeUtc": "2024-01-01T01:07:00+00:00",
+      "entryPrice": 1.1172,
+      "exitPrice": 1.1152,
+      "quantity": 1.0,
+      "grossPnl": -0.0020000000000000018,
+      "grossPnlPct": -0.17901897601145736,
+      "maxDdPct": null,
+      "meta": {
+        "r_multiple": -1.060606060606107
+      }
+    },
+    {
+      "strategyId": "BT_EURUSD_M1_EMA",
+      "runId": "440c097e599e4d8e974770401c1e539e",
+      "symbol": "EURUSD",
+      "assetClass": "FX",
+      "side": "LONG",
+      "cycleId": null,
+      "entryTimeUtc": "2024-01-01T01:12:00+00:00",
+      "exitTimeUtc": "2024-01-01T01:14:00+00:00",
+      "entryPrice": 1.1172,
+      "exitPrice": 1.1152,
+      "quantity": 1.0,
+      "grossPnl": -0.0020000000000000018,
+      "grossPnlPct": -0.17901897601145736,
+      "maxDdPct": null,
+      "meta": {
+        "r_multiple": -1.060606060606107
+      }
+    },
+    {
+      "strategyId": "BT_EURUSD_M1_EMA",
+      "runId": "440c097e599e4d8e974770401c1e539e",
+      "symbol": "EURUSD",
+      "assetClass": "FX",
+      "side": "LONG",
+      "cycleId": null,
+      "entryTimeUtc": "2024-01-01T01:19:00+00:00",
+      "exitTimeUtc": "2024-01-01T01:21:00+00:00",
+      "entryPrice": 1.1172,
+      "exitPrice": 1.1152,
+      "quantity": 1.0,
+      "grossPnl": -0.0020000000000000018,
+      "grossPnlPct": -0.17901897601145736,
+      "maxDdPct": null,
+      "meta": {
+        "r_multiple": -1.060606060606107
+      }
+    },
+    {
+      "strategyId": "BT_EURUSD_M1_EMA",
+      "runId": "440c097e599e4d8e974770401c1e539e",
+      "symbol": "EURUSD",
+      "assetClass": "FX",
+      "side": "LONG",
+      "cycleId": null,
+      "entryTimeUtc": "2024-01-01T01:26:00+00:00",
+      "exitTimeUtc": "2024-01-01T01:28:00+00:00",
+      "entryPrice": 1.1172,
+      "exitPrice": 1.1152,
+      "quantity": 1.0,
+      "grossPnl": -0.0020000000000000018,
+      "grossPnlPct": -0.17901897601145736,
+      "maxDdPct": null,
+      "meta": {
+        "r_multiple": -1.060606060606107
+      }
+    },
+    {
+      "strategyId": "BT_EURUSD_M1_EMA",
+      "runId": "440c097e599e4d8e974770401c1e539e",
+      "symbol": "EURUSD",
+      "assetClass": "FX",
+      "side": "LONG",
+      "cycleId": null,
+      "entryTimeUtc": "2024-01-01T01:33:00+00:00",
+      "exitTimeUtc": "2024-01-01T01:35:00+00:00",
+      "entryPrice": 1.1172,
+      "exitPrice": 1.1152,
+      "quantity": 1.0,
+      "grossPnl": -0.0020000000000000018,
+      "grossPnlPct": -0.17901897601145736,
+      "maxDdPct": null,
+      "meta": {
+        "r_multiple": -1.060606060606107
+      }
+    },
+    {
+      "strategyId": "BT_EURUSD_M1_EMA",
+      "runId": "440c097e599e4d8e974770401c1e539e",
+      "symbol": "EURUSD",
+      "assetClass": "FX",
+      "side": "LONG",
+      "cycleId": null,
+      "entryTimeUtc": "2024-01-01T01:40:00+00:00",
+      "exitTimeUtc": "2024-01-01T01:42:00+00:00",
+      "entryPrice": 1.1172,
+      "exitPrice": 1.1152,
+      "quantity": 1.0,
+      "grossPnl": -0.0020000000000000018,
+      "grossPnlPct": -0.17901897601145736,
+      "maxDdPct": null,
+      "meta": {
+        "r_multiple": -1.060606060606107
+      }
+    },
+    {
+      "strategyId": "BT_EURUSD_M1_EMA",
+      "runId": "440c097e599e4d8e974770401c1e539e",
+      "symbol": "EURUSD",
+      "assetClass": "FX",
+      "side": "LONG",
+      "cycleId": null,
+      "entryTimeUtc": "2024-01-01T01:47:00+00:00",
+      "exitTimeUtc": "2024-01-01T01:49:00+00:00",
+      "entryPrice": 1.1172,
+      "exitPrice": 1.1152,
+      "quantity": 1.0,
+      "grossPnl": -0.0020000000000000018,
+      "grossPnlPct": -0.17901897601145736,
+      "maxDdPct": null,
+      "meta": {
+        "r_multiple": -1.060606060606107
+      }
+    },
+    {
+      "strategyId": "BT_EURUSD_M1_EMA",
+      "runId": "440c097e599e4d8e974770401c1e539e",
+      "symbol": "EURUSD",
+      "assetClass": "FX",
+      "side": "LONG",
+      "cycleId": null,
+      "entryTimeUtc": "2024-01-01T01:54:00+00:00",
+      "exitTimeUtc": "2024-01-01T01:56:00+00:00",
+      "entryPrice": 1.1172,
+      "exitPrice": 1.1152,
+      "quantity": 1.0,
+      "grossPnl": -0.0020000000000000018,
+      "grossPnlPct": -0.17901897601145736,
+      "maxDdPct": null,
+      "meta": {
+        "r_multiple": -1.060606060606107
+      }
+    }
+  ]
+}

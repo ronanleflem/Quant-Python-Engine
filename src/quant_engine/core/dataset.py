@@ -18,8 +18,6 @@ from types import SimpleNamespace
 
 import pandas as pd
 
-from quant_engine.datafeeds.mysql_feed import load_ohlcv_mysql
-
 from .spec import DataSpec
 
 
@@ -180,6 +178,7 @@ def load_ohlcv(spec_data) -> pd.DataFrame:
 
     mysql_spec = getattr(spec_data, "mysql", None)
     if mysql_spec:
+        from ..datafeeds.mysql_feed import load_ohlcv_mysql
         cols = {
             "ts": mysql_spec.ts_col,
             "symbol": mysql_spec.symbol_col,

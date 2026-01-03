@@ -701,7 +701,7 @@ def _persist_results_to_delta(result: Dict[str, Any]) -> None:
     except Exception as exc:  # pragma: no cover - remote dependency
         LOGGER.warning("Failed to persist strategy signals to Delta (%s): %s", table_path, exc)
 
-__all__ = ["load_strategy_spec", "run_backtest_from_spec"]
+__all__ = ["load_strategy_spec", "run_backtest_from_spec", "persist_payload_to_db"]
 
 
 def _compact_meta(meta: Mapping[str, Any]) -> Dict[str, Any]:
@@ -828,48 +828,25 @@ def _build_trade_context(
     return context_by_symbol, default_context
 
 
-def _persist_results_to_db(result: Dict[str, Any], spec: Mapping[str, Any], ohlc_by_symbol: Optional[Dict[str, pd.DataFrame]] = None) -> None:
+def persist_payload_to_db(
+    payload: Mapping[str, Any],
+    spec: Mapping[str, Any],
+    *,
+    strategy_type: Optional[str] = None,
+) -> None:
     dsn = os.getenv("DB_DSN")
     if not dsn:
         LOGGER.info("DB_DSN not set; skipping DB persistence")
         return
 
-    strategy_cfg = spec.get("strategy", {}) or {}
-    strategy_id = strategy_cfg.get("strategy_id") or "strategy"
-    strategy_type = str(strategy_cfg.get("type") or "").strip().lower()
-    run_id = spec.get("run_id") or strategy_cfg.get("run_id") or uuid.uuid4().hex
-    asset_class = strategy_cfg.get("params", {}).get("asset_class") or strategy_cfg.get("asset_class") or ""
-    data_spec = spec.get("data", {}) or {}
-    timeframe = data_spec.get("timeframe")
-    universe_label = spec.get("universe_label") or None
-
-    class _DictSignal:
-        def __init__(self, payload: Mapping[str, Any]) -> None:
-            self.strategy_id = payload.get("strategy_id")
-            self.symbol = payload.get("symbol")
-            self.asset_class = payload.get("asset_class")
-            self.side = payload.get("side")
-            self.ts_open_utc = payload.get("ts_open_utc")
-            self.qty = payload.get("qty", 0.0) or 0.0
-            self.meta = _compact_meta(payload.get("meta", {}) or {})
-
-    signals_by_symbol: Dict[str, List[_DictSignal]] = {}
-    for sym, records in (result.get("signals") or {}).items():
-        signals_by_symbol[sym] = [_DictSignal(r) for r in records]
-
-    payload = build_backend_payload_for_java(
-        strategy_id=strategy_id,
-        run_id=run_id,
-        asset_class=asset_class,
-        universe=universe_label,
-        timeframe=timeframe,
-        signals_by_symbol=signals_by_symbol,
-        ohlc_by_symbol=ohlc_by_symbol,
-        config=spec.get("performance", {}) or {},
-    )
-
-    run = payload.get("run", {})
-    trades = payload.get("trades", [])
+    run = payload.get("run", {}) if isinstance(payload, Mapping) else {}
+    trades = payload.get("trades", []) if isinstance(payload, Mapping) else []
+    asset_class = run.get("assetClass") or ""
+    run_id = run.get("runId")
+    if not run_id:
+        run_id = spec.get("run_id") or uuid.uuid4().hex
+    strategy_type = strategy_type or str(run.get("strategyType") or "")
+    strategy_type = str(strategy_type).strip().lower()
 
     try:
         engine = create_engine(dsn)
@@ -881,7 +858,7 @@ def _persist_results_to_db(result: Dict[str, Any], spec: Mapping[str, Any], ohlc
     try:
         perf_row = {
             "strategy_name": run.get("strategyId"),
-            "run_id": run.get("runId"),
+            "run_id": run_id,
             "asset_class": run.get("assetClass"),
             "universe": run.get("universe"),
             "timeframe": run.get("timeframe"),
@@ -933,7 +910,7 @@ def _persist_results_to_db(result: Dict[str, Any], spec: Mapping[str, Any], ohlc
         trade_rows.append(
             {
                 "strategy_name": t.get("strategyId"),
-                "run_id": t.get("runId"),
+                "run_id": t.get("runId") or run_id,
                 "symbol": t.get("symbol"),
                 "asset_class": t.get("assetClass"),
                 "broker": trade_ctx.get("broker"),
@@ -962,3 +939,40 @@ def _persist_results_to_db(result: Dict[str, Any], spec: Mapping[str, Any], ohlc
         LOGGER.info("Persisted %d trades for run %s to DB", len(trade_rows), run_id)
     except Exception as exc:
         LOGGER.warning("Failed to persist trades for run %s: %s", run_id, exc)
+
+
+def _persist_results_to_db(result: Dict[str, Any], spec: Mapping[str, Any], ohlc_by_symbol: Optional[Dict[str, pd.DataFrame]] = None) -> None:
+    strategy_cfg = spec.get("strategy", {}) or {}
+    strategy_id = strategy_cfg.get("strategy_id") or "strategy"
+    strategy_type = str(strategy_cfg.get("type") or "").strip().lower()
+    run_id = spec.get("run_id") or strategy_cfg.get("run_id") or uuid.uuid4().hex
+    asset_class = strategy_cfg.get("params", {}).get("asset_class") or strategy_cfg.get("asset_class") or ""
+    data_spec = spec.get("data", {}) or {}
+    timeframe = data_spec.get("timeframe")
+    universe_label = spec.get("universe_label") or None
+
+    class _DictSignal:
+        def __init__(self, payload: Mapping[str, Any]) -> None:
+            self.strategy_id = payload.get("strategy_id")
+            self.symbol = payload.get("symbol")
+            self.asset_class = payload.get("asset_class")
+            self.side = payload.get("side")
+            self.ts_open_utc = payload.get("ts_open_utc")
+            self.qty = payload.get("qty", 0.0) or 0.0
+            self.meta = _compact_meta(payload.get("meta", {}) or {})
+
+    signals_by_symbol: Dict[str, List[_DictSignal]] = {}
+    for sym, records in (result.get("signals") or {}).items():
+        signals_by_symbol[sym] = [_DictSignal(r) for r in records]
+
+    payload = build_backend_payload_for_java(
+        strategy_id=strategy_id,
+        run_id=run_id,
+        asset_class=asset_class,
+        universe=universe_label,
+        timeframe=timeframe,
+        signals_by_symbol=signals_by_symbol,
+        ohlc_by_symbol=ohlc_by_symbol,
+        config=spec.get("performance", {}) or {},
+    )
+    persist_payload_to_db(payload, spec, strategy_type=strategy_type)
