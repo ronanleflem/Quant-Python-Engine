@@ -121,7 +121,13 @@ def build_dca_performance_from_signals(
 
         for cycle_id, cycle_signals in by_cycle.items():
             buys = [s for s in cycle_signals if getattr(s, "side", "").upper() == "BUY"]
-            sells_tp = [s for s in cycle_signals if getattr(s, "side", "").upper() == "SELL" and getattr(getattr(s, "meta", {}), "get", lambda *_: None)("action") == "take_profit"]
+            sells_tp = [
+                s
+                for s in cycle_signals
+                if getattr(s, "side", "").upper() == "SELL"
+                and getattr(getattr(s, "meta", {}), "get", lambda *_: None)("action")
+                in {"take_profit", "break_even", "stop_loss"}
+            ]
             if not sells_tp or not buys:
                 LOGGER.warning(
                     "Skipping incomplete cycle %s for %s (buys=%d, sells=%d)", cycle_id, symbol, len(buys), len(sells_tp)
