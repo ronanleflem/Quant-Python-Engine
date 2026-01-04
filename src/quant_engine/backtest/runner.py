@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 import json
+import os
 import uuid
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Optional
+from typing import Any, Dict, List, Mapping, Optional, Tuple
 
 import pandas as pd
+import logging
 
 from . import engine
 from ..core import dataset
@@ -16,6 +18,8 @@ from ..performance.backtest_builder import build_backtest_payload
 from ..signals.ema_cross import EmaCross
 from ..strategies import runner as strategies_runner
 from ..strategies.runner import persist_payload_to_db
+
+LOGGER = logging.getLogger(__name__)
 
 
 def load_backtest_spec(path: Path | str) -> Dict[str, Any]:
@@ -111,12 +115,33 @@ def _rows_from_dataframe(df: pd.DataFrame, symbol: str) -> List[Dict[str, Any]]:
     return rows
 
 
-def _load_rows(data_spec_raw: Mapping[str, Any], data_spec: DataSpec, asset_class: str) -> List[Dict[str, Any]]:
+def _fetch_ohlc_with_source(
+    symbol: str,
+    asset_class: str,
+    data_spec_raw: Mapping[str, Any],
+) -> Tuple[pd.DataFrame, str]:
+    df = strategies_runner._fetch_from_delta(symbol, asset_class, data_spec_raw)
+    if df is not None and not df.empty:
+        return df, "delta"
+    df = strategies_runner._fetch_from_mysql(symbol, data_spec_raw)
+    if df is not None and not df.empty:
+        return df, "mysql"
+    df = strategies_runner._fetch_from_java(symbol, asset_class, data_spec_raw)
+    if df is not None and not df.empty:
+        return df, "java"
+    raise RuntimeError(f"Unable to load OHLC for {symbol}")
+
+
+def _load_rows(
+    data_spec_raw: Mapping[str, Any],
+    data_spec: DataSpec,
+    asset_class: str,
+) -> Tuple[List[Dict[str, Any]], Optional[str]]:
     if _uses_strategy_sources(data_spec_raw):
         symbol = _single_symbol(data_spec.symbols, data_spec_raw.get("symbol"))
-        df = strategies_runner._fetch_ohlc_for_symbol(symbol, asset_class, data_spec_raw, {})
-        return _rows_from_dataframe(df, symbol)
-    return dataset.load_dataset(data_spec)
+        df, source = _fetch_ohlc_with_source(symbol, asset_class, data_spec_raw)
+        return _rows_from_dataframe(df, symbol), source
+    return dataset.load_dataset(data_spec), None
 
 
 def _build_signal(spec: Mapping[str, Any], rows: List[Dict[str, Any]]) -> List[int]:
@@ -146,7 +171,7 @@ def run_backtest_from_spec(spec: Mapping[str, Any]) -> Dict[str, Any]:
     data_spec = _parse_data_spec(data_raw)
     strategy_cfg = spec.get("strategy", {}) or {}
     asset_class = strategy_cfg.get("asset_class") or "EQUITY"
-    rows = _load_rows(data_raw, data_spec, asset_class)
+    rows, data_source = _load_rows(data_raw, data_spec, asset_class)
     if not rows:
         raise ValueError("No data rows loaded for backtest")
 
@@ -193,7 +218,15 @@ def run_backtest_from_spec(spec: Mapping[str, Any]) -> Dict[str, Any]:
 
     persistence_cfg = spec.get("persistence", {})
     if not isinstance(persistence_cfg, Mapping) or persistence_cfg.get("enabled", True):
-        persist_payload_to_db(payload, spec, strategy_type="backtest")
+        LOGGER.info("Backtest persistence enabled; DB_DSN=%s", "set" if os.getenv("DB_DSN") else "missing")
+        if data_source == "java":
+            data_override = {**data_raw, "broker": "IBKR"}
+            spec_for_persistence = {**spec, "data": data_override}
+        else:
+            spec_for_persistence = spec
+        persist_payload_to_db(payload, spec_for_persistence, strategy_type="backtest")
+    else:
+        LOGGER.info("Backtest persistence disabled via spec.persistence.enabled=false")
 
     output = spec.get("output")
     if output:
