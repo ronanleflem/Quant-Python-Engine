@@ -194,11 +194,19 @@ def _delta_brokers(asset_class: Optional[str], spec: Mapping[str, Any]) -> List[
         preferred = ["IBKR"]
 
     ordered: List[str] = []
-    for item in preferred + collected:
-        key = str(item).strip().upper()
-        if key and key not in ordered:
-            ordered.append(key)
-    return ordered or collected
+    if collected:
+        for item in collected:
+            key = str(item).strip().upper()
+            if key and key not in ordered:
+                ordered.append(key)
+        if asset != "CRYPTO" and "IBKR" not in ordered:
+            ordered.append("IBKR")
+    else:
+        for item in preferred:
+            key = str(item).strip().upper()
+            if key and key not in ordered:
+                ordered.append(key)
+    return ordered
 
 
 def _fetch_from_delta(symbol: str, asset_class: Optional[str], spec: Mapping[str, Any]) -> Optional[pd.DataFrame]:
@@ -208,7 +216,12 @@ def _fetch_from_delta(symbol: str, asset_class: Optional[str], spec: Mapping[str
             LOGGER.warning("deltalake package not installed; skipping Delta Lake source")
         return None
 
-    asset_dir = spec.get("delta_asset_dir") or _delta_asset_dir(asset_class or spec.get("asset_class"))
+    asset_class_value = asset_class or spec.get("asset_class")
+    if not asset_class_value and not spec.get("delta_asset_dir"):
+        LOGGER.warning("Delta asset_class missing for %s; skipping Delta source", symbol)
+        return None
+
+    asset_dir = spec.get("delta_asset_dir") or _delta_asset_dir(asset_class_value)
     delta_prefix = spec.get("delta_prefix") or os.getenv("DELTA_PREFIX") or "delta"
     delta_prefix = str(delta_prefix).strip().strip("/")
     exchange = spec.get("delta_exchange") or spec.get("exchange") or os.getenv("DELTA_EXCHANGE") or "GENERIC"
@@ -237,7 +250,7 @@ def _fetch_from_delta(symbol: str, asset_class: Optional[str], spec: Mapping[str
     storage_options = _build_delta_storage_options()
     table_name = spec.get("delta_table") or spec.get("delta_symbol") or symbol
     brokers = _delta_brokers(asset_class, spec)
-    asset_upper = (asset_class or spec.get("asset_class") or "").upper()
+    asset_upper = (asset_class_value or "").upper()
     use_exchange_dir = asset_upper != "CRYPTO" and exchange != "GENERIC"
     for broker in (brokers or [""]):
         for quote in quotes:
@@ -320,8 +333,11 @@ def _fetch_from_delta(symbol: str, asset_class: Optional[str], spec: Mapping[str
             if missing_sample:
                 LOGGER.info("Sample missing dates for %s: %s", table_path, missing_sample[:20])
 
-    LOGGER.info(
-        "No Delta coverage >= %.1f%% for %s; fallback to other sources", min_coverage * 100, symbol
+    LOGGER.warning(
+        "No Delta data for %s (asset_class=%s, asset_dir=%s); fallback to other sources",
+        symbol,
+        (asset_class_value or "UNKNOWN"),
+        asset_dir,
     )
     return None
 
@@ -419,6 +435,57 @@ def _market_calendar_candidates(exchange: Optional[str]) -> List[str]:
     return out
 
 
+def _expected_from_market_calendar(
+    calendar_name: str,
+    start_dt: pd.Timestamp,
+    end_dt: pd.Timestamp,
+    freq: str,
+) -> Optional[pd.DatetimeIndex]:
+    if not calendar_name:
+        return None
+    if mcal is None:
+        return None
+    try:
+        cal = mcal.get_calendar(calendar_name)
+    except Exception:
+        return None
+    schedule = cal.schedule(start_date=start_dt.normalize().date(), end_date=end_dt.normalize().date())
+    if schedule.empty:
+        return pd.DatetimeIndex([], tz="UTC")
+    if freq == "B":
+        expected = schedule.index
+        if expected.tz is None:
+            return expected.tz_localize("UTC")
+        return expected.tz_convert("UTC")
+
+    expected_chunks: List[pd.DatetimeIndex] = []
+    for _, row in schedule.iterrows():
+        open_ts = row.get("market_open")
+        close_ts = row.get("market_close")
+        if open_ts is None or close_ts is None:
+            continue
+        if open_ts.tz is None:
+            open_ts = open_ts.tz_localize("UTC")
+        else:
+            open_ts = open_ts.tz_convert("UTC")
+        if close_ts.tz is None:
+            close_ts = close_ts.tz_localize("UTC")
+        else:
+            close_ts = close_ts.tz_convert("UTC")
+
+        session_start = max(open_ts, start_dt)
+        session_end = min(close_ts, end_dt)
+        if session_start > session_end:
+            continue
+        expected_chunks.append(pd.date_range(session_start, session_end, freq=freq))
+    if not expected_chunks:
+        return pd.DatetimeIndex([], tz="UTC")
+    expected = expected_chunks[0]
+    for chunk in expected_chunks[1:]:
+        expected = expected.append(chunk)
+    return expected
+
+
 def _coverage_stats(
     df: pd.DataFrame,
     start_dt: Optional[pd.Timestamp],
@@ -443,12 +510,13 @@ def _coverage_stats(
     if ts.empty:
         return 0.0, 0, 0, None, None, []
 
+    cal = (calendar or os.getenv("DELTA_CALENDAR") or "").strip().upper()
+    is_fx_calendar = cal in {"FX", "FOREX"}
     if freq == "B":
-        cal = (calendar or os.getenv("DELTA_CALENDAR") or "").strip().upper()
         if not cal and asset_class and asset_class.upper() in {"EQUITY", "STOCK", "ACTION", "ETF"}:
             cal = "USFED"
         ex = (exchange or "").strip()
-        use_market_calendar = bool(ex)
+        use_market_calendar = bool(ex or cal)
         expected = None
         if use_market_calendar:
             try:
@@ -463,27 +531,29 @@ def _coverage_stats(
                         _WARNED_MCAL_MISSING = True
                     expected = None
                 else:
-                    start_date = start_dt.normalize().date()
-                    end_date = end_dt.normalize().date()
-                    for candidate in _market_calendar_candidates(ex):
-                        try:
-                            cache_key = (candidate, start_date, end_date)
-                            sessions = _MARKET_SCHEDULE_CACHE.get(cache_key)
-                            if sessions is None:
-                                schedule = mcal.get_calendar(candidate).schedule(
-                                    start_date=start_date,
-                                    end_date=end_date,
-                                )
-                                sessions = schedule.index
-                                _MARKET_SCHEDULE_CACHE[cache_key] = sessions
-                            if sessions.tz is None:
-                                sessions = sessions.tz_localize("UTC")
-                            else:
-                                sessions = sessions.tz_convert("UTC")
-                            expected = sessions.normalize()
-                            break
-                        except Exception:
-                            expected = None
+                    expected = _expected_from_market_calendar(cal, start_dt, end_dt, "B") if cal else None
+                    if expected is None and ex:
+                        start_date = start_dt.normalize().date()
+                        end_date = end_dt.normalize().date()
+                        for candidate in _market_calendar_candidates(ex):
+                            try:
+                                cache_key = (candidate, start_date, end_date)
+                                sessions = _MARKET_SCHEDULE_CACHE.get(cache_key)
+                                if sessions is None:
+                                    schedule = mcal.get_calendar(candidate).schedule(
+                                        start_date=start_date,
+                                        end_date=end_date,
+                                    )
+                                    sessions = schedule.index
+                                    _MARKET_SCHEDULE_CACHE[cache_key] = sessions
+                                if sessions.tz is None:
+                                    sessions = sessions.tz_localize("UTC")
+                                else:
+                                    sessions = sessions.tz_convert("UTC")
+                                expected = sessions.normalize()
+                                break
+                            except Exception:
+                                expected = None
             except Exception as exc:
                 if not _WARNED_MCAL_ERROR:
                     LOGGER.warning(
@@ -496,7 +566,9 @@ def _coverage_stats(
 
         if expected is None:
             expected_freq = (
-                CustomBusinessDay(calendar=USFederalHolidayCalendar()) if cal in {"USFED", "US_FED", "US-FED"} else "B"
+                CustomBusinessDay(calendar=USFederalHolidayCalendar())
+                if cal in {"USFED", "US_FED", "US-FED"}
+                else "B"
             )
             expected = pd.date_range(start_dt.normalize(), end_dt.normalize(), freq=expected_freq, tz="UTC")
         observed = ts.dt.floor("D")
@@ -504,7 +576,11 @@ def _coverage_stats(
         expected = pd.date_range(start_dt.normalize(), end_dt.normalize(), freq=freq)
         observed = ts.dt.to_period("W").dt.start_time
     else:
-        expected = pd.date_range(start_dt, end_dt, freq=freq)
+        expected = _expected_from_market_calendar(cal, start_dt, end_dt, freq) if cal else None
+        if expected is None:
+            expected = pd.date_range(start_dt, end_dt, freq=freq)
+        if is_fx_calendar:
+            expected = expected[expected.weekday < 5]
         observed = ts.dt.floor(freq)
 
     if len(expected) == 0:
@@ -514,6 +590,16 @@ def _coverage_stats(
     coverage = len(observed_set & expected_set) / len(expected_set)
     missing_sorted = sorted(list(expected_set - observed_set))[:50]
     return coverage, len(expected_set), len(observed_set), ts.min(), ts.max(), missing_sorted
+
+
+def _min_coverage(spec: Mapping[str, Any], default: float) -> float:
+    for key in ("java_min_coverage", "min_coverage", "coverage_min"):
+        if key in spec:
+            try:
+                return max(0.0, min(float(spec[key]), 1.0))
+            except Exception:
+                return default
+    return default
 
 
 def _fetch_from_mysql(symbol: str, spec: Mapping[str, Any]) -> Optional[pd.DataFrame]:
@@ -586,7 +672,7 @@ def _fetch_from_java(
         LOGGER.warning("Java OHLC returned empty for %s; no ingestion fallback enabled", symbol)
         return None
 
-    coverage, _, _, obs_start, obs_end, _ = _coverage_stats(
+    coverage, _, _, obs_start, obs_end, missing_sample = _coverage_stats(
         df,
         start_ts,
         end_ts,
@@ -605,11 +691,21 @@ def _fetch_from_java(
         obs_start,
         obs_end,
     )
-    if coverage < 0.9:
+    if missing_sample:
         LOGGER.warning(
-            "Java OHLC coverage insufficient for %s: %.1f%% (start=%s end=%s); skipping ingestion fallback",
+            "Java OHLC missing %d expected bars for %s (sample=%s)",
+            len(missing_sample),
+            symbol,
+            [ts.isoformat() for ts in missing_sample[:20]],
+        )
+
+    min_coverage = _min_coverage(spec, 0.9)
+    if coverage < min_coverage:
+        LOGGER.warning(
+            "Java OHLC coverage insufficient for %s: %.1f%% < %.1f%% (start=%s end=%s); skipping ingestion fallback",
             symbol,
             coverage * 100,
+            min_coverage * 100,
             start,
             end,
         )

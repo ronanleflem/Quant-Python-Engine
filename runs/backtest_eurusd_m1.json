@@ -1,7 +1,7 @@
 {
   "run": {
     "strategyId": "BT_EURUSD_M1_EMA",
-    "runId": "440c097e599e4d8e974770401c1e539e",
+    "runId": "f366dd6b48134128849a388f750dc103",
     "assetClass": "FX",
     "universe": null,
     "timeframe": "1m",
@@ -36,7 +36,7 @@
   "trades": [
     {
       "strategyId": "BT_EURUSD_M1_EMA",
-      "runId": "440c097e599e4d8e974770401c1e539e",
+      "runId": "f366dd6b48134128849a388f750dc103",
       "symbol": "EURUSD",
       "assetClass": "FX",
       "side": "LONG",
@@ -55,7 +55,7 @@
     },
     {
       "strategyId": "BT_EURUSD_M1_EMA",
-      "runId": "440c097e599e4d8e974770401c1e539e",
+      "runId": "f366dd6b48134128849a388f750dc103",
       "symbol": "EURUSD",
       "assetClass": "FX",
       "side": "LONG",
@@ -74,7 +74,7 @@
     },
     {
       "strategyId": "BT_EURUSD_M1_EMA",
-      "runId": "440c097e599e4d8e974770401c1e539e",
+      "runId": "f366dd6b48134128849a388f750dc103",
       "symbol": "EURUSD",
       "assetClass": "FX",
       "side": "LONG",
@@ -93,7 +93,7 @@
     },
     {
       "strategyId": "BT_EURUSD_M1_EMA",
-      "runId": "440c097e599e4d8e974770401c1e539e",
+      "runId": "f366dd6b48134128849a388f750dc103",
       "symbol": "EURUSD",
       "assetClass": "FX",
       "side": "LONG",
@@ -112,7 +112,7 @@
     },
     {
       "strategyId": "BT_EURUSD_M1_EMA",
-      "runId": "440c097e599e4d8e974770401c1e539e",
+      "runId": "f366dd6b48134128849a388f750dc103",
       "symbol": "EURUSD",
       "assetClass": "FX",
       "side": "LONG",
@@ -131,7 +131,7 @@
     },
     {
       "strategyId": "BT_EURUSD_M1_EMA",
-      "runId": "440c097e599e4d8e974770401c1e539e",
+      "runId": "f366dd6b48134128849a388f750dc103",
       "symbol": "EURUSD",
       "assetClass": "FX",
       "side": "LONG",
@@ -150,7 +150,7 @@
     },
     {
       "strategyId": "BT_EURUSD_M1_EMA",
-      "runId": "440c097e599e4d8e974770401c1e539e",
+      "runId": "f366dd6b48134128849a388f750dc103",
       "symbol": "EURUSD",
       "assetClass": "FX",
       "side": "LONG",
@@ -169,7 +169,7 @@
     },
     {
       "strategyId": "BT_EURUSD_M1_EMA",
-      "runId": "440c097e599e4d8e974770401c1e539e",
+      "runId": "f366dd6b48134128849a388f750dc103",
       "symbol": "EURUSD",
       "assetClass": "FX",
       "side": "LONG",
@@ -188,7 +188,7 @@
     },
     {
       "strategyId": "BT_EURUSD_M1_EMA",
-      "runId": "440c097e599e4d8e974770401c1e539e",
+      "runId": "f366dd6b48134128849a388f750dc103",
       "symbol": "EURUSD",
       "assetClass": "FX",
       "side": "LONG",
@@ -207,7 +207,7 @@
     },
     {
       "strategyId": "BT_EURUSD_M1_EMA",
-      "runId": "440c097e599e4d8e974770401c1e539e",
+      "runId": "f366dd6b48134128849a388f750dc103",
       "symbol": "EURUSD",
       "assetClass": "FX",
       "side": "LONG",
@@ -226,7 +226,7 @@
     },
     {
       "strategyId": "BT_EURUSD_M1_EMA",
-      "runId": "440c097e599e4d8e974770401c1e539e",
+      "runId": "f366dd6b48134128849a388f750dc103",
       "symbol": "EURUSD",
       "assetClass": "FX",
       "side": "LONG",
@@ -245,7 +245,7 @@
     },
     {
       "strategyId": "BT_EURUSD_M1_EMA",
-      "runId": "440c097e599e4d8e974770401c1e539e",
+      "runId": "f366dd6b48134128849a388f750dc103",
       "symbol": "EURUSD",
       "assetClass": "FX",
       "side": "LONG",

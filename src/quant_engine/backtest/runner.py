@@ -6,12 +6,15 @@ import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional
 
+import pandas as pd
+
 from . import engine
 from ..core import dataset
 from ..core.features import atr
 from ..core.spec import DataSpec, MySQLDataConfig
 from ..performance.backtest_builder import build_backtest_payload
 from ..signals.ema_cross import EmaCross
+from ..strategies import runner as strategies_runner
 from ..strategies.runner import persist_payload_to_db
 
 
@@ -20,6 +23,14 @@ def load_backtest_spec(path: Path | str) -> Dict[str, Any]:
 
     path_obj = Path(path)
     return json.loads(path_obj.read_text())
+
+
+def _has_delta_config(raw: Mapping[str, Any]) -> bool:
+    return any(str(key).startswith("delta_") for key in raw.keys())
+
+
+def _uses_strategy_sources(raw: Mapping[str, Any]) -> bool:
+    return bool(raw.get("mysql_env") or _has_delta_config(raw))
 
 
 def _parse_data_spec(raw: Mapping[str, Any]) -> DataSpec:
@@ -53,8 +64,8 @@ def _parse_data_spec(raw: Mapping[str, Any]) -> DataSpec:
     end = raw.get("end")
     if start is None or end is None:
         raise ValueError("data.start and data.end are required")
-    if dataset_path is None and mysql is None:
-        raise ValueError("data must provide dataset_path/path or mysql configuration")
+    if dataset_path is None and mysql is None and not _uses_strategy_sources(raw):
+        raise ValueError("data must provide dataset_path/path, mysql, or delta/mysql_env configuration")
 
     return DataSpec(
         dataset_path=dataset_path,
@@ -64,6 +75,48 @@ def _parse_data_spec(raw: Mapping[str, Any]) -> DataSpec:
         start=str(start),
         end=str(end),
     )
+
+
+def _single_symbol(symbols: List[str], fallback: Optional[str] = None) -> str:
+    unique = [str(sym) for sym in symbols if sym]
+    if not unique and fallback:
+        unique = [fallback]
+    if not unique:
+        raise ValueError("Backtest runner requires a single symbol")
+    if len(set(unique)) > 1:
+        raise ValueError("Backtest runner expects a single symbol dataset")
+    return unique[0]
+
+
+def _rows_from_dataframe(df: pd.DataFrame, symbol: str) -> List[Dict[str, Any]]:
+    rows: List[Dict[str, Any]] = []
+    if df is None or df.empty:
+        return rows
+    for rec in df.to_dict("records"):
+        ts_value = rec.pop("ts", None)
+        if ts_value is None:
+            raise RuntimeError("OHLC source must provide a 'ts' column")
+        ts = pd.Timestamp(ts_value)
+        if ts.tzinfo is None:
+            ts = ts.tz_localize("UTC")
+        else:
+            ts = ts.tz_convert("UTC")
+        rec["timestamp"] = ts.isoformat()
+        if not rec.get("symbol"):
+            rec["symbol"] = symbol
+        if "session" not in rec and "session_id" not in rec:
+            rec["session"] = dataset._assign_session(ts.to_pydatetime())
+        rows.append(rec)
+    rows.sort(key=lambda r: r["timestamp"])
+    return rows
+
+
+def _load_rows(data_spec_raw: Mapping[str, Any], data_spec: DataSpec, asset_class: str) -> List[Dict[str, Any]]:
+    if _uses_strategy_sources(data_spec_raw):
+        symbol = _single_symbol(data_spec.symbols, data_spec_raw.get("symbol"))
+        df = strategies_runner._fetch_ohlc_for_symbol(symbol, asset_class, data_spec_raw, {})
+        return _rows_from_dataframe(df, symbol)
+    return dataset.load_dataset(data_spec)
 
 
 def _build_signal(spec: Mapping[str, Any], rows: List[Dict[str, Any]]) -> List[int]:
@@ -89,8 +142,11 @@ def _detect_symbol(rows: List[Dict[str, Any]]) -> str:
 def run_backtest_from_spec(spec: Mapping[str, Any]) -> Dict[str, Any]:
     """Execute a classic backtest based on a JSON specification."""
 
-    data_spec = _parse_data_spec(spec.get("data", {}) or {})
-    rows = dataset.load_dataset(data_spec)
+    data_raw = spec.get("data", {}) or {}
+    data_spec = _parse_data_spec(data_raw)
+    strategy_cfg = spec.get("strategy", {}) or {}
+    asset_class = strategy_cfg.get("asset_class") or "EQUITY"
+    rows = _load_rows(data_raw, data_spec, asset_class)
     if not rows:
         raise ValueError("No data rows loaded for backtest")
 
@@ -115,10 +171,8 @@ def run_backtest_from_spec(spec: Mapping[str, Any]) -> Dict[str, Any]:
         fee_bps=fee_bps,
     )
 
-    strategy_cfg = spec.get("strategy", {}) or {}
     strategy_id = strategy_cfg.get("strategy_id", "backtest")
     run_id = spec.get("run_id") or strategy_cfg.get("run_id") or uuid.uuid4().hex
-    asset_class = strategy_cfg.get("asset_class") or "EQUITY"
     timeframe = data_spec.timeframe
 
     start_ts = rows[0].get("timestamp") if rows else None

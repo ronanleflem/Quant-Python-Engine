@@ -1,0 +1,53 @@
+{
+  "strategy": {
+    "strategy_id": "BT_EURUSD_M1_EMA",
+    "asset_class": "FX"
+  },
+  "data": {
+    "symbols": ["EURUSD"],
+    "timeframe": "1h",
+    "start": "2024-01-01",
+    "end": "2024-02-01",
+    "delta_base": "s3://quant-delta-dev",
+    "delta_prefix": "delta",
+    "delta_exchange": "GENERIC",
+    "delta_calendar": "FX",
+    "delta_market_type": "SPOT",
+    "delta_quotes": "USD,USDT",
+    "delta_table": "EURUSD",
+    "delta_broker": "DUKASCOPY",
+    "delta_min_coverage": 0.9,
+    "mysql_env": "QE_MARKETDATA_MYSQL_URL",
+    "schema": "marketdata",
+    "table": "ohlcv",
+    "symbol_col": "symbol",
+    "ts_col": "ts",
+    "open_col": "open",
+    "high_col": "high",
+    "low_col": "low",
+    "close_col": "close",
+    "volume_col": "volume",
+    "timeframe_col": "timeframe"
+  },
+  "signal": {
+    "type": "ema_cross",
+    "params": { "fast": 5, "slow": 20 }
+  },
+  "tpsl": {
+    "atr_window": 14,
+    "atr_k": 1.0,
+    "r_mult": 2.0,
+    "slippage_bps": 0.0,
+    "fee_bps": 0.0
+  },
+  "performance": {
+    "initial_capital": 10000
+  },
+  "persistence": {
+    "enabled": false
+  },
+  "output": {
+    "path": "runs/backtest_eurusd_m1_delta_mysql.json",
+    "format": "json"
+  }
+}

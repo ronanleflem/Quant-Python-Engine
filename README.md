@@ -77,6 +77,12 @@ poetry run uvicorn quant_engine.api.app:app --reload --app-dir src
   ```bash
   poetry run quant-engine runs show RUN_ID
   ```
+- **backtest run**
+  ```bash
+  poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1.json
+  ```
+  Le backtest "signal" accepte `data.dataset_path` (CSV/JSON), `data.mysql`, ou les champs `data.delta_*` / `data.mysql_env` (Delta -> MySQL -> Java).
+  Exemple Delta/MySQL : `specs/examples/backtest_eurusd_m1_delta_mysql.json`.
 
 ## Performance, DCA et intégration backend
 - **Module `quant_engine.performance`** : calcule les métriques côté Python et agrège les signaux DCA en `CompletedTrade` (1 cycle = 1 trade logique). Les BUY successifs d’un cycle sont consolidés ; la vente `take_profit` clôture le trade et porte les métadonnées du cycle.
@@ -140,6 +146,9 @@ python -m pip install sqlalchemy
 export DB_DSN="mysql+pymysql://restadmin:ronanronan77@127.0.0.1:3306/restdb"
 poetry run pip install pandas-market-calendars
 poetry run qe strategy backtest --spec specs/strategy_dca_equity_example_minimal.json
+poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1.json
+poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_delta_mysql.json
+
 
 
 IL FAUT QUE LES VARIABLES D'ENV SOIT DECLAREES DANS LE TERMINAL, LE PROJET PREND PAS LE .ENV
