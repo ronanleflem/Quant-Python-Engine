@@ -1,0 +1,50 @@
+{
+  "strategy": {
+    "strategy_id": "BT_EURUSD_M1_EMA_STATS_GATE",
+    "asset_class": "FX"
+  },
+  "data": {
+    "dataset_path": "specs/examples/data/eurusd_m1_sample.json",
+    "symbols": ["EURUSD"],
+    "timeframe": "1m",
+    "start": "2024-01-01",
+    "end": "2024-01-07"
+  },
+  "signal": {
+    "type": "ema_cross",
+    "params": { "fast": 5, "slow": 20 }
+  },
+  "filters": [
+    {
+      "type": "stats_gate",
+      "params": {
+        "event": "bullish_streak",
+        "target": "next_bearish",
+        "threshold": 0.7,
+        "metric": "p_hat",
+        "comparator": "gte",
+        "condition_name": "session_from_ts",
+        "min_samples": 300,
+        "symbol": "EURUSD",
+        "timeframe": "1m"
+      }
+    }
+  ],
+  "tpsl": {
+    "atr_window": 14,
+    "atr_k": 1.0,
+    "r_mult": 2.0,
+    "slippage_bps": 0.0,
+    "fee_bps": 0.0
+  },
+  "performance": {
+    "initial_capital": 10000
+  },
+  "persistence": {
+    "enabled": false
+  },
+  "output": {
+    "path": "runs/backtest_eurusd_m1_stats_gate.json",
+    "format": "json"
+  }
+}

@@ -30,7 +30,12 @@ Ce module calcule des statistiques conditionnelles de marché (probabilités sim
 
 - **Binning fixe**  
   - Pas de re-binning par split test.  
-  - Exemple : définir les tertiles de volatilité sur train uniquement.
+  - Exemple : definir les tertiles de volatilite sur train uniquement.
+
+- **Stats conditionnelles**  
+  - Limiter le nombre de dimensions (ex. session ou day-of-week).  
+  - Garder un fallback global si n < n_min.  
+  - Conditions pretes: `hour_bin`, `day_of_week`, `month_of_year`, `session_from_ts`.
 
 - **Rolling recalibration**  
   - Rafraîchir les stats sur fenêtres glissantes (ex. 6 mois).  

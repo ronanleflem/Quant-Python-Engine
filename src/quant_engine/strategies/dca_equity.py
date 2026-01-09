@@ -163,14 +163,16 @@ class DcaEquityStrategy(Strategy):
         ):
             if last_processed is not None and ts <= last_processed:
                 continue
+            allow_entries = self._allow_entries(df, ts)
             state.current_price = float(price)
             self._ensure_cycle_initialized(state)
             # fige le ref_high une fois un cycle actif (ne pas recalculer pendant un trade)
             ref_high_value = state.cycle_high_ref if state.cycle_active else float(ref_h)
-            self._maybe_start_cycle(state, float(dd), ref_high_value, float(price))
+            if allow_entries and not state.cycle_active:
+                self._maybe_start_cycle(state, float(dd), ref_high_value, float(price))
             if state.cycle_active:
                 self._update_cycle_stats(state, float(dd), float(price))
-                buys = self._check_buy_levels(state, float(dd), ts, symbol, asset_class)
+                buys = self._check_buy_levels(state, float(dd), ts, symbol, asset_class) if allow_entries else []
                 sells = self._check_take_profit(
                     state,
                     close=float(price),
@@ -195,6 +197,15 @@ class DcaEquityStrategy(Strategy):
                 state.cycle_high_ref = float(ref_h)
             state.last_processed_ts = ts
         return results
+
+    @staticmethod
+    def _allow_entries(df: pd.DataFrame, ts: pd.Timestamp) -> bool:
+        if "_filter_ok" not in df.columns:
+            return True
+        try:
+            return bool(df.at[ts, "_filter_ok"])
+        except Exception:
+            return False
 
     def _ensure_cycle_initialized(self, state: _CycleState) -> None:
         if not state.consumed_levels:

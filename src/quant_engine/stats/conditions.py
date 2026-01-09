@@ -131,6 +131,35 @@ def session(df: pd.DataFrame, *, col: str = "session_id") -> pd.Series:
     return df[col].astype("category")
 
 
+def hour_bin(df: pd.DataFrame) -> pd.Series:
+    """Return hour-of-day bins (0-23) from timestamp column."""
+    ts = pd.to_datetime(df["ts"], utc=True, errors="coerce")
+    return ts.dt.hour.astype("Int64")
+
+
+def day_of_week(df: pd.DataFrame) -> pd.Series:
+    """Return day-of-week bins (0=Mon..6=Sun)."""
+    ts = pd.to_datetime(df["ts"], utc=True, errors="coerce")
+    return ts.dt.dayofweek.astype("Int64")
+
+
+def month_of_year(df: pd.DataFrame) -> pd.Series:
+    """Return month-of-year bins (1-12)."""
+    ts = pd.to_datetime(df["ts"], utc=True, errors="coerce")
+    return ts.dt.month.astype("Int64")
+
+
+def session_from_ts(df: pd.DataFrame) -> pd.Series:
+    """Return a coarse session label from timestamp if session_id is missing."""
+    ts = pd.to_datetime(df["ts"], utc=True, errors="coerce")
+    hours = ts.dt.hour
+    session_id = pd.Series("unknown", index=df.index)
+    session_id[(hours >= 23) | (hours < 7)] = "asia"
+    session_id[(hours >= 7) & (hours < 15)] = "london"
+    session_id[(hours >= 13) & (hours < 21)] = "newyork"
+    return session_id.astype("category")
+
+
 def in_zone_level(level_type: str, tolerance: float = 0.0) -> Callable[[pd.DataFrame, Optional[pd.DataFrame]], pd.Series]:
     """Build a callable returning a boolean mask when price trades inside a level."""
 

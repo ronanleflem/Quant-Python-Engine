@@ -84,10 +84,12 @@ class DcaEtfStrategy(Strategy):
         for ts, price, dd in zip(dd_series.index, close, dd_series):
             if last_processed is not None and ts <= last_processed:
                 continue
+            allow_entries = self._allow_entries(df, ts)
             self._ensure_state_initialized(state)
-            self._maybe_start_cycle(state, float(dd), float(rolling_max.loc[ts]))
+            if allow_entries and not state.cycle_active:
+                self._maybe_start_cycle(state, float(dd), float(rolling_max.loc[ts]))
             if state.cycle_active:
-                buys = self._check_buy_levels(state, float(dd), ts, symbol, asset_class)
+                buys = self._check_buy_levels(state, float(dd), ts, symbol, asset_class) if allow_entries else []
                 for sig in buys:
                     if only_last_ts is None or sig.ts_open_utc == only_last_ts:
                         results.append(sig)
@@ -97,6 +99,15 @@ class DcaEtfStrategy(Strategy):
             state.cycle_high_ref = float(rolling_max.loc[ts])
             state.last_processed_ts = ts
         return results
+
+    @staticmethod
+    def _allow_entries(df: pd.DataFrame, ts: pd.Timestamp) -> bool:
+        if "_filter_ok" not in df.columns:
+            return True
+        try:
+            return bool(df.at[ts, "_filter_ok"])
+        except Exception:
+            return False
 
     def _ensure_state_initialized(self, state: _EtfState) -> None:
         if not state.consumed_levels:

@@ -14,6 +14,7 @@ from . import engine
 from ..core import dataset
 from ..core.features import atr
 from ..core.spec import DataSpec, MySQLDataConfig
+from ..filters.utils import apply_filter_stack, FilterValidationError
 from ..performance.backtest_builder import build_backtest_payload
 from ..signals.ema_cross import EmaCross
 from ..strategies import runner as strategies_runner
@@ -164,6 +165,19 @@ def _detect_symbol(rows: List[Dict[str, Any]]) -> str:
     return symbols[0] if symbols else "UNKNOWN"
 
 
+def _rows_to_frame(rows: List[Dict[str, Any]]) -> pd.DataFrame:
+    if not rows:
+        return pd.DataFrame()
+    df = pd.DataFrame(rows)
+    ts_col = "timestamp" if "timestamp" in df.columns else "ts"
+    if ts_col not in df.columns:
+        raise ValueError("Rows missing timestamp column for filter evaluation")
+    df[ts_col] = pd.to_datetime(df[ts_col], utc=True)
+    df = df.sort_values(ts_col)
+    df = df.set_index(ts_col, drop=True)
+    return df
+
+
 def run_backtest_from_spec(spec: Mapping[str, Any]) -> Dict[str, Any]:
     """Execute a classic backtest based on a JSON specification."""
 
@@ -177,6 +191,19 @@ def run_backtest_from_spec(spec: Mapping[str, Any]) -> Dict[str, Any]:
 
     symbol = _detect_symbol(rows)
     signal = _build_signal(spec, rows)
+
+    filters_spec = spec.get("filters") or (spec.get("strategy", {}) or {}).get("filters") or []
+    if filters_spec:
+        df_filters = _rows_to_frame(rows)
+        df_filters = df_filters.copy()
+        df_filters["entry_signal"] = [bool(val) for val in signal]
+        df_filters["signal"] = df_filters["entry_signal"]
+        try:
+            mask = apply_filter_stack(df_filters, filters_spec, symbol=symbol, logger=LOGGER, strict=True)
+        except FilterValidationError as exc:
+            LOGGER.error("Backtest filters failed: %s", exc)
+            raise
+        signal = [int(bool(s) and bool(m)) for s, m in zip(signal, mask)]
 
     tpsl = spec.get("tpsl", {}) or {}
     atr_window = int(tpsl.get("atr_window", tpsl.get("atr_period", 14)))

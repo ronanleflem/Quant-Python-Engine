@@ -16,6 +16,7 @@ from sqlalchemy import create_engine, inspect, text
 from . import create_strategy
 from .base import StrategySignal
 from ..integrations import java_client
+from ..filters.utils import apply_filter_stack, FilterValidationError
 from ..performance.dca_builder import build_backend_payload_for_java
 from pandas.tseries.holiday import USFederalHolidayCalendar
 from pandas.tseries.offsets import CustomBusinessDay
@@ -103,6 +104,23 @@ def run_backtest_from_spec(spec: Mapping[str, Any]) -> Dict[str, Any]:
             getattr(strategy, "asset_class", None) or strategy_cfg.get("asset_class"),
         )
         df = _fetch_ohlc_for_symbol(symbol, asset_class, data_spec, instrument)
+        filters_spec = strategy_cfg.get("filters") or spec.get("filters") or []
+        if filters_spec:
+            df = df.copy()
+            df_filter = df.copy()
+            if "ts" in df_filter.columns:
+                df_filter["ts"] = pd.to_datetime(df_filter["ts"], utc=True)
+                df_filter = df_filter.set_index("ts")
+            try:
+                mask = apply_filter_stack(df_filter, filters_spec, symbol=symbol, logger=LOGGER, strict=True)
+            except FilterValidationError as exc:
+                LOGGER.error("Filters failed for %s: %s", symbol, exc)
+                raise
+            if "ts" in df.columns:
+                ts_index = pd.to_datetime(df["ts"], utc=True)
+                df["_filter_ok"] = mask.reindex(ts_index, fill_value=False).to_numpy()
+            else:
+                df["_filter_ok"] = mask.reindex(df.index, fill_value=False)
         ohlc_by_symbol[symbol] = df.copy()
         context = {"symbol": symbol, "asset_class": asset_class}
         signals = strategy.backtest(df, context)

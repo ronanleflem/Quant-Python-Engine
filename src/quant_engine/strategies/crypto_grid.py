@@ -89,12 +89,16 @@ class CryptoGridStrategy(Strategy):
         for ts, price, dd in zip(dd_series.index, close, dd_series):
             if last_processed is not None and ts <= last_processed:
                 continue
+            allow_entries = self._allow_entries(df, ts)
             self._ensure_state_initialized(state)
-            self._maybe_start_cycle(state, float(dd), float(rolling_max.loc[ts]), float(price))
+            if allow_entries and not state.cycle_active:
+                self._maybe_start_cycle(state, float(dd), float(rolling_max.loc[ts]), float(price))
             if state.cycle_active:
                 self._update_cycle_stats(state, float(dd), float(price))
-                buys = self._check_buy_levels(
-                    state, float(dd), ts, symbol, asset_class, macro_context
+                buys = (
+                    self._check_buy_levels(state, float(dd), ts, symbol, asset_class, macro_context)
+                    if allow_entries
+                    else []
                 )
                 sells = self._check_take_profit(
                     state, float(price), ts, symbol, asset_class, macro_context
@@ -106,6 +110,15 @@ class CryptoGridStrategy(Strategy):
             state.prev_dd = float(dd)
             state.last_processed_ts = ts
         return results
+
+    @staticmethod
+    def _allow_entries(df: pd.DataFrame, ts: pd.Timestamp) -> bool:
+        if "_filter_ok" not in df.columns:
+            return True
+        try:
+            return bool(df.at[ts, "_filter_ok"])
+        except Exception:
+            return False
 
     def _ensure_state_initialized(self, state: _CryptoState) -> None:
         if not state.consumed_levels:

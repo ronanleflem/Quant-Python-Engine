@@ -1,0 +1,27 @@
+{
+  "data": {
+    "dataset_path": "specs/examples/data/eurusd_m1_sample.json",
+    "symbols": ["EURUSD"],
+    "timeframe": "1m",
+    "start": "2024-01-01",
+    "end": "2024-01-07"
+  },
+  "events": [
+    { "name": "bullish_streak_3", "type": "bullish_streak", "params": { "k": 3 } },
+    { "name": "bearish_streak_3", "type": "bearish_streak", "params": { "k": 3 } },
+    { "name": "bullish_engulfing", "type": "bullish_engulfing", "params": {} },
+    { "name": "bearish_engulfing", "type": "bearish_engulfing", "params": {} }
+  ],
+  "conditions": [
+    { "name": "session", "type": "session_from_ts", "params": {} },
+    { "name": "dow", "type": "day_of_week", "params": {} }
+  ],
+  "targets": [
+    { "name": "next_bearish", "type": "next_bearish", "params": {} },
+    { "name": "next_bullish", "type": "next_bullish", "params": {} },
+    { "name": "body_ratio", "type": "body_ratio", "params": {} },
+    { "name": "candle_zscore", "type": "candle_zscore", "params": { "window": 20 } }
+  ],
+  "artifacts": { "out_dir": "runs/stats_conditional_candle_structure" },
+  "persistence": { "enabled": false }
+}

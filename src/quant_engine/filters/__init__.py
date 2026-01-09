@@ -17,6 +17,27 @@ from .stat_prob import (
     hurst_regime_filter,
     entropy_window_filter,
 )
+from .ema_structure import ema_structure_filter
+from .signal_rules import rsi_entry_filter, macd_entry_filter, volume_above_average_filter
+from .fractal_analysis import fractal_analysis_filter
+from .mean_reversion import mean_reversion_probability_filter
+from .contradictory_signals import contradictory_signals_filter
+from .biais_institutional import biais_institutional_filter
+from .indicator_rules import (
+    atr_rising_filter,
+    linear_regression_macd_cross_filter,
+)
+from .market_regime import market_regime_filter
+from .trend import trend_filter
+from .stats_gate import stats_gate_filter, stats_gate_score
+from .benford import benford_law_filter
+from .cycles import cycles_filter
+from .donchian import donchian_channels_filter
+from .liquidity import liquidity_cmf_filter
+from .stat_arbitrage import statistical_arbitrage_filter
+from .psychologic import psychologic_ulcer_filter
+from .stationarity import stationarity_filter
+from .volatility import volatility_filter
 from .risk_mgmt import (
     daily_loss_cap_filter,
     daily_trades_cap_filter,
@@ -51,6 +72,28 @@ __all__ = [
     "cooldown_bars_filter",
     "atr_risk_gate_filter",
     "equity_dd_lockout_filter",
+    "benford_law_filter",
+    "cycles_filter",
+    "donchian_channels_filter",
+    "liquidity_cmf_filter",
+    "statistical_arbitrage_filter",
+    "psychologic_ulcer_filter",
+    "stationarity_filter",
+    "volatility_filter",
+    "ema_structure_filter",
+    "rsi_entry_filter",
+    "macd_entry_filter",
+    "volume_above_average_filter",
+    "fractal_analysis_filter",
+    "mean_reversion_probability_filter",
+    "contradictory_signals_filter",
+    "biais_institutional_filter",
+    "atr_rising_filter",
+    "linear_regression_macd_cross_filter",
+    "market_regime_filter",
+    "trend_filter",
+    "stats_gate_filter",
+    "stats_gate_score",
 ]
 
 filters_registry = {
@@ -77,6 +120,27 @@ filters_registry = {
     "cooldown_bars": cooldown_bars_filter,
     "atr_risk_gate": atr_risk_gate_filter,
     "equity_dd_lockout": equity_dd_lockout_filter,
+    "benford_law": benford_law_filter,
+    "cycles": cycles_filter,
+    "donchian_channels": donchian_channels_filter,
+    "liquidity_cmf": liquidity_cmf_filter,
+    "statistical_arbitrage": statistical_arbitrage_filter,
+    "psychologic_ulcer": psychologic_ulcer_filter,
+    "stationarity": stationarity_filter,
+    "volatility": volatility_filter,
+    "ema_structure": ema_structure_filter,
+    "rsi_entry": rsi_entry_filter,
+    "macd_entry": macd_entry_filter,
+    "volume_above_average": volume_above_average_filter,
+    "fractal_analysis": fractal_analysis_filter,
+    "mean_reversion": mean_reversion_probability_filter,
+    "contradictory_signals": contradictory_signals_filter,
+    "biais_institutional": biais_institutional_filter,
+    "atr_rising": atr_rising_filter,
+    "linear_regression_macd_cross": linear_regression_macd_cross_filter,
+    "market_regime": market_regime_filter,
+    "trend": trend_filter,
+    "stats_gate": stats_gate_filter,
 }
 
 

@@ -1,10 +1,12 @@
 {
   "strategy": {
-    "strategy_id": "DCA_CRYPTO_DEMO",
+    "strategy_id": "DCA_CRYPTO_DEMO_FILTERS",
     "type": "dca_equity",
     "filters": [
-      { "type": "atr_risk_gate", "params": { "atr_window": 14, "max_atr_pct": 0.05 } },
-      { "type": "day_of_week", "params": { "blocked_days": [6] } }
+      { "type": "ema_structure", "params": { "ema_fast": 20, "ema_slow": 50, "ema_long": 200 } },
+      { "type": "macd_entry", "params": { "fast": 12, "slow": 26, "signal": 9, "direction": "bullish" } },
+      { "type": "fractal_analysis", "params": { "window": 64, "min_h": 0.4, "max_h": 0.6 } },
+      { "type": "contradictory_signals", "params": { "max_conflicts": 0 } }
     ],
     "params": {
       "asset_class": "CRYPTO",
@@ -60,7 +62,7 @@
     "capital_per_unit": 100
   },
   "output": {
-    "path": "runs/dca_crypto_backtest.json",
+    "path": "runs/dca_crypto_backtest_with_filters.json",
     "format": "json"
   }
 }
