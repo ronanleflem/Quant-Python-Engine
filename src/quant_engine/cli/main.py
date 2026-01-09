@@ -484,6 +484,20 @@ def strategy_backtest(
     typer.echo(json.dumps(result, separators=(",", ":")))
 
 
+@strategy_app.command("optimize")
+def strategy_optimize(
+    spec: Path = typer.Option(..., "--spec", exists=True, file_okay=True, dir_okay=False)
+) -> None:
+    """Run a strategy optimization based on a JSON specification."""
+
+    from ..strategies.runner import load_strategy_spec
+    from ..optimize.variants import run_strategy_optimization
+
+    spec_dict = load_strategy_spec(spec)
+    result = run_strategy_optimization(spec_dict)
+    typer.echo(json.dumps(result, separators=(",", ":")))
+
+
 @backtest_app.command("run")
 def backtest_run(
     spec: Path = typer.Option(..., "--spec", exists=True, file_okay=True, dir_okay=False)
@@ -494,6 +508,20 @@ def backtest_run(
 
     spec_dict = load_backtest_spec(spec)
     result = run_backtest_from_spec(spec_dict)
+    typer.echo(json.dumps(result, separators=(",", ":")))
+
+
+@backtest_app.command("optimize")
+def backtest_optimize(
+    spec: Path = typer.Option(..., "--spec", exists=True, file_okay=True, dir_okay=False)
+) -> None:
+    """Run a classic backtest optimization based on a JSON specification."""
+
+    from ..backtest.runner import load_backtest_spec
+    from ..optimize.variants import run_backtest_optimization
+
+    spec_dict = load_backtest_spec(spec)
+    result = run_backtest_optimization(spec_dict)
     typer.echo(json.dumps(result, separators=(",", ":")))
 
 

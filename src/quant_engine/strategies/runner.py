@@ -78,8 +78,8 @@ def _expand_universe(spec: Mapping[str, Any]) -> Sequence[Mapping[str, Any]]:
     return list(collected.values())
 
 
-def run_backtest_from_spec(spec: Mapping[str, Any]) -> Dict[str, Any]:
-    """Execute ``strategy.backtest`` for every instrument defined in ``spec``."""
+def _run_backtest_core(spec: Mapping[str, Any]) -> tuple[Dict[str, Any], Dict[str, pd.DataFrame]]:
+    """Run the strategy backtest and return raw results plus OHLC cache."""
 
     strategy_cfg = spec.get("strategy", {})
     strategy_type = strategy_cfg.get("type")
@@ -133,9 +133,24 @@ def run_backtest_from_spec(spec: Mapping[str, Any]) -> Dict[str, Any]:
         "counts": counts,
         "signals": signals_by_symbol,
     }
+    return result, ohlc_by_symbol
+
+
+def run_backtest_from_spec(spec: Mapping[str, Any]) -> Dict[str, Any]:
+    """Execute ``strategy.backtest`` for every instrument defined in ``spec``."""
+
+    result, ohlc_by_symbol = _run_backtest_core(spec)
     _persist_results_if_requested(result, spec.get("output"))
     _persist_results_to_db(result, spec, ohlc_by_symbol)
     return result
+
+
+def run_backtest_with_payload(spec: Mapping[str, Any]) -> Dict[str, Any]:
+    """Run the strategy backtest and return results plus backend payload."""
+
+    result, ohlc_by_symbol = _run_backtest_core(spec)
+    payload = _build_payload_for_result(result, spec, ohlc_by_symbol)
+    return {"result": result, "payload": payload}
 
 
 def _fetch_ohlc_for_symbol(
@@ -815,7 +830,7 @@ def _persist_results_to_delta(result: Dict[str, Any]) -> None:
     except Exception as exc:  # pragma: no cover - remote dependency
         LOGGER.warning("Failed to persist strategy signals to Delta (%s): %s", table_path, exc)
 
-__all__ = ["load_strategy_spec", "run_backtest_from_spec", "persist_payload_to_db"]
+__all__ = ["load_strategy_spec", "run_backtest_from_spec", "run_backtest_with_payload", "persist_payload_to_db"]
 
 
 def _compact_meta(meta: Mapping[str, Any]) -> Dict[str, Any]:
@@ -1056,9 +1071,18 @@ def persist_payload_to_db(
 
 
 def _persist_results_to_db(result: Dict[str, Any], spec: Mapping[str, Any], ohlc_by_symbol: Optional[Dict[str, pd.DataFrame]] = None) -> None:
+    payload = _build_payload_for_result(result, spec, ohlc_by_symbol)
+    strategy_type = str((spec.get("strategy", {}) or {}).get("type") or "").strip().lower()
+    persist_payload_to_db(payload, spec, strategy_type=strategy_type)
+
+
+def _build_payload_for_result(
+    result: Dict[str, Any],
+    spec: Mapping[str, Any],
+    ohlc_by_symbol: Optional[Dict[str, pd.DataFrame]] = None,
+) -> Dict[str, Any]:
     strategy_cfg = spec.get("strategy", {}) or {}
     strategy_id = strategy_cfg.get("strategy_id") or "strategy"
-    strategy_type = str(strategy_cfg.get("type") or "").strip().lower()
     run_id = spec.get("run_id") or strategy_cfg.get("run_id") or uuid.uuid4().hex
     asset_class = strategy_cfg.get("params", {}).get("asset_class") or strategy_cfg.get("asset_class") or ""
     data_spec = spec.get("data", {}) or {}
@@ -1079,7 +1103,7 @@ def _persist_results_to_db(result: Dict[str, Any], spec: Mapping[str, Any], ohlc
     for sym, records in (result.get("signals") or {}).items():
         signals_by_symbol[sym] = [_DictSignal(r) for r in records]
 
-    payload = build_backend_payload_for_java(
+    return build_backend_payload_for_java(
         strategy_id=strategy_id,
         run_id=run_id,
         asset_class=asset_class,
@@ -1089,4 +1113,3 @@ def _persist_results_to_db(result: Dict[str, Any], spec: Mapping[str, Any], ohlc
         ohlc_by_symbol=ohlc_by_symbol,
         config=spec.get("performance", {}) or {},
     )
-    persist_payload_to_db(payload, spec, strategy_type=strategy_type)

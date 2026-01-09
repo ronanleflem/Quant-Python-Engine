@@ -83,6 +83,31 @@ poetry run uvicorn quant_engine.api.app:app --reload --app-dir src
   ```
   Le backtest "signal" accepte `data.dataset_path` (CSV/JSON), `data.mysql`, ou les champs `data.delta_*` / `data.mysql_env` (Delta -> MySQL -> Java).
   Exemple Delta/MySQL : `specs/examples/backtest_eurusd_m1_delta_mysql.json`.
+- **backtest optimize**
+  ```bash
+  poetry run qe backtest optimize --spec specs/examples/backtest_eurusd_m1_optimize.json
+  ```
+- **strategy optimize**
+  ```bash
+  poetry run qe strategy optimize --spec specs/strategy_dca_equity_example_minimal_optimize.json
+  ```
+
+### Optimization spec (grid/random)
+Define `optimization.search_space` with discrete lists or `{min,max,step}` ranges. Paths can target nested fields (use dots and list indexes).
+
+```json
+{
+  "optimization": {
+    "method": "grid",
+    "objective": "sharpe",
+    "search_space": {
+      "signal.params.fast": {"min": 20, "max": 100, "step": 10},
+      "strategy.params.grid[0].dd": [-10, -20, -30],
+      "strategy.params.tp_sl.rules[0].tp_pct": {"min": 10, "max": 30, "step": 5}
+    }
+  }
+}
+```
 
 ## Performance, DCA et intégration backend
 - **Module `quant_engine.performance`** : calcule les métriques côté Python et agrège les signaux DCA en `CompletedTrade` (1 cycle = 1 trade logique). Les BUY successifs d’un cycle sont consolidés ; la vente `take_profit` clôture le trade et porte les métadonnées du cycle.
