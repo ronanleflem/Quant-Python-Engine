@@ -105,6 +105,7 @@ def build_dca_performance_from_signals(
         return None
 
     trades: List[CompletedTrade] = []
+    trades_by_symbol: Dict[str, int] = {}
     for symbol, sigs in signals_by_symbol.items():
         ordered = sorted(sigs, key=lambda s: _maybe_dt(getattr(s, "ts_open_utc", None)) or datetime.utcnow())
         by_cycle: Dict[int, List[SignalLike]] = {}
@@ -230,6 +231,7 @@ def build_dca_performance_from_signals(
                 meta=tp_meta,
             )
             trades.append(trade)
+            trades_by_symbol[symbol] = trades_by_symbol.get(symbol, 0) + 1
             LOGGER.info(
                 "Trade built | sym=%s cycle=%s buys=%d sells=%d qty=%.4f entry=%.4f exit=%.4f pnl=%.4f pnl_pct=%.2f",
                 symbol,
@@ -242,6 +244,9 @@ def build_dca_performance_from_signals(
                 gross_pnl,
                 gross_pnl_pct,
             )
+        if symbol not in trades_by_symbol:
+            trades_by_symbol[symbol] = 0
+            LOGGER.info("No completed trades for %s (signals=%d, cycles=%d)", symbol, len(ordered), len(by_cycle))
 
     # Utilise les PnL en pourcentage pour les métriques agrégées (évite le biais multi-actifs)
     win_count = sum(1 for t in trades if t.gross_pnl_pct > 0)

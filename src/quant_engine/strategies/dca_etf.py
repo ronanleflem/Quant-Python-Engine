@@ -105,9 +105,18 @@ class DcaEtfStrategy(Strategy):
         if "_filter_ok" not in df.columns:
             return True
         try:
-            return bool(df.at[ts, "_filter_ok"])
+            value = df.at[ts, "_filter_ok"]
+            if isinstance(value, pd.Series):
+                return bool(value.fillna(False).any())
+            return bool(value)
         except Exception:
-            return False
+            try:
+                value = df.loc[ts, "_filter_ok"]
+                if isinstance(value, pd.Series):
+                    return bool(value.fillna(False).any())
+                return bool(value)
+            except Exception:
+                return False
 
     def _ensure_state_initialized(self, state: _EtfState) -> None:
         if not state.consumed_levels:

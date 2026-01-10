@@ -117,6 +117,13 @@ def _run_backtest_core(spec: Mapping[str, Any]) -> tuple[Dict[str, Any], Dict[st
             except FilterValidationError as exc:
                 LOGGER.error("Filters failed for %s: %s", symbol, exc)
                 raise
+            try:
+                allowed = int(mask.fillna(False).sum())
+                total = int(len(mask))
+                pct = (allowed / total * 100.0) if total else 0.0
+                LOGGER.info("Filters summary for %s: %d/%d bars allowed (%.1f%%)", symbol, allowed, total, pct)
+            except Exception:
+                LOGGER.info("Filters summary for %s: unable to compute coverage", symbol)
             if "ts" in df.columns:
                 ts_index = pd.to_datetime(df["ts"], utc=True)
                 df["_filter_ok"] = mask.reindex(ts_index, fill_value=False).to_numpy()

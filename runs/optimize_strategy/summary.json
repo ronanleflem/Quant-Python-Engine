@@ -1,43 +1,47 @@
 {
   "objective": "sharpe",
   "best": {
-    "params": {},
-    "objective": -Infinity,
+    "params": {
+      "strategy.filters[0].params.window": 30,
+      "strategy.params.grid[0].dd": -20.0,
+      "strategy.params.tp_sl.rules[0].tp_pct": 10
+    },
+    "objective": 226.9059690015903,
     "run": {
-      "strategyId": "DCA_EQUITY_DEMO",
-      "runId": "929df20c1cd64a86b6c643773c67dc67",
+      "strategyId": "DCA_EQUITY_DEMO_OPT",
+      "runId": "0d79e5f676424f00bf534ddf3687982c",
       "assetClass": "EQUITY",
       "universe": null,
       "timeframe": "1D",
       "symbol": null,
       "comparedSymbol": null,
-      "startTsUtc": "2026-01-10T18:55:02.479245",
-      "endTsUtc": "2026-01-10T18:55:02.479245",
-      "winCount": 0,
+      "startTsUtc": "2025-03-05T00:00:00+00:00",
+      "endTsUtc": "2025-09-22T00:00:00+00:00",
+      "winCount": 2,
       "lossCount": 0,
-      "totalReturn": 0,
+      "totalReturn": 41.514335959062876,
       "maxDrawdown": 0.0,
-      "averageTrade": 0.0,
+      "averageTrade": 20.757167979531438,
       "averageSL": null,
-      "averageTP": null,
+      "averageTP": 20.0,
       "rrMoyen": null,
-      "totalNetReturn": 0,
-      "netWinCount": 0,
+      "totalNetReturn": 41.514335959062876,
+      "netWinCount": 2,
       "netLossCount": 0,
-      "averageNetTrade": 0.0,
+      "averageNetTrade": 20.757167979531438,
       "initialCapital": 10000.0,
-      "finalCapital": 10000.0,
-      "returnPct": 0.0,
+      "finalCapital": 10016.605734383626,
+      "returnPct": 0.1660573438362553,
       "maxDrawdownPct": 0.0,
-      "volatilityPct": null,
-      "sharpe": null,
+      "volatilityPct": 0.12937107208891518,
+      "sharpe": 226.9059690015903,
       "sortino": null,
-      "winratePct": null,
+      "winratePct": 100.0,
       "extra": {
         "capital_per_unit": 100.0,
         "note": "DCA performance computed from pct PnL with simple capital model."
       }
     }
   },
-  "total_trials": 1
+  "total_trials": 135
 }

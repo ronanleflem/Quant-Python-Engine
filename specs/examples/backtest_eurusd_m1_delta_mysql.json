@@ -4,7 +4,9 @@
     "asset_class": "FX"
   },
   "data": {
-    "symbols": ["EURUSD"],
+    "symbols": [
+      "EURUSD"
+    ],
     "timeframe": "1h",
     "start": "2023-01-01",
     "end": "2023-06-01",
@@ -31,13 +33,43 @@
   },
   "signal": {
     "type": "ema_cross",
-    "params": { "fast": 5, "slow": 20 }
+    "params": {
+      "fast": 5,
+      "slow": 20,
+      "require_crossing": false
+    }
   },
   "filters": [
-    { "type": "adx", "params": { "window": 14, "thresh": 20 } },
-    { "type": "atr", "params": { "window": 14, "min_mult": 0.0005, "max_mult": 0.02 } },
-    { "type": "ema_slope", "params": { "window": 50, "slope_thresh": 0.0 } },
-    { "type": "day_of_week", "params": { "blocked_days": [0] } }
+    {
+      "type": "adx",
+      "params": {
+        "window": 14,
+        "thresh": 20
+      }
+    },
+    {
+      "type": "atr",
+      "params": {
+        "window": 14,
+        "min_mult": 0.0005,
+        "max_mult": 0.02
+      }
+    },
+    {
+      "type": "ema_slope",
+      "params": {
+        "window": 50,
+        "slope_thresh": 0.0
+      }
+    },
+    {
+      "type": "day_of_week",
+      "params": {
+        "blocked_days": [
+          0
+        ]
+      }
+    }
   ],
   "tpsl": {
     "atr_window": 14,

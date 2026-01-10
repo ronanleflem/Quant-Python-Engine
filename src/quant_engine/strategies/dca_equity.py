@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import logging
 from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
 
 from .base import Strategy, StrategySignal
 
+LOGGER = logging.getLogger(__name__)
 
 @dataclass
 class _CycleState:
@@ -57,6 +59,7 @@ class DcaEquityStrategy(Strategy):
         self.dd_reference_mode, self.dd_reference_window = self._parse_drawdown_reference(
             self.params.get("drawdown_reference")
         )
+        self.require_crossing = bool(self.params.get("require_crossing", True))
 
     @staticmethod
     def compute_drawdown(close: pd.Series) -> pd.Series:
@@ -156,6 +159,25 @@ class DcaEquityStrategy(Strategy):
         dd_series = dd_series.fillna(0.0)
         symbol = context.get("symbol", context.get("symbol_id", ""))
         asset_class = context.get("asset_class", self.asset_class)
+        allow_mask = df["_filter_ok"].astype(bool) if "_filter_ok" in df.columns else pd.Series(True, index=df.index)
+        try:
+            dd_allowed = dd_series[allow_mask]
+            min_dd_all = float(dd_series.min()) if not dd_series.empty else 0.0
+            min_dd_allowed = float(dd_allowed.min()) if not dd_allowed.empty else 0.0
+            crossings: List[str] = []
+            for level in self.grid:
+                threshold = float(level.get("dd", 0.0))
+                crossed = (dd_series <= threshold) & (dd_series.shift(1) > threshold) & allow_mask
+                crossings.append(f"{threshold:.2f}={int(crossed.fillna(False).sum())}")
+            LOGGER.info(
+                "Drawdown summary for %s: min_dd=%.2f%% min_dd_allowed=%.2f%% crossings(%s)",
+                symbol,
+                min_dd_all,
+                min_dd_allowed,
+                ", ".join(crossings),
+            )
+        except Exception:
+            LOGGER.info("Drawdown summary for %s: unavailable", symbol)
         results: List[StrategySignal] = []
         last_processed = state.last_processed_ts
         for ts, price, dd, ref_h, high, low in zip(
@@ -203,9 +225,18 @@ class DcaEquityStrategy(Strategy):
         if "_filter_ok" not in df.columns:
             return True
         try:
-            return bool(df.at[ts, "_filter_ok"])
+            value = df.at[ts, "_filter_ok"]
+            if isinstance(value, pd.Series):
+                return bool(value.fillna(False).any())
+            return bool(value)
         except Exception:
-            return False
+            try:
+                value = df.loc[ts, "_filter_ok"]
+                if isinstance(value, pd.Series):
+                    return bool(value.fillna(False).any())
+                return bool(value)
+            except Exception:
+                return False
 
     def _ensure_cycle_initialized(self, state: _CycleState) -> None:
         if not state.consumed_levels:
@@ -252,7 +283,7 @@ class DcaEquityStrategy(Strategy):
                 continue
             threshold = float(level["dd"])
             prev_dd = state.prev_dd if state.prev_dd is not None else 0.0
-            if dd <= threshold and prev_dd > threshold:
+            if dd <= threshold and (not self.require_crossing or prev_dd > threshold):
                 state.consumed_levels[idx] = True
                 meta = self._build_buy_meta(state, level, dd)
                 qty = float(level.get("weight", 0.0)) or 0.0

@@ -216,7 +216,21 @@ def run_backtest_from_spec(spec: Mapping[str, Any]) -> Dict[str, Any]:
         except FilterValidationError as exc:
             LOGGER.error("Backtest filters failed: %s", exc)
             raise
-        signal = [int(bool(s) and bool(m)) for s, m in zip(signal, mask)]
+        signal_params = (spec.get("signal", {}) or {}).get("params", {}) or {}
+        require_crossing = signal_params.get("require_crossing")
+        if require_crossing is None:
+            require_crossing = (spec.get("strategy", {}) or {}).get("params", {}) or {}
+            require_crossing = require_crossing.get("require_crossing", True)
+        if require_crossing:
+            signal = [int(bool(s) and bool(m)) for s, m in zip(signal, mask)]
+        else:
+            gated: List[int] = []
+            for idx, (s, m) in enumerate(zip(signal, mask)):
+                if idx > 0 and gated[idx - 1] == 1:
+                    gated.append(int(bool(s)))
+                else:
+                    gated.append(int(bool(s) and bool(m)))
+            signal = gated
 
     tpsl = spec.get("tpsl", {}) or {}
     atr_window = int(tpsl.get("atr_window", tpsl.get("atr_period", 14)))

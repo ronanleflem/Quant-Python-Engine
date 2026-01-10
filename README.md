@@ -172,6 +172,7 @@ export DB_DSN="mysql+pymysql://restadmin:ronanronan77@127.0.0.1:3306/restdb"
 poetry run pip install pandas-market-calendars
 poetry run qe strategy backtest --spec specs/strategy_dca_equity_example_minimal.json
 poetry run qe strategy backtest --spec specs/strategy_dca_equity_example_minimal_with_filters.json
+poetry run qe strategy backtest --spec specs/strategy_dca_equity_example_minimal_with_filters_ema.json
 poetry run qe strategy backtest --spec specs/strategy_dca_equity_example_minimal_stats_gate.json
 poetry run qe strategy backtest --spec specs/strategy_dca_crypto_example_minimal.json
 poetry run qe strategy backtest --spec specs/strategy_dca_crypto_example_minimal_with_filters.json

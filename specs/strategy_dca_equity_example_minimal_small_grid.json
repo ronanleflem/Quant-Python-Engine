@@ -1,29 +1,11 @@
 {
   "strategy": {
-    "strategy_id": "DCA_EQUITY_DEMO_OPT",
+    "strategy_id": "DCA_EQUITY_DEMO",
     "type": "dca_equity",
-    "filters": [
-      {
-        "type": "ema_slope",
-        "params": {
-          "window": 20,
-          "slope_thresh": -0.2
-        }
-      },
-      {
-        "type": "day_of_week",
-        "params": {
-          "blocked_days": [
-            0
-          ]
-        }
-      }
-    ],
     "params": {
       "asset_class": "EQUITY",
       "execution_mode": "bar_close",
       "drawdown_reference": "6M",
-      "require_crossing": false,
       "grid": [
         {
           "dd": -5.0,
@@ -91,11 +73,12 @@
             "be_pct": 10.0
           }
         ]
-      }
+      },
+      "require_crossing": false
     }
   },
   "data": {
-    "start": "2025-01-01",
+    "start": "2024-01-01",
     "end": "2025-12-01",
     "timeframe": "1D",
     "delta_min_coverage": 0.95,
@@ -128,25 +111,8 @@
     "initial_capital": 10000,
     "capital_per_unit": 100
   },
-  "optimization": {
-    "method": "grid",
-    "objective": "sharpe",
-    "search_space": {
-      "strategy.filters[0].params.window": {
-        "min": 20,
-        "max": 100,
-        "step": 10
-      },
-      "strategy.params.grid[0].dd": [
-        -15.0,
-        -20.0,
-        -25.0
-      ],
-      "strategy.params.tp_sl.rules[0].tp_pct": {
-        "min": 10.0,
-        "max": 30.0,
-        "step": 5.0
-      }
-    }
+  "output": {
+    "path": "runs/dca_equity_backtest.json",
+    "format": "json"
   }
 }

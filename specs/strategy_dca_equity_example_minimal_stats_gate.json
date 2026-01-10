@@ -23,25 +23,65 @@
       "execution_mode": "bar_close",
       "drawdown_reference": "3M",
       "grid": [
-        {"dd": -20.0, "weight": 0.20},
-        {"dd": -30.0, "weight": 0.20},
-        {"dd": -40.0, "weight": 0.20},
-        {"dd": -50.0, "weight": 0.20},
-        {"dd": -60.0, "weight": 0.20}
+        {
+          "dd": -20.0,
+          "weight": 0.2
+        },
+        {
+          "dd": -30.0,
+          "weight": 0.2
+        },
+        {
+          "dd": -40.0,
+          "weight": 0.2
+        },
+        {
+          "dd": -50.0,
+          "weight": 0.2
+        },
+        {
+          "dd": -60.0,
+          "weight": 0.2
+        }
       ],
       "tp_sl": {
         "enabled": true,
         "mode": "per_grid_max_dd",
         "sl_dd": -70.0,
         "rules": [
-          {"max_dd_reached": -20.0, "tp_pct": 20.0, "be_pct": 10.0},
-          {"max_dd_reached": -30.0, "tp_pct": 20.0, "be_pct": 10.0},
-          {"max_dd_reached": -40.0, "tp_pct": 20.0, "be_pct": 10.0},
-          {"max_dd_reached": -50.0, "tp_pct": 20.0, "be_pct": 10.0},
-          {"max_dd_reached": -60.0, "tp_pct": 20.0, "be_pct": 10.0},
-          {"max_dd_reached": -70.0, "tp_pct": 0.0, "be_pct": 10.0}
+          {
+            "max_dd_reached": -20.0,
+            "tp_pct": 20.0,
+            "be_pct": 10.0
+          },
+          {
+            "max_dd_reached": -30.0,
+            "tp_pct": 20.0,
+            "be_pct": 10.0
+          },
+          {
+            "max_dd_reached": -40.0,
+            "tp_pct": 20.0,
+            "be_pct": 10.0
+          },
+          {
+            "max_dd_reached": -50.0,
+            "tp_pct": 20.0,
+            "be_pct": 10.0
+          },
+          {
+            "max_dd_reached": -60.0,
+            "tp_pct": 20.0,
+            "be_pct": 10.0
+          },
+          {
+            "max_dd_reached": -70.0,
+            "tp_pct": 0.0,
+            "be_pct": 10.0
+          }
         ]
-      }
+      },
+      "require_crossing": false
     }
   },
   "data": {
@@ -57,8 +97,22 @@
     "mysql_env": "QE_MARKETDATA_MYSQL_URL"
   },
   "universe": [
-    {"symbol": "AAPL", "name": "Apple Inc.", "asset_class": "STOCK", "exchange": "NASDAQ", "currency": "USD", "broker": "IBKR"},
-    {"symbol": "MSFT", "name": "Microsoft Corp.", "asset_class": "STOCK", "exchange": "NASDAQ", "currency": "USD", "broker": "IBKR"}
+    {
+      "symbol": "AAPL",
+      "name": "Apple Inc.",
+      "asset_class": "STOCK",
+      "exchange": "NASDAQ",
+      "currency": "USD",
+      "broker": "IBKR"
+    },
+    {
+      "symbol": "MSFT",
+      "name": "Microsoft Corp.",
+      "asset_class": "STOCK",
+      "exchange": "NASDAQ",
+      "currency": "USD",
+      "broker": "IBKR"
+    }
   ],
   "performance": {
     "initial_capital": 10000,

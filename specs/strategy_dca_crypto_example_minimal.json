@@ -3,32 +3,78 @@
     "strategy_id": "DCA_CRYPTO_DEMO",
     "type": "dca_equity",
     "filters": [
-      { "type": "atr_risk_gate", "params": { "atr_window": 14, "max_atr_pct": 0.05 } },
-      { "type": "day_of_week", "params": { "blocked_days": [6] } }
+      {
+        "type": "atr_risk_gate",
+        "params": {
+          "atr_window": 14,
+          "max_atr_pct": 0.05
+        }
+      },
+      {
+        "type": "day_of_week",
+        "params": {
+          "blocked_days": [
+            6
+          ]
+        }
+      }
     ],
     "params": {
       "asset_class": "CRYPTO",
       "execution_mode": "bar_close",
       "drawdown_reference": "6M",
       "grid": [
-        {"dd": -20.0, "weight": 0.20},
-        {"dd": -30.0, "weight": 0.20},
-        {"dd": -40.0, "weight": 0.20},
-        {"dd": -50.0, "weight": 0.20},
-        {"dd": -60.0, "weight": 0.20}
+        {
+          "dd": -20.0,
+          "weight": 0.2
+        },
+        {
+          "dd": -30.0,
+          "weight": 0.2
+        },
+        {
+          "dd": -40.0,
+          "weight": 0.2
+        },
+        {
+          "dd": -50.0,
+          "weight": 0.2
+        },
+        {
+          "dd": -60.0,
+          "weight": 0.2
+        }
       ],
       "tp_sl": {
         "enabled": true,
         "mode": "per_grid_max_dd",
         "sl_dd": -70.0,
         "rules": [
-          {"max_dd_reached": -20.0, "tp_pct": 30.0},
-          {"max_dd_reached": -30.0, "tp_pct": 30.0},
-          {"max_dd_reached": -40.0, "tp_pct": 30.0},
-          {"max_dd_reached": -50.0, "tp_pct": 30.0, "be_pct": 15.0},
-          {"max_dd_reached": -60.0, "tp_pct": 30.0, "be_pct": 15.0}
+          {
+            "max_dd_reached": -20.0,
+            "tp_pct": 30.0
+          },
+          {
+            "max_dd_reached": -30.0,
+            "tp_pct": 30.0
+          },
+          {
+            "max_dd_reached": -40.0,
+            "tp_pct": 30.0
+          },
+          {
+            "max_dd_reached": -50.0,
+            "tp_pct": 30.0,
+            "be_pct": 15.0
+          },
+          {
+            "max_dd_reached": -60.0,
+            "tp_pct": 30.0,
+            "be_pct": 15.0
+          }
         ]
-      }
+      },
+      "require_crossing": false
     }
   },
   "data": {
@@ -45,15 +91,42 @@
     "mysql_env": "QE_MARKETDATA_MYSQL_URL"
   },
   "universe": [
-    {"symbol": "BTC", "asset_class": "CRYPTO"},
-    {"symbol": "ETH", "asset_class": "CRYPTO"},
-    {"symbol": "SOL", "asset_class": "CRYPTO"},
-    {"symbol": "BNB", "asset_class": "CRYPTO"},
-    {"symbol": "XRP", "asset_class": "CRYPTO"},
-    {"symbol": "ADA", "asset_class": "CRYPTO"},
-    {"symbol": "AVAX", "asset_class": "CRYPTO"},
-    {"symbol": "DOGE", "asset_class": "CRYPTO"},
-    {"symbol": "LINK", "asset_class": "CRYPTO"}
+    {
+      "symbol": "BTC",
+      "asset_class": "CRYPTO"
+    },
+    {
+      "symbol": "ETH",
+      "asset_class": "CRYPTO"
+    },
+    {
+      "symbol": "SOL",
+      "asset_class": "CRYPTO"
+    },
+    {
+      "symbol": "BNB",
+      "asset_class": "CRYPTO"
+    },
+    {
+      "symbol": "XRP",
+      "asset_class": "CRYPTO"
+    },
+    {
+      "symbol": "ADA",
+      "asset_class": "CRYPTO"
+    },
+    {
+      "symbol": "AVAX",
+      "asset_class": "CRYPTO"
+    },
+    {
+      "symbol": "DOGE",
+      "asset_class": "CRYPTO"
+    },
+    {
+      "symbol": "LINK",
+      "asset_class": "CRYPTO"
+    }
   ],
   "performance": {
     "initial_capital": 10000,

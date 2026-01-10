@@ -4,7 +4,9 @@
     "asset_class": "FX"
   },
   "data": {
-    "symbols": ["EURUSD"],
+    "symbols": [
+      "EURUSD"
+    ],
     "timeframe": "1h",
     "start": "2023-01-01",
     "end": "2023-06-01",
@@ -31,14 +33,55 @@
   },
   "signal": {
     "type": "ema_cross",
-    "params": { "fast": 5, "slow": 20 }
+    "params": {
+      "fast": 5,
+      "slow": 20,
+      "require_crossing": false
+    }
   },
   "filters": [
-    { "type": "ema_structure", "params": { "ema_fast": 20, "ema_slow": 50, "ema_long": 200 } },
-    { "type": "rsi_entry", "params": { "window": 14, "threshold": 35, "direction": "below" } },
-    { "type": "macd_entry", "params": { "fast": 12, "slow": 26, "signal": 9, "direction": "bullish" } },
-    { "type": "mean_reversion", "params": { "window": 20, "bb_mult": 2.0, "keltner_mult": 1.5, "direction": "long" } },
-    { "type": "fractal_analysis", "params": { "window": 64, "min_h": 0.4, "max_h": 0.6 } }
+    {
+      "type": "ema_structure",
+      "params": {
+        "ema_fast": 20,
+        "ema_slow": 50,
+        "ema_long": 200
+      }
+    },
+    {
+      "type": "rsi_entry",
+      "params": {
+        "window": 14,
+        "threshold": 35,
+        "direction": "below"
+      }
+    },
+    {
+      "type": "macd_entry",
+      "params": {
+        "fast": 12,
+        "slow": 26,
+        "signal": 9,
+        "direction": "bullish"
+      }
+    },
+    {
+      "type": "mean_reversion",
+      "params": {
+        "window": 20,
+        "bb_mult": 2.0,
+        "keltner_mult": 1.5,
+        "direction": "long"
+      }
+    },
+    {
+      "type": "fractal_analysis",
+      "params": {
+        "window": 64,
+        "min_h": 0.4,
+        "max_h": 0.6
+      }
+    }
   ],
   "tpsl": {
     "atr_window": 14,

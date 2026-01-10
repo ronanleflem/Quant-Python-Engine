@@ -5,14 +5,20 @@
   },
   "data": {
     "dataset_path": "specs/examples/data/eurusd_m1_sample.json",
-    "symbols": ["EURUSD"],
+    "symbols": [
+      "EURUSD"
+    ],
     "timeframe": "1m",
     "start": "2024-01-01",
     "end": "2024-01-07"
   },
   "signal": {
     "type": "ema_cross",
-    "params": { "fast": 5, "slow": 20 }
+    "params": {
+      "fast": 5,
+      "slow": 20,
+      "require_crossing": false
+    }
   },
   "filters": [
     {
