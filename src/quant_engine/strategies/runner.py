@@ -33,6 +33,7 @@ except Exception:
 _WARNED_MCAL_MISSING = False
 _WARNED_MCAL_ERROR = False
 _MARKET_SCHEDULE_CACHE: Dict[tuple[str, object, object], pd.DatetimeIndex] = {}
+_OHLC_CACHE: Dict[str, pd.DataFrame] = {}
 
 logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger(__name__)
@@ -161,6 +162,14 @@ def _fetch_ohlc_for_symbol(
 ) -> pd.DataFrame:
     # Combine top-level data spec with instrument overrides (instrument wins).
     merged_spec = {**data_spec, **instrument_spec}
+    cache_key = json.dumps(
+        {"symbol": symbol, "asset_class": asset_class, "data": merged_spec},
+        sort_keys=True,
+        default=str,
+    )
+    cached = _OHLC_CACHE.get(cache_key)
+    if cached is not None:
+        return cached.copy()
     source = merged_spec.get("source")
     if source == "csv":
         path = Path(merged_spec["path"])
@@ -188,6 +197,7 @@ def _fetch_ohlc_for_symbol(
     missing = required - set(df.columns)
     if missing:
         raise ValueError(f"Missing OHLC columns for {symbol}: {missing}")
+    _OHLC_CACHE[cache_key] = df.copy()
     return df
 
 

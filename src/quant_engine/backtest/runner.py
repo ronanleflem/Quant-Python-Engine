@@ -21,6 +21,7 @@ from ..strategies import runner as strategies_runner
 from ..strategies.runner import persist_payload_to_db
 
 LOGGER = logging.getLogger(__name__)
+_ROWS_CACHE: Dict[str, Tuple[List[Dict[str, Any]], Optional[str]]] = {}
 
 
 def load_backtest_spec(path: Path | str) -> Dict[str, Any]:
@@ -138,11 +139,23 @@ def _load_rows(
     data_spec: DataSpec,
     asset_class: str,
 ) -> Tuple[List[Dict[str, Any]], Optional[str]]:
+    cache_key = json.dumps(
+        {"data": data_spec_raw, "asset_class": asset_class},
+        sort_keys=True,
+        default=str,
+    )
+    cached = _ROWS_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
     if _uses_strategy_sources(data_spec_raw):
         symbol = _single_symbol(data_spec.symbols, data_spec_raw.get("symbol"))
         df, source = _fetch_ohlc_with_source(symbol, asset_class, data_spec_raw)
-        return _rows_from_dataframe(df, symbol), source
-    return dataset.load_dataset(data_spec), None
+        rows = _rows_from_dataframe(df, symbol)
+        _ROWS_CACHE[cache_key] = (rows, source)
+        return rows, source
+    rows = dataset.load_dataset(data_spec)
+    _ROWS_CACHE[cache_key] = (rows, None)
+    return rows, None
 
 
 def _build_signal(spec: Mapping[str, Any], rows: List[Dict[str, Any]]) -> List[int]:

@@ -1,0 +1,43 @@
+{
+  "objective": "sharpe",
+  "best": {
+    "params": {},
+    "objective": -Infinity,
+    "run": {
+      "strategyId": "DCA_EQUITY_DEMO",
+      "runId": "929df20c1cd64a86b6c643773c67dc67",
+      "assetClass": "EQUITY",
+      "universe": null,
+      "timeframe": "1D",
+      "symbol": null,
+      "comparedSymbol": null,
+      "startTsUtc": "2026-01-10T18:55:02.479245",
+      "endTsUtc": "2026-01-10T18:55:02.479245",
+      "winCount": 0,
+      "lossCount": 0,
+      "totalReturn": 0,
+      "maxDrawdown": 0.0,
+      "averageTrade": 0.0,
+      "averageSL": null,
+      "averageTP": null,
+      "rrMoyen": null,
+      "totalNetReturn": 0,
+      "netWinCount": 0,
+      "netLossCount": 0,
+      "averageNetTrade": 0.0,
+      "initialCapital": 10000.0,
+      "finalCapital": 10000.0,
+      "returnPct": 0.0,
+      "maxDrawdownPct": 0.0,
+      "volatilityPct": null,
+      "sharpe": null,
+      "sortino": null,
+      "winratePct": null,
+      "extra": {
+        "capital_per_unit": 100.0,
+        "note": "DCA performance computed from pct PnL with simple capital model."
+      }
+    }
+  },
+  "total_trials": 1
+}

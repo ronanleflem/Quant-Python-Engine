@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import math
 import random
 from copy import deepcopy
@@ -10,6 +11,8 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
 
 from ..io import artifacts
+
+LOGGER = logging.getLogger(__name__)
 from ..backtest import runner as backtest_runner
 from ..strategies import runner as strategy_runner
 
@@ -113,6 +116,17 @@ def _objective_value(run: Mapping[str, Any], objective: str) -> float:
         return float("-inf")
 
 
+def _count_trials(values: List[List[Any]], method: str, max_trials: Optional[int]) -> int:
+    if method == "random":
+        if max_trials is None:
+            raise ValueError("max_trials must be provided for random search")
+        return int(max_trials)
+    total = 1
+    for vals in values:
+        total *= max(len(vals), 1)
+    return total
+
+
 def _trial_specs(base_spec: Mapping[str, Any], keys: List[str], values: List[List[Any]], method: str, max_trials: Optional[int], seed: Optional[int]) -> Iterable[Dict[str, Any]]:
     if method == "random":
         rng = random.Random(seed)
@@ -149,6 +163,8 @@ def run_backtest_optimization(spec: Mapping[str, Any], *, out_dir: Optional[str 
     max_trials = cfg.get("max_trials")
     seed = cfg.get("seed")
     objective = str(cfg.get("objective", "sharpe"))
+    total_trials = _count_trials(values, method, max_trials)
+    LOGGER.info("Optimization trials planned: %d", total_trials)
 
     out_dir = Path(out_dir or cfg.get("out_dir") or "runs/optimize_backtest")
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -167,9 +183,14 @@ def run_backtest_optimization(spec: Mapping[str, Any], *, out_dir: Optional[str 
             best = {"params": trial_params, "objective": score, "run": run}
 
     artifacts.write_trials(out_dir / "trials.json", trials)
-    summary = {"objective": objective, "best": best}
+    summary = {"objective": objective, "best": best, "total_trials": total_trials}
     artifacts.write_summary(out_dir / "summary.json", summary)
-    return {"trials_path": str(out_dir / "trials.json"), "summary": str(out_dir / "summary.json"), "best": best}
+    return {
+        "trials_path": str(out_dir / "trials.json"),
+        "summary": str(out_dir / "summary.json"),
+        "best": best,
+        "total_trials": total_trials,
+    }
 
 
 def run_strategy_optimization(spec: Mapping[str, Any], *, out_dir: Optional[str | Path] = None) -> Dict[str, Any]:
@@ -182,6 +203,8 @@ def run_strategy_optimization(spec: Mapping[str, Any], *, out_dir: Optional[str 
     max_trials = cfg.get("max_trials")
     seed = cfg.get("seed")
     objective = str(cfg.get("objective", "sharpe"))
+    total_trials = _count_trials(values, method, max_trials)
+    LOGGER.info("Optimization trials planned: %d", total_trials)
 
     out_dir = Path(out_dir or cfg.get("out_dir") or "runs/optimize_strategy")
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -200,9 +223,14 @@ def run_strategy_optimization(spec: Mapping[str, Any], *, out_dir: Optional[str 
             best = {"params": trial_params, "objective": score, "run": run}
 
     artifacts.write_trials(out_dir / "trials.json", trials)
-    summary = {"objective": objective, "best": best}
+    summary = {"objective": objective, "best": best, "total_trials": total_trials}
     artifacts.write_summary(out_dir / "summary.json", summary)
-    return {"trials_path": str(out_dir / "trials.json"), "summary": str(out_dir / "summary.json"), "best": best}
+    return {
+        "trials_path": str(out_dir / "trials.json"),
+        "summary": str(out_dir / "summary.json"),
+        "best": best,
+        "total_trials": total_trials,
+    }
 
 
 def _get_path_value(spec: Mapping[str, Any], path: str) -> Any:

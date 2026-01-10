@@ -1,0 +1,46 @@
+{
+  "objective": "sharpe",
+  "best": {
+    "params": {
+      "signal.params.fast": 10,
+      "signal.params.slow": 60,
+      "tpsl.atr_k": 0.5,
+      "tpsl.r_mult": 1.5
+    },
+    "objective": 0.2064329182692339,
+    "run": {
+      "strategyId": "BT_EURUSD_M1_EMA",
+      "runId": "e8e47dde2ef745bf9afdec834d536798",
+      "assetClass": "FX",
+      "universe": null,
+      "timeframe": "1m",
+      "symbol": "EURUSD",
+      "comparedSymbol": null,
+      "startTsUtc": "2024-01-01T00:00:00+00:00",
+      "endTsUtc": "2024-01-01T01:59:00+00:00",
+      "winCount": 2,
+      "lossCount": 1,
+      "totalReturn": 0.17928907139451383,
+      "maxDrawdown": 0.006999999999607098,
+      "averageTrade": 0.05976302379817128,
+      "averageSL": null,
+      "averageTP": null,
+      "rrMoyen": 0.641894493646513,
+      "totalNetReturn": 0.17928907139451383,
+      "netWinCount": 2,
+      "netLossCount": 1,
+      "averageNetTrade": 0.05976302379817128,
+      "initialCapital": 10000.0,
+      "finalCapital": 10000.002,
+      "returnPct": 2.000000000407454e-05,
+      "maxDrawdownPct": 6.999998599607377e-05,
+      "volatilityPct": 0.5014345313734189,
+      "sharpe": 0.2064329182692339,
+      "sortino": null,
+      "winratePct": 66.66666666666666,
+      "extra": {
+        "note": "Backtest performance computed from pct returns."
+      }
+    }
+  }
+}
