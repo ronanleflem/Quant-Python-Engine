@@ -202,6 +202,8 @@ def run_backtest_from_spec(spec: Mapping[str, Any]) -> Dict[str, Any]:
     if not rows:
         raise ValueError("No data rows loaded for backtest")
     screening_cfg = (spec.get("optimization", {}) or {}).get("screening") or spec.get("screening") or {}
+    max_trades = None
+    max_seconds = None
     if isinstance(screening_cfg, Mapping) and screening_cfg.get("enabled"):
         max_bars = screening_cfg.get("max_bars")
         if max_bars is not None:
@@ -212,6 +214,8 @@ def run_backtest_from_spec(spec: Mapping[str, Any]) -> Dict[str, Any]:
             if max_bars_int > 0 and len(rows) > max_bars_int:
                 rows = rows[-max_bars_int:]
                 LOGGER.info("Screening enabled: keeping last %d bars", max_bars_int)
+        max_trades = screening_cfg.get("max_trades")
+        max_seconds = screening_cfg.get("max_seconds")
 
     symbol = _detect_symbol(rows)
     signal = _build_signal(spec, rows)
@@ -259,6 +263,8 @@ def run_backtest_from_spec(spec: Mapping[str, Any]) -> Dict[str, Any]:
         r_mult,
         slippage_bps=slippage_bps,
         fee_bps=fee_bps,
+        max_trades=max_trades,
+        max_seconds=max_seconds,
     )
 
     strategy_id = strategy_cfg.get("strategy_id", "backtest")

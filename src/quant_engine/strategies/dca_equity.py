@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 import logging
+import time
 from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
@@ -159,6 +160,11 @@ class DcaEquityStrategy(Strategy):
         dd_series = dd_series.fillna(0.0)
         symbol = context.get("symbol", context.get("symbol_id", ""))
         asset_class = context.get("asset_class", self.asset_class)
+        screening = context.get("screening") or {}
+        max_trades = screening.get("max_trades")
+        max_seconds = screening.get("max_seconds")
+        trade_count = 0
+        start_ts = time.monotonic()
         allow_mask = df["_filter_ok"].astype(bool) if "_filter_ok" in df.columns else pd.Series(True, index=df.index)
         try:
             dd_allowed = dd_series[allow_mask]
@@ -183,6 +189,8 @@ class DcaEquityStrategy(Strategy):
         for ts, price, dd, ref_h, high, low in zip(
             dd_series.index, close, dd_series, ref_high, df["high"].astype(float), df["low"].astype(float)
         ):
+            if max_seconds is not None and max_seconds > 0 and (time.monotonic() - start_ts) >= max_seconds:
+                break
             if last_processed is not None and ts <= last_processed:
                 continue
             allow_entries = self._allow_entries(df, ts)
@@ -209,6 +217,12 @@ class DcaEquityStrategy(Strategy):
                 for sig in (*buys, *sells):
                     if only_last_ts is None or sig.ts_open_utc == only_last_ts:
                         results.append(sig)
+                for sig in sells:
+                    action = (sig.meta or {}).get("action") if hasattr(sig, "meta") else None
+                    if action in {"take_profit", "break_even", "stop_loss"}:
+                        trade_count += 1
+                        if max_trades is not None and max_trades > 0 and trade_count >= max_trades:
+                            return results
             else:
                 state.max_dd = 0.0
                 state.cycle_low = None

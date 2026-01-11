@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import time
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
@@ -79,9 +80,14 @@ class DcaEtfStrategy(Strategy):
         rolling_max = close.cummax()
         symbol = context.get("symbol", context.get("symbol_id", ""))
         asset_class = context.get("asset_class", self.asset_class)
+        screening = context.get("screening") or {}
+        max_seconds = screening.get("max_seconds")
+        start_ts = time.monotonic()
         results: List[StrategySignal] = []
         last_processed = state.last_processed_ts
         for ts, price, dd in zip(dd_series.index, close, dd_series):
+            if max_seconds is not None and max_seconds > 0 and (time.monotonic() - start_ts) >= max_seconds:
+                break
             if last_processed is not None and ts <= last_processed:
                 continue
             allow_entries = self._allow_entries(df, ts)

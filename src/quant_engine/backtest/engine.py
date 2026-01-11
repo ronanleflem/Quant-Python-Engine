@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from typing import List, Dict, Any, Tuple
+import time
 
 from ..tpsl.rules import StopInitializer, TakeProfit
 from . import metrics
@@ -15,6 +16,8 @@ def run(
     r_mult: float,
     slippage_bps: float = 0.0,
     fee_bps: float = 0.0,
+    max_trades: int | None = None,
+    max_seconds: float | None = None,
 ) -> Tuple[List[Dict[str, Any]], List[float], Dict[str, float]]:
     """Execute a vectorised backtest.
 
@@ -34,9 +37,12 @@ def run(
     stop_price = 0.0
     tp_price = 0.0
     sl_distance = 0.0
+    start_ts = time.monotonic()
 
     n = len(dataset)
     for i in range(n - 1):
+        if max_seconds is not None and max_seconds > 0 and (time.monotonic() - start_ts) >= max_seconds:
+            break
         row = dataset[i]
         nxt = dataset[i + 1]
         signal = signals[i]
@@ -71,6 +77,8 @@ def run(
                 )
                 cash += pnl
                 position = 0
+                if max_trades is not None and max_trades > 0 and len(trades) >= max_trades:
+                    break
         equity.append(cash)
 
     # Handle trailing equity and open position at the end

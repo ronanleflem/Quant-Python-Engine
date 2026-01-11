@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
+import time
 
 import pandas as pd
 
@@ -84,9 +85,16 @@ class CryptoGridStrategy(Strategy):
         symbol = context.get("symbol", context.get("symbol_id", ""))
         asset_class = context.get("asset_class", self.asset_class)
         macro_context = context.get("macro")
+        screening = context.get("screening") or {}
+        max_trades = screening.get("max_trades")
+        max_seconds = screening.get("max_seconds")
+        trade_count = 0
+        start_ts = time.monotonic()
         results: List[StrategySignal] = []
         last_processed = state.last_processed_ts
         for ts, price, dd in zip(dd_series.index, close, dd_series):
+            if max_seconds is not None and max_seconds > 0 and (time.monotonic() - start_ts) >= max_seconds:
+                break
             if last_processed is not None and ts <= last_processed:
                 continue
             allow_entries = self._allow_entries(df, ts)
@@ -106,6 +114,12 @@ class CryptoGridStrategy(Strategy):
                 for sig in (*buys, *sells):
                     if only_last_ts is None or sig.ts_open_utc == only_last_ts:
                         results.append(sig)
+                for sig in sells:
+                    action = (sig.meta or {}).get("action") if hasattr(sig, "meta") else None
+                    if action in {"take_profit", "break_even", "stop_loss"}:
+                        trade_count += 1
+                        if max_trades is not None and max_trades > 0 and trade_count >= max_trades:
+                            return results
             self._maybe_reset_on_recovery(state, float(price))
             state.prev_dd = float(dd)
             state.last_processed_ts = ts

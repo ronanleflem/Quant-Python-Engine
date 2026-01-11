@@ -65,7 +65,9 @@ It is applied before filters/signals are computed.
   "optimization": {
     "screening": {
       "enabled": true,
-      "max_bars": 300
+      "max_bars": 300,
+      "max_trades": 25,
+      "max_seconds": 2.0
     }
   }
 }
@@ -73,6 +75,8 @@ It is applied before filters/signals are computed.
 
 When enabled:
 - only the last `max_bars` are used for the trial
+- stop early after `max_trades` completed trades (DCA/crypto grid)
+- stop early after `max_seconds` of compute time
 - storage remains light for all trials
 
 ## Remaining work

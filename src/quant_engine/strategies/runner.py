@@ -141,7 +141,7 @@ def _run_backtest_core(spec: Mapping[str, Any]) -> tuple[Dict[str, Any], Dict[st
             else:
                 df["_filter_ok"] = mask.reindex(df.index, fill_value=False)
         ohlc_by_symbol[symbol] = df.copy()
-        context = {"symbol": symbol, "asset_class": asset_class}
+        context = {"symbol": symbol, "asset_class": asset_class, "screening": screening_cfg}
         signals = strategy.backtest(df, context)
         serialized = [_serialize_signal(sig) for sig in signals]
         signals_by_symbol[symbol] = serialized
