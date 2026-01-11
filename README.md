@@ -166,6 +166,13 @@ Voir aussi `docs/optimization.md` pour le workflow complet.
 
 ## Exemples de filtres
 
+## Exemples d'optimization
+- `specs/examples/optimization/backtest_eurusd_m1_optimize_pruning_levels.json`
+- `specs/examples/optimization/backtest_eurusd_m1_optimize_fullpass_levels.json`
+- `specs/examples/optimization/backtest_eurusd_m1_optimize_fullpass_folds.json`
+- `specs/examples/optimization/strategy_dca_equity_optimize_levels.json`
+- `specs/examples/optimization/strategy_dca_equity_optimize_windows_median.json`
+
 ### Volatilité & tendance
 
 ```bash
@@ -650,4 +657,3 @@ Outre `month` / `month_of_year`, vous pouvez analyser `quarter` (1–4) et les f
 
 - [Architecture & Récap Fonctionnel](docs/architecture_overview.md)
 - [Market Stats – Notes & Garde-fous](docs/market_stats_guidelines.md)
-

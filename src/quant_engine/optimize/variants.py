@@ -244,6 +244,45 @@ def _aggregate_scores(values: List[float], mode: str) -> float:
     return sum(clean) / len(clean)
 
 
+def _screening_pass(window_scores: List[float], cfg: Mapping[str, Any]) -> bool:
+    if not window_scores:
+        return True
+    min_objective = cfg.get("min_window_objective")
+    min_windows_passed = cfg.get("min_windows_passed")
+    max_windows_failed = cfg.get("max_windows_failed")
+    if min_objective is None and min_windows_passed is None and max_windows_failed is None:
+        return True
+    try:
+        threshold = float(min_objective) if min_objective is not None else None
+    except Exception:
+        threshold = None
+    passed = 0
+    failed = 0
+    for score in window_scores:
+        if threshold is None:
+            passed += 1
+            continue
+        if score >= threshold:
+            passed += 1
+        else:
+            failed += 1
+    if min_windows_passed is not None:
+        try:
+            if passed < int(min_windows_passed):
+                return False
+        except Exception:
+            pass
+    if max_windows_failed is not None:
+        try:
+            if failed > int(max_windows_failed):
+                return False
+        except Exception:
+            pass
+    if threshold is not None and passed == 0:
+        return False
+    return True
+
+
 def _count_trials(values: List[List[Any]], method: str, max_trials: Optional[int]) -> int:
     if method == "random":
         if max_trials is None:
@@ -572,7 +611,9 @@ def _log_optimization_plan(
         if promotion_cfg.get(key) is not None
     }
     artifacts_mode = str(artifacts_cfg.get("mode", "full")).lower()
-    full_mode = str(full_cfg.get("artifacts", {}).get("mode", "full")).lower() if full_cfg else "full"
+    full_artifacts = full_cfg.get("artifacts") if isinstance(full_cfg.get("artifacts"), Mapping) else {}
+    full_mode = str(full_artifacts.get("mode", "full")).lower() if full_cfg else "full"
+    full_levels = _promotion_levels(full_artifacts) if full_cfg else []
     cluster_mode = _normalize_cluster_mode(cluster_cfg.get("mode", "kmeans"))
     LOGGER.info(
         "Optimization plan (%s): out_dir=%s method=%s trials=%d params=%d objective=%s",
@@ -592,20 +633,25 @@ def _log_optimization_plan(
         base_meta.get("code_version"),
     )
     LOGGER.info(
-        "Optimization screening: enabled=%s windows=%d aggregate=%s max_bars=%s max_trades=%s max_seconds=%s",
+        "Optimization screening: enabled=%s windows=%d aggregate=%s max_bars=%s max_trades=%s max_seconds=%s pruning=%s min_window_objective=%s min_windows_passed=%s max_windows_failed=%s",
         screening_enabled,
         len(windows),
         screening_cfg.get("aggregate", "mean"),
         screening_cfg.get("max_bars"),
         screening_cfg.get("max_trades"),
         screening_cfg.get("max_seconds"),
+        screening_cfg.get("pruning"),
+        screening_cfg.get("min_window_objective"),
+        screening_cfg.get("min_windows_passed"),
+        screening_cfg.get("max_windows_failed"),
     )
     LOGGER.info(
-        "Optimization promotion: top_k=%s constraints=%s dedupe_distance=%s behavior_distance=%s",
+        "Optimization promotion: top_k=%s constraints=%s dedupe_distance=%s behavior_distance=%s levels=%s",
         promotion_cfg.get("top_k", 0),
         constraints or None,
         promotion_cfg.get("dedupe_distance"),
         promotion_cfg.get("behavior_distance"),
+        _promotion_levels(promotion_cfg),
     )
     LOGGER.info(
         "Optimization behavior: mode=%s metrics=%s bins=%d points=%d cluster_enabled=%s cluster_mode=%s",
@@ -617,12 +663,13 @@ def _log_optimization_plan(
         cluster_mode,
     )
     LOGGER.info(
-        "Optimization artifacts: mode=%s trade_sample_size=%s equity_max_points=%s full_pass=%s full_mode=%s",
+        "Optimization artifacts: mode=%s trade_sample_size=%s equity_max_points=%s full_pass=%s full_mode=%s full_levels=%s",
         artifacts_mode,
         artifacts_cfg.get("trade_sample_size"),
         artifacts_cfg.get("equity_max_points"),
         bool(full_cfg.get("enabled")),
         full_mode,
+        full_levels,
     )
     LOGGER.info(
         "Optimization refine: enabled=%s top_k=%s shrink_pct=%s freeze_keys=%s freeze_prefixes=%s",
@@ -639,6 +686,51 @@ def _log_optimization_plan(
         bool(refine_cfg.get("enabled")),
         bool(full_cfg.get("enabled")),
     )
+
+
+def _promotion_levels(cfg: Mapping[str, Any]) -> List[Dict[str, Any]]:
+    levels = cfg.get("levels") or []
+    if not isinstance(levels, list):
+        return []
+    cleaned: List[Dict[str, Any]] = []
+    for entry in levels:
+        if not isinstance(entry, Mapping):
+            continue
+        level = dict(entry)
+        if "max_rank" not in level:
+            continue
+        cleaned.append(level)
+    return cleaned
+
+
+def _level_for_rank(levels: List[Dict[str, Any]], rank: int) -> Optional[Dict[str, Any]]:
+    if not levels:
+        return None
+    try:
+        rank_val = int(rank)
+    except Exception:
+        rank_val = rank
+    for entry in sorted(levels, key=lambda item: int(item.get("max_rank", 0) or 0)):
+        try:
+            max_rank = int(entry.get("max_rank", 0) or 0)
+        except Exception:
+            continue
+        if max_rank > 0 and rank_val <= max_rank:
+            return entry
+    return None
+
+
+def _artifacts_cfg_for_level(
+    base_cfg: Mapping[str, Any],
+    level_cfg: Optional[Mapping[str, Any]],
+) -> Dict[str, Any]:
+    merged = dict(base_cfg or {})
+    if not level_cfg:
+        return merged
+    for key in ("mode", "trade_sample_size", "equity_max_points"):
+        if key in level_cfg and level_cfg.get(key) is not None:
+            merged[key] = level_cfg.get(key)
+    return merged
 
 
 def _meets_constraints(
@@ -1154,6 +1246,7 @@ def _write_promoted(
     promoted: List[Dict[str, Any]],
     *,
     artifacts_cfg: Optional[Mapping[str, Any]] = None,
+    promotion_cfg: Optional[Mapping[str, Any]] = None,
 ) -> List[Dict[str, Any]]:
     if not promoted:
         return []
@@ -1161,13 +1254,24 @@ def _write_promoted(
     promoted_dir.mkdir(parents=True, exist_ok=True)
     stored: List[Dict[str, Any]] = []
     artifacts_cfg = artifacts_cfg or {}
-    compact_mode = str(artifacts_cfg.get("mode", "full")).lower()
-    equity_limit = artifacts_cfg.get("equity_max_points")
-    trade_limit = artifacts_cfg.get("trade_sample_size")
-    for entry in promoted:
+    levels = _promotion_levels(promotion_cfg or {})
+    logger = logging.getLogger(__name__)
+    if not levels:
+        logger.info("Promotion: no levels configured, using artifacts mode '%s'", artifacts_cfg.get("mode", "full"))
+    for idx, entry in enumerate(promoted, start=1):
+        level_cfg = _level_for_rank(levels, idx)
+        if levels and level_cfg is None:
+            logger.info("Promotion: no level for rank %d, using base artifacts config", idx)
+        level_name = level_cfg.get("mode") if level_cfg else None
+        level_artifacts_cfg = _artifacts_cfg_for_level(artifacts_cfg, level_cfg)
+        compact_mode = str(level_artifacts_cfg.get("mode", "full")).lower()
+        equity_limit = level_artifacts_cfg.get("equity_max_points")
+        trade_limit = level_artifacts_cfg.get("trade_sample_size")
         trial_id = entry.get("trial_id", "unknown")
         payload = entry.get("payload") or {}
         if compact_mode in {"compact", "summary", "light"}:
+            payload = _compact_payload(payload, equity_limit=equity_limit, trade_limit=trade_limit, mode=compact_mode)
+        if compact_mode in {"stats"}:
             payload = _compact_payload(payload, equity_limit=equity_limit, trade_limit=trade_limit, mode=compact_mode)
         path = promoted_dir / f"trial_{trial_id}.json"
         path.write_text(json.dumps(payload, indent=2, default=str))
@@ -1177,6 +1281,7 @@ def _write_promoted(
                 "objective": entry.get("objective"),
                 "params": entry.get("params"),
                 "path": str(path),
+                "level": level_name or compact_mode,
             }
         )
     return stored
@@ -1206,26 +1311,81 @@ def _run_full_pass(
     out_dir: Path,
     runner_fn,
     artifacts_cfg: Optional[Mapping[str, Any]] = None,
+    full_cfg: Optional[Mapping[str, Any]] = None,
+    promotion_cfg: Optional[Mapping[str, Any]] = None,
+    objective: Any = None,
 ) -> List[Dict[str, Any]]:
     if not promoted:
         return []
     full_dir = out_dir / "full_pass"
     full_dir.mkdir(parents=True, exist_ok=True)
     artifacts_cfg = artifacts_cfg or {}
-    compact_mode = str(artifacts_cfg.get("mode", "full")).lower()
-    equity_limit = artifacts_cfg.get("equity_max_points")
-    trade_limit = artifacts_cfg.get("trade_sample_size")
+    full_cfg = full_cfg or {}
+    folds = full_cfg.get("folds") or []
+    if not isinstance(folds, list):
+        folds = []
+    aggregate = full_cfg.get("aggregate", "mean")
+    levels = _promotion_levels(artifacts_cfg) or _promotion_levels(promotion_cfg or {})
+    logger = logging.getLogger(__name__)
+    if not levels:
+        logger.info("Full pass: no levels configured, using artifacts mode '%s'", artifacts_cfg.get("mode", "full"))
     stored: List[Dict[str, Any]] = []
-    for entry in promoted:
+    for idx, entry in enumerate(promoted, start=1):
+        level_cfg = _level_for_rank(levels, idx) if levels else None
+        if levels and level_cfg is None:
+            logger.info("Full pass: no level for rank %d, using base artifacts config", idx)
+        level_artifacts_cfg = _artifacts_cfg_for_level(artifacts_cfg, level_cfg)
+        compact_mode = str(level_artifacts_cfg.get("mode", "full")).lower()
+        equity_limit = level_artifacts_cfg.get("equity_max_points")
+        trade_limit = level_artifacts_cfg.get("trade_sample_size")
         trial_id = entry.get("trial_id", "unknown")
         params = entry.get("params", {})
-        spec = _disable_screening(base_spec)
-        for key, val in (params or {}).items():
-            _set_path(spec, key, val)
-        result = runner_fn(spec)
-        payload = result.get("payload") or {}
-        if compact_mode in {"compact", "summary", "light", "stats"}:
-            payload = _compact_payload(payload, equity_limit=equity_limit, trade_limit=trade_limit, mode=compact_mode)
+        if folds:
+            fold_payloads: List[Dict[str, Any]] = []
+            fold_scores: List[float] = []
+            for fold_idx, fold in enumerate(folds):
+                if not isinstance(fold, Mapping):
+                    continue
+                spec = _disable_screening(base_spec)
+                for key, val in (params or {}).items():
+                    _set_path(spec, key, val)
+                spec.setdefault("optimization", {}).setdefault("screening", {})
+                spec["optimization"]["screening"]["enabled"] = True
+                spec["optimization"]["screening"]["window_start"] = fold.get("start")
+                spec["optimization"]["screening"]["window_end"] = fold.get("end")
+                result = runner_fn(spec)
+                payload = result.get("payload") or {}
+                run = payload.get("run") or {}
+                score = _objective_value(run, objective) if objective is not None else float("nan")
+                fold_scores.append(score)
+                if compact_mode in {"compact", "summary", "light", "stats"}:
+                    payload = _compact_payload(
+                        payload, equity_limit=equity_limit, trade_limit=trade_limit, mode=compact_mode
+                    )
+                fold_payloads.append(
+                    {
+                        "fold": fold_idx,
+                        "window": {"start": fold.get("start"), "end": fold.get("end")},
+                        "objective": score,
+                        "payload": payload,
+                    }
+                )
+            agg_score = _aggregate_scores(fold_scores, aggregate) if fold_scores else float("-inf")
+            payload = {
+                "folds": fold_payloads,
+                "aggregate_objective": agg_score,
+                "aggregate": aggregate,
+            }
+        else:
+            spec = _disable_screening(base_spec)
+            for key, val in (params or {}).items():
+                _set_path(spec, key, val)
+            result = runner_fn(spec)
+            payload = result.get("payload") or {}
+            if compact_mode in {"compact", "summary", "light", "stats"}:
+                payload = _compact_payload(
+                    payload, equity_limit=equity_limit, trade_limit=trade_limit, mode=compact_mode
+                )
         path = full_dir / f"trial_{trial_id}.json"
         path.write_text(json.dumps(payload, indent=2, default=str))
         stored.append(
@@ -1233,6 +1393,7 @@ def _run_full_pass(
                 "trial_id": trial_id,
                 "params": params,
                 "path": str(path),
+                "level": (level_cfg.get("mode") if level_cfg else compact_mode),
             }
         )
     return stored
@@ -1346,9 +1507,12 @@ def run_backtest_optimization(spec: Mapping[str, Any], *, out_dir: Optional[str 
                 run = payload.get("run") or {}
                 window_runs.append(run)
                 window_scores.append(_objective_value(run, objective))
+            passed = _screening_pass(window_scores, screening_cfg)
             score = _aggregate_scores(window_scores, screening_cfg.get("aggregate", "mean"))
+            if not passed:
+                score = float("-inf")
             payload = {"runs": window_runs}
-            run = {"window_scores": window_scores}
+            run = {"window_scores": window_scores, "screening_failed": (not passed)}
         else:
             result = backtest_runner.run_backtest_from_spec(trial_spec)
             payload = result.get("payload") or {}
@@ -1403,7 +1567,12 @@ def run_backtest_optimization(spec: Mapping[str, Any], *, out_dir: Optional[str 
         behavior_bounds=behavior_bounds,
         cluster_cfg=cluster_cfg,
     )
-    promoted_records = _write_promoted(out_dir, promoted, artifacts_cfg=artifacts_cfg)
+    promoted_records = _write_promoted(
+        out_dir,
+        promoted,
+        artifacts_cfg=artifacts_cfg,
+        promotion_cfg=promotion_cfg,
+    )
     refine_records: List[Dict[str, Any]] = []
     if refine_cfg.get("enabled"):
         refine_dir = out_dir / "refine"
@@ -1447,6 +1616,9 @@ def run_backtest_optimization(spec: Mapping[str, Any], *, out_dir: Optional[str 
             out_dir=out_dir,
             runner_fn=backtest_runner.run_backtest_from_spec,
             artifacts_cfg=full_cfg.get("artifacts") if isinstance(full_cfg.get("artifacts"), Mapping) else {},
+            full_cfg=full_cfg,
+            promotion_cfg=promotion_cfg,
+            objective=objective,
         )
     _log_storage_impact(total_trials, len(promoted_records), len(full_records))
     summary = {
@@ -1566,9 +1738,12 @@ def run_strategy_optimization(spec: Mapping[str, Any], *, out_dir: Optional[str 
                 run = payload.get("run") or {}
                 window_runs.append(run)
                 window_scores.append(_objective_value(run, objective))
+            passed = _screening_pass(window_scores, screening_cfg)
             score = _aggregate_scores(window_scores, screening_cfg.get("aggregate", "mean"))
+            if not passed:
+                score = float("-inf")
             payload = {"runs": window_runs}
-            run = {"window_scores": window_scores}
+            run = {"window_scores": window_scores, "screening_failed": (not passed)}
         else:
             result = strategy_runner.run_backtest_with_payload(trial_spec)
             payload = result.get("payload") or {}
@@ -1623,7 +1798,12 @@ def run_strategy_optimization(spec: Mapping[str, Any], *, out_dir: Optional[str 
         behavior_bounds=behavior_bounds,
         cluster_cfg=cluster_cfg,
     )
-    promoted_records = _write_promoted(out_dir, promoted, artifacts_cfg=artifacts_cfg)
+    promoted_records = _write_promoted(
+        out_dir,
+        promoted,
+        artifacts_cfg=artifacts_cfg,
+        promotion_cfg=promotion_cfg,
+    )
     refine_records: List[Dict[str, Any]] = []
     if refine_cfg.get("enabled"):
         refine_dir = out_dir / "refine"
@@ -1667,6 +1847,9 @@ def run_strategy_optimization(spec: Mapping[str, Any], *, out_dir: Optional[str 
             out_dir=out_dir,
             runner_fn=strategy_runner.run_backtest_with_payload,
             artifacts_cfg=full_cfg.get("artifacts") if isinstance(full_cfg.get("artifacts"), Mapping) else {},
+            full_cfg=full_cfg,
+            promotion_cfg=promotion_cfg,
+            objective=objective,
         )
     _log_storage_impact(total_trials, len(promoted_records), len(full_records))
     summary = {

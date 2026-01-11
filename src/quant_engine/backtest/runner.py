@@ -204,6 +204,7 @@ def run_backtest_from_spec(spec: Mapping[str, Any]) -> Dict[str, Any]:
     screening_cfg = (spec.get("optimization", {}) or {}).get("screening") or spec.get("screening") or {}
     max_trades = None
     max_seconds = None
+    pruning_cfg = None
     if isinstance(screening_cfg, Mapping) and screening_cfg.get("enabled"):
         window_start = screening_cfg.get("window_start")
         window_end = screening_cfg.get("window_end")
@@ -225,6 +226,9 @@ def run_backtest_from_spec(spec: Mapping[str, Any]) -> Dict[str, Any]:
                 LOGGER.info("Screening enabled: keeping last %d bars", max_bars_int)
         max_trades = screening_cfg.get("max_trades")
         max_seconds = screening_cfg.get("max_seconds")
+        candidate_pruning = screening_cfg.get("pruning")
+        if isinstance(candidate_pruning, Mapping):
+            pruning_cfg = candidate_pruning
 
     symbol = _detect_symbol(rows)
     signal = _build_signal(spec, rows)
@@ -274,6 +278,7 @@ def run_backtest_from_spec(spec: Mapping[str, Any]) -> Dict[str, Any]:
         fee_bps=fee_bps,
         max_trades=max_trades,
         max_seconds=max_seconds,
+        pruning=pruning_cfg,
     )
 
     strategy_id = strategy_cfg.get("strategy_id", "backtest")

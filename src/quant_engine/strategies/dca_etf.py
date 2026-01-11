@@ -2,12 +2,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import logging
 import time
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
 from .base import Strategy, StrategySignal
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 @dataclass
@@ -82,7 +86,28 @@ class DcaEtfStrategy(Strategy):
         asset_class = context.get("asset_class", self.asset_class)
         screening = context.get("screening") or {}
         max_seconds = screening.get("max_seconds")
+        pruning_cfg = screening.get("pruning") if isinstance(screening, dict) else None
+        pruning_enabled = (
+            only_last_ts is None
+            and isinstance(pruning_cfg, dict)
+            and pruning_cfg.get("enabled", True) is not False
+        )
+        max_dd_pct = pruning_cfg.get("max_drawdown_pct") if pruning_enabled else None
+        min_signals_cfg = pruning_cfg.get("min_signals_after_bars") if pruning_enabled else None
+        bars_threshold = None
+        min_signals = None
+        if isinstance(min_signals_cfg, dict):
+            try:
+                bars_threshold = int(min_signals_cfg.get("bars"))
+            except Exception:
+                bars_threshold = None
+            try:
+                min_signals = int(min_signals_cfg.get("min_signals"))
+            except Exception:
+                min_signals = None
         start_ts = time.monotonic()
+        bars_seen = 0
+        signals_seen = 0
         results: List[StrategySignal] = []
         last_processed = state.last_processed_ts
         for ts, price, dd in zip(dd_series.index, close, dd_series):
@@ -96,6 +121,7 @@ class DcaEtfStrategy(Strategy):
                 self._maybe_start_cycle(state, float(dd), float(rolling_max.loc[ts]))
             if state.cycle_active:
                 buys = self._check_buy_levels(state, float(dd), ts, symbol, asset_class) if allow_entries else []
+                signals_seen += len(buys)
                 for sig in buys:
                     if only_last_ts is None or sig.ts_open_utc == only_last_ts:
                         results.append(sig)
@@ -104,6 +130,37 @@ class DcaEtfStrategy(Strategy):
             state.prev_dd = float(dd)
             state.cycle_high_ref = float(rolling_max.loc[ts])
             state.last_processed_ts = ts
+            bars_seen += 1
+            if pruning_enabled:
+                if max_dd_pct is not None:
+                    try:
+                        max_dd_value = float(max_dd_pct)
+                    except Exception:
+                        max_dd_value = None
+                    if max_dd_value is not None and float(dd) <= -abs(max_dd_value):
+                        LOGGER.info(
+                            "Pruning %s: drawdown %.2f%% <= -%.2f%% after %d bars",
+                            symbol,
+                            float(dd),
+                            abs(max_dd_value),
+                            bars_seen,
+                        )
+                        break
+                if (
+                    bars_threshold is not None
+                    and min_signals is not None
+                    and bars_threshold > 0
+                    and bars_seen >= bars_threshold
+                    and signals_seen < min_signals
+                ):
+                    LOGGER.info(
+                        "Pruning %s: signals=%d after %d bars (min=%d)",
+                        symbol,
+                        signals_seen,
+                        bars_seen,
+                        min_signals,
+                    )
+                    break
         return results
 
     @staticmethod

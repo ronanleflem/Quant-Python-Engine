@@ -1,0 +1,199 @@
+{
+  "strategy": {
+    "strategy_id": "DCA_EQUITY_DEMO_OPT",
+    "type": "dca_equity",
+    "filters": [
+      {
+        "type": "ema_slope",
+        "params": {
+          "window": 20,
+          "slope_thresh": -0.2
+        }
+      },
+      {
+        "type": "day_of_week",
+        "params": {
+          "blocked_days": [
+            0
+          ]
+        }
+      }
+    ],
+    "params": {
+      "asset_class": "EQUITY",
+      "execution_mode": "bar_close",
+      "drawdown_reference": "6M",
+      "require_crossing": false,
+      "grid": [
+        {
+          "dd": -5.0,
+          "weight": 0.2
+        },
+        {
+          "dd": -10.0,
+          "weight": 0.2
+        },
+        {
+          "dd": -15.0,
+          "weight": 0.2
+        },
+        {
+          "dd": -20.0,
+          "weight": 0.2
+        },
+        {
+          "dd": -25.0,
+          "weight": 0.2
+        },
+        {
+          "dd": -30.0,
+          "weight": 0.2
+        }
+      ],
+      "tp_sl": {
+        "enabled": true,
+        "mode": "per_grid_max_dd",
+        "sl_dd": -35.0,
+        "rules": [
+          {
+            "max_dd_reached": -5.0,
+            "tp_pct": 20.0,
+            "be_pct": 10.0
+          },
+          {
+            "max_dd_reached": -10.0,
+            "tp_pct": 20.0,
+            "be_pct": 10.0
+          },
+          {
+            "max_dd_reached": -15.0,
+            "tp_pct": 20.0,
+            "be_pct": 10.0
+          },
+          {
+            "max_dd_reached": -20.0,
+            "tp_pct": 20.0,
+            "be_pct": 10.0
+          },
+          {
+            "max_dd_reached": -25.0,
+            "tp_pct": 20.0,
+            "be_pct": 10.0
+          },
+          {
+            "max_dd_reached": -30.0,
+            "tp_pct": 20.0,
+            "be_pct": 10.0
+          },
+          {
+            "max_dd_reached": -35.0,
+            "tp_pct": 0.0,
+            "be_pct": 10.0
+          }
+        ]
+      }
+    }
+  },
+  "data": {
+    "start": "2025-01-01",
+    "end": "2025-12-01",
+    "timeframe": "1D",
+    "delta_min_coverage": 0.95,
+    "delta_exchange": "NASDAQ",
+    "delta_base": "s3://quant-delta-dev",
+    "delta_prefix": "delta",
+    "schema": "marketdata",
+    "table": "ohlcv",
+    "mysql_env": "QE_MARKETDATA_MYSQL_URL"
+  },
+  "universe": [
+    {
+      "symbol": "AAPL",
+      "name": "Apple Inc.",
+      "asset_class": "STOCK",
+      "exchange": "NASDAQ",
+      "currency": "USD",
+      "broker": "IBKR"
+    },
+    {
+      "symbol": "MSFT",
+      "name": "Microsoft Corp.",
+      "asset_class": "STOCK",
+      "exchange": "NASDAQ",
+      "currency": "USD",
+      "broker": "IBKR"
+    }
+  ],
+  "performance": {
+    "initial_capital": 10000,
+    "capital_per_unit": 100
+  },
+  "optimization": {
+    "method": "grid",
+    "objective": {
+      "weights": {
+        "sharpe": 1.0,
+        "return_pct": 0.3
+      },
+      "penalties": {
+        "max_drawdown_pct": {
+          "threshold": 40,
+          "direction": "above",
+          "power": 2,
+          "weight": -0.5
+        }
+      }
+    },
+    "search_space": {
+      "strategy.filters[0].params.window": {
+        "min": 20,
+        "max": 100,
+        "step": 10
+      },
+      "strategy.params.grid[0].dd": [
+        -15.0,
+        -20.0,
+        -25.0
+      ]
+    },
+    "promotion": {
+      "top_k": 20,
+      "min_trades": 1,
+      "levels": [
+        {
+          "max_rank": 3,
+          "mode": "full"
+        },
+        {
+          "max_rank": 10,
+          "mode": "compact",
+          "trade_sample_size": 50,
+          "equity_max_points": 200
+        },
+        {
+          "max_rank": 20,
+          "mode": "stats"
+        }
+      ]
+    },
+    "screening": {
+      "enabled": true,
+      "max_bars": 300,
+      "max_trades": 25,
+      "max_seconds": 2.0,
+      "pruning": {
+        "max_drawdown_pct": 35,
+        "min_signals_after_bars": {
+          "bars": 150,
+          "min_signals": 1
+        }
+      }
+    },
+    "full_pass": {
+      "enabled": true,
+      "artifacts": {
+        "mode": "compact"
+      }
+    }
+  }
+}

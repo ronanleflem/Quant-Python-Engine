@@ -1,8 +1,9 @@
 """Vectorised bar-based backtest engine."""
 from __future__ import annotations
 
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Mapping
 import time
+import logging
 
 from ..tpsl.rules import StopInitializer, TakeProfit
 from . import metrics
@@ -18,6 +19,7 @@ def run(
     fee_bps: float = 0.0,
     max_trades: int | None = None,
     max_seconds: float | None = None,
+    pruning: Mapping[str, Any] | None = None,
 ) -> Tuple[List[Dict[str, Any]], List[float], Dict[str, float]]:
     """Execute a vectorised backtest.
 
@@ -28,6 +30,25 @@ def run(
     """
 
     cost_rate = (slippage_bps + fee_bps) / 10000.0
+    pruning_cfg = pruning if isinstance(pruning, Mapping) else {}
+    pruning_enabled = bool(pruning_cfg) and pruning_cfg.get("enabled", True) is not False
+    max_dd_pct = pruning_cfg.get("max_drawdown_pct") if pruning_enabled else None
+    min_signals_cfg = pruning_cfg.get("min_signals_after_bars") if pruning_enabled else None
+    bars_threshold = None
+    min_signals = None
+    if isinstance(min_signals_cfg, Mapping):
+        bars_threshold = min_signals_cfg.get("bars")
+        min_signals = min_signals_cfg.get("min_signals")
+        try:
+            bars_threshold = int(bars_threshold)
+        except Exception:
+            bars_threshold = None
+        try:
+            min_signals = int(min_signals)
+        except Exception:
+            min_signals = None
+
+    logger = logging.getLogger(__name__)
     trades: List[Dict[str, Any]] = []
     equity: List[float] = []
     cash = 0.0
@@ -38,6 +59,9 @@ def run(
     tp_price = 0.0
     sl_distance = 0.0
     start_ts = time.monotonic()
+    bars_seen = 0
+    signals_seen = 0
+    peak = 0.0
 
     n = len(dataset)
     for i in range(n - 1):
@@ -46,6 +70,9 @@ def run(
         row = dataset[i]
         nxt = dataset[i + 1]
         signal = signals[i]
+        bars_seen += 1
+        if signal == 1:
+            signals_seen += 1
 
         if position == 0 and signal == 1:
             entry_price = nxt["open"] * (1 + cost_rate)
@@ -80,6 +107,39 @@ def run(
                 if max_trades is not None and max_trades > 0 and len(trades) >= max_trades:
                     break
         equity.append(cash)
+        if pruning_enabled:
+            if max_dd_pct is not None:
+                try:
+                    max_dd_value = float(max_dd_pct)
+                except Exception:
+                    max_dd_value = None
+                if max_dd_value is not None and max_dd_value > 0:
+                    if cash > peak:
+                        peak = cash
+                    denom = abs(peak) if abs(peak) > 1e-9 else 1.0
+                    dd_pct = (peak - cash) / denom * 100.0
+                    if dd_pct >= max_dd_value:
+                        logger.info(
+                            "Pruning backtest: drawdown %.2f%% >= %.2f%% after %d bars",
+                            dd_pct,
+                            max_dd_value,
+                            bars_seen,
+                        )
+                        break
+            if (
+                bars_threshold is not None
+                and min_signals is not None
+                and bars_threshold > 0
+                and bars_seen >= bars_threshold
+                and signals_seen < min_signals
+            ):
+                logger.info(
+                    "Pruning backtest: signals=%d after %d bars (min=%d)",
+                    signals_seen,
+                    bars_seen,
+                    min_signals,
+                )
+                break
 
     # Handle trailing equity and open position at the end
     if position == 1:

@@ -46,6 +46,35 @@ Pour limiter le volume, tu peux activer un mode "compact" sur les payloads promu
 - MAE/MFE si dispo dans les trades
 - pnl par jour (agrégé par date d'exit)
 
+
+
+### Promotion manager (niveaux d'artefacts)
+
+Pour controler le volume disque, tu peux definir des niveaux d'artefacts par rang :
+
+```json
+{
+  "optimization": {
+    "promotion": {
+      "top_k": 20,
+      "levels": [
+        { "max_rank": 3, "mode": "full" },
+        { "max_rank": 10, "mode": "compact", "trade_sample_size": 50, "equity_max_points": 200 },
+        { "max_rank": 20, "mode": "stats" }
+      ]
+    }
+  }
+}
+```
+
+- `levels` est applique sur la shortlist promue, ordonnee par objective.
+- `max_rank` est inclusif (1..N).
+- `mode` supporte `full`, `compact`, `stats`.
+- Les overrides `trade_sample_size` / `equity_max_points` sont optionnels.
+
+- Les niveaux sont utilises aussi pour le `full_pass` si tu n'as pas de overrides.
+- Tu peux surcharger les niveaux du full_pass via `optimization.full_pass.artifacts.levels`.
+
 ## Promotion policy (top-K + constraints)
 
 La promotion est contrôlée via `optimization.promotion` :
@@ -119,6 +148,60 @@ Quand activé :
 - `aggregate` contrôle l'agrégation (`mean`, `median`, `min`, `max`)
 - le stockage reste light pour tous les trials
 
+
+### Pruning "reel" (intra-window)
+
+En plus du screening, tu peux couper un trial "mort" pendant l'execution :
+
+```json
+{
+  "optimization": {
+    "screening": {
+      "enabled": true,
+      "pruning": {
+        "max_drawdown_pct": 25,
+        "min_signals_after_bars": { "bars": 200, "min_signals": 1 }
+      }
+    }
+  }
+}
+```
+
+Regles appliquees pendant le backtest (intra-window) :
+- `max_drawdown_pct` : stop immediat si le drawdown depasse la limite.
+- `min_signals_after_bars` : stop si pas assez de signaux apres N barres.
+
+Notes :
+- actif uniquement si `screening.enabled = true`.
+- applique aux backtests classiques et aux strategies DCA.
+
+
+
+### Robustesse (pass 1)
+
+Si tu utilises `windows`, tu peux forcer une robustesse minimale par fenetre :
+
+```json
+{
+  "optimization": {
+    "screening": {
+      "windows": [
+        { "start": "2025-01-01", "end": "2025-06-30" },
+        { "start": "2025-07-01", "end": "2025-12-01" }
+      ],
+      "aggregate": "median",
+      "min_window_objective": 0.1,
+      "min_windows_passed": 2,
+      "max_windows_failed": 0
+    }
+  }
+}
+```
+
+- `min_window_objective`: seuil minimum par fenetre.
+- `min_windows_passed`: nb minimum de fenetres au-dessus du seuil.
+- `max_windows_failed`: nb max de fenetres en dessous du seuil.
+
 ## Mode full pass 2
 
 Apres le screening + promotion, tu peux relancer uniquement la shortlist
@@ -139,6 +222,39 @@ sur l'historique complet :
 
 - le full pass desactive le screening automatiquement
 - les payloads sont ecrits dans `runs/optimize_*/full_pass/`
+- par defaut, le full_pass reutilise `promotion.levels` pour les niveaux d'artefacts
+- tu peux surcharger avec `optimization.full_pass.artifacts.levels`
+
+
+
+### Full pass walk-forward (CV temporelle)
+
+Tu peux transformer le full pass en walk-forward en fournissant des folds :
+
+```json
+{
+  "optimization": {
+    "full_pass": {
+      "enabled": true,
+      "aggregate": "median",
+      "folds": [
+        { "start": "2025-01-01", "end": "2025-06-30" },
+        { "start": "2025-07-01", "end": "2025-12-01" }
+      ],
+      "artifacts": {
+        "levels": [
+          { "max_rank": 1, "mode": "full" },
+          { "max_rank": 3, "mode": "compact", "trade_sample_size": 50, "equity_max_points": 200 }
+        ]
+      }
+    }
+  }
+}
+```
+
+- `folds` : fenetres temporelles de validation.
+- `aggregate` : aggregation robuste de l'objective par fold (`mean`, `median`, `min`, `max`).
+- Chaque trial full_pass stocke les metrics par fold + l'aggregate.
 
 ## Freeze & refine (re-optimization ciblee)
 
@@ -186,6 +302,7 @@ Fallbacks explicites logues :
 - method inconnu -> grid
 - behavior_mode inconnu -> metrics
 - behavior_cluster.mode inconnu -> kmeans
+- promotion.levels manquant -> fallback sur artifacts.mode
 
 ## Remaining work
 
@@ -389,6 +506,39 @@ Mode avance (DBSCAN-like):
   }
 }
 ```
+
+
+
+
+
+## Exemples JSON (optimization)
+
+- `specs/examples/optimization/backtest_eurusd_m1_optimize_pruning_levels.json`
+- `specs/examples/optimization/backtest_eurusd_m1_optimize_fullpass_levels.json`
+- `specs/examples/optimization/backtest_eurusd_m1_optimize_fullpass_folds.json`
+- `specs/examples/optimization/strategy_dca_equity_optimize_levels.json`
+- `specs/examples/optimization/strategy_dca_equity_optimize_windows_median.json`
+
+## Roadmap "niveau pro" (priorites)
+
+P0 (ROI fort, faible complexite) :
+- Pruning reel intra-window (drawdown / manque de signaux).
+- Promotion Manager avec niveaux d'artefacts (NONE/STATS/EQUITY/TRADES_SAMPLE/FULL).
+- Robustesse en pass 1 (aggregate median/min + must-pass par window).
+
+P1 (qualite de selection) :
+- Walk-forward/CV temporelle en pass 2 + metrics par fold.
+- Constraints hard vs soft (gates + penalites dans l'objective).
+- Dedoublonnage comportemental deterministe + logs de rejet explicites.
+
+P2 (scalabilite 50k+ trials) :
+- Budget stockage + retention automatique par run.
+- Cache des calculs invariants (features) + two-phase compute.
+- Reproductibilite beton (config_hash + data_hash + versions libs).
+
+P3 (nice to have) :
+- Debug_on_fail (dump compact en cas d'exception/NaN).
+- Analyse de sensibilite post-optimization (importance params, freeze auto).
 
 ## Resultats
 
