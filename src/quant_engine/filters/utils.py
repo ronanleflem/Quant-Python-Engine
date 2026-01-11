@@ -4,6 +4,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 import logging
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
+from collections import OrderedDict
+import json
 
 import pandas as pd
 
@@ -65,6 +67,34 @@ FILTER_SUMMARIES: Dict[str, FilterSummary] = {
     "biais_institutional": FilterSummary("EMA/VWAP + optional macro filters.", "close (+volume optional)"),
     "stats_gate": FilterSummary("Gate using persisted market stats.", "market_stats table"),
 }
+
+_FILTER_CACHE: "OrderedDict[tuple, pd.Series]" = OrderedDict()
+_CACHE_DEFAULT_MAX = 2048
+
+
+def _make_cache_key(df: pd.DataFrame, flt_type: str, params: Mapping[str, Any]) -> Optional[tuple]:
+    cache_key = df.attrs.get("qe_cache_key")
+    if cache_key is None:
+        return None
+    try:
+        params_key = json.dumps(params, sort_keys=True, default=str)
+    except Exception:
+        return None
+    return (cache_key, flt_type, params_key)
+
+
+def _cache_get(key: tuple) -> Optional[pd.Series]:
+    series = _FILTER_CACHE.get(key)
+    if series is not None:
+        _FILTER_CACHE.move_to_end(key)
+    return series
+
+
+def _cache_set(key: tuple, series: pd.Series, max_items: int) -> None:
+    _FILTER_CACHE[key] = series
+    _FILTER_CACHE.move_to_end(key)
+    while len(_FILTER_CACHE) > max_items:
+        _FILTER_CACHE.popitem(last=False)
 
 
 class FilterValidationError(ValueError):
@@ -246,6 +276,12 @@ def apply_filter_stack(
         return pd.Series(True, index=df.index)
 
     mask = pd.Series(True, index=df.index)
+    max_cache = df.attrs.get("qe_cache_max_items", _CACHE_DEFAULT_MAX)
+    try:
+        max_cache = int(max_cache)
+    except Exception:
+        max_cache = _CACHE_DEFAULT_MAX
+
     for raw in filters:
         flt_type, params = _normalize_filter_spec(raw)
         params = dict(params)
@@ -274,14 +310,31 @@ def apply_filter_stack(
                 raise FilterValidationError(msg)
             continue
 
-        try:
-            series = fn(df, **params)
-        except Exception as exc:
-            msg = f"Filter '{flt_type}' failed: {exc}"
-            log.error(msg)
-            if strict:
-                raise FilterValidationError(msg) from exc
-            continue
+        cache_key = _make_cache_key(df, flt_type, params)
+        if cache_key is not None:
+            cached = _cache_get(cache_key)
+            if cached is not None:
+                series = cached
+            else:
+                try:
+                    series = fn(df, **params)
+                except Exception as exc:
+                    msg = f"Filter '{flt_type}' failed: {exc}"
+                    log.error(msg)
+                    if strict:
+                        raise FilterValidationError(msg) from exc
+                    continue
+                if max_cache > 0:
+                    _cache_set(cache_key, series, max_cache)
+        else:
+            try:
+                series = fn(df, **params)
+            except Exception as exc:
+                msg = f"Filter '{flt_type}' failed: {exc}"
+                log.error(msg)
+                if strict:
+                    raise FilterValidationError(msg) from exc
+                continue
 
         if not isinstance(series, pd.Series):
             msg = f"Filter '{flt_type}' did not return a pandas Series"

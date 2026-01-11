@@ -1,19 +1,19 @@
 # Workflow d'optimization
 
-Ce document d√©crit le workflow d'optimization pour les specs de backtest et de strategy.
+Ce document dÈcrit le workflow d'optimization pour les specs de backtest et de strategy.
 
-## Ce qui est stock√©
+## Ce qui est stockÈ
 
-Light data (toujours persist√©es par trial) :
+Light data (toujours persistÈes par trial) :
 - `trial_id`, `params`
-- metrics agr√©g√©es (`sharpe`, `sortino`, `returnPct`, `maxDrawdownPct`, `winratePct`, `totalReturn`)
+- metrics agrÈgÈes (`sharpe`, `sortino`, `returnPct`, `maxDrawdownPct`, `winratePct`, `totalReturn`)
 - valeur d'objective
-- metadata de reproductibilite (`seed`, `dataset_id`, `timeframe`, `start`, `end`, `code_version`)
+- metadata de reproductibilite (`seed`, `dataset_id`, `timeframe`, `start`, `end`, `code_version`, `strategy_id`, `data_hash`, `config_hash`, `lib_versions`)
 
-Heavy data (persist√©es uniquement pour les trials promus) :
+Heavy data (persistÈes uniquement pour les trials promus) :
 - payload complet du trial (run + trades)
 
-Les heavy payloads sont √©crits dans `runs/optimize_backtest/promoted/` ou
+Les heavy payloads sont Ècrits dans `runs/optimize_backtest/promoted/` ou
 `runs/optimize_strategy/promoted/` en `trial_{id}.json`.
 
 ### Artefacts compactes (light-heavy hybride)
@@ -32,8 +32,8 @@ Pour limiter le volume, tu peux activer un mode "compact" sur les payloads promu
 }
 ```
 
-- `mode`: `full` (par defaut), `compact`, ou `stats`
-- `trade_sample_size`: nb de trades conserves en echantillon
+- `mode`: `full` (par d-faut), `compact`, ou `stats`
+- `trade_sample_size`: nb de trades conserves en -chantillon
 - `equity_max_points`: nb max de points d'equity conserves (downsample)
 - `stats`: conserve uniquement `trades_stats` (pas de trades/equity bruts)
 
@@ -44,7 +44,7 @@ Pour limiter le volume, tu peux activer un mode "compact" sur les payloads promu
 - durees de trades (min/mean/p25/p50/p75/max en secondes)
 - histogramme R (buckets)
 - MAE/MFE si dispo dans les trades
-- pnl par jour (agr√©g√© par date d'exit)
+- pnl par jour (agrÈgÈ par date d'exit)
 
 
 
@@ -77,7 +77,7 @@ Pour controler le volume disque, tu peux definir des niveaux d'artefacts par ran
 
 ## Promotion policy (top-K + constraints)
 
-La promotion est contr√¥l√©e via `optimization.promotion` :
+La promotion est contrÙlÈe via `optimization.promotion` :
 
 ```json
 {
@@ -85,13 +85,11 @@ La promotion est contr√¥l√©e via `optimization.promotion` :
     "objective": "sharpe",
     "promotion": {
       "top_k": 3,
-      "min_trades": 1,
-      "max_drawdown_pct": 60,
-      "min_winrate_pct": 20,
-      "min_return_pct": 0,
-      "min_sharpe": 0.2,
-      "min_sortino": 0.2,
-      "dedupe_distance": 0.15
+      "hard_constraints": {
+        "min_trades": 1,
+        "max_drawdown_pct": 60,
+        "min_winrate_pct": 20
+      }
     }
   }
 }
@@ -99,16 +97,47 @@ La promotion est contr√¥l√©e via `optimization.promotion` :
 
 - `top_k` : nombre de meilleurs trials pour lesquels on garde les heavy payloads.
 - `min_trades` : nombre minimum de trades (wins + losses).
-- `max_drawdown_pct` : drawdown max autoris√© (en %).
+- `max_drawdown_pct` : drawdown max autorisÈ (en %).
 - `min_winrate_pct` : win rate minimum (en %).
 - `min_return_pct` : return minimum (en %).
 - `min_sharpe` : Sharpe minimum.
 - `min_sortino` : Sortino minimum.
-- `dedupe_distance` : filtre de diversit√© optionnel. Quand d√©fini, un candidat
-  est rejet√© s'il est trop proche d'un trial d√©j√† promu (distance calcul√©e sur
-  les param√®tres normalis√©s via les bornes du search space).
-- `behavior_distance` : filtre de diversit√© par comportement, bas√© sur des
+- `dedupe_distance` : filtre de diversitÈ optionnel. Quand dÈfini, un candidat
+  est rejetÈ s'il est trop proche d'un trial dÈj‡ promu (distance calculÈe sur
+  les paramËtres normalisÈs via les bornes du search space).
+- `behavior_distance` : filtre de diversitÈ par comportement, basÈ sur des
   metrics de performance (voir ci-dessous).
+Note: prefer `hard_constraints`/`soft_constraints` dans `promotion`; les cles flat restent acceptees pour compatibilite.
+
+
+
+### Dedoublonnage deterministe (behavior)
+
+Tu peux activer des logs expliquant pourquoi un trial est rejete (trop proche d'un autre) :
+
+```json
+{
+  "optimization": {
+    "promotion": {
+      "dedupe_distance": 0.15,
+      "behavior_distance": 0.2,
+      "behavior_mode": "metrics",
+      "behavior_metrics": ["returnPct", "maxDrawdownPct", "winratePct", "sharpe"],
+      "behavior_bounds": {
+        "returnPct": [-50, 200],
+        "maxDrawdownPct": [0, 80],
+        "winratePct": [0, 100],
+        "sharpe": [-2, 5]
+      },
+      "log_dedupe": true
+    }
+  }
+}
+```
+
+Logs :
+- distance, trial remplace/rejete
+- dimension dominante (param ou metric)
 
 ## Screening vs full run
 
@@ -119,8 +148,8 @@ Flow actuel :
 
 ### Mode screening (raccourci)
 
-Le screening permet d'acc√©l√©rer l'optimization en utilisant un sous-ensemble
-de donn√©es. Il est appliqu√© avant le calcul des filtres/signals.
+Le screening permet d'accÈlÈrer l'optimization en utilisant un sous-ensemble
+de donnÈes. Il est appliquÈ avant le calcul des filtres/signals.
 
 ```json
 {
@@ -140,12 +169,12 @@ de donn√©es. Il est appliqu√© avant le calcul des filtres/signals.
 }
 ```
 
-Quand activ√© :
-- seules les derni√®res `max_bars` sont utilis√©es pour le trial
-- arr√™t anticip√© apr√®s `max_trades` trades complets (DCA/crypto grid)
-- arr√™t anticip√© apr√®s `max_seconds` de temps de calcul
-- `windows` (optionnel) ex√©cute plusieurs sous-p√©riodes et agr√®ge l'objective
-- `aggregate` contr√¥le l'agr√©gation (`mean`, `median`, `min`, `max`)
+Quand activÈ :
+- seules les derniËres `max_bars` sont utilisÈes pour le trial
+- arrÍt anticipÈ aprËs `max_trades` trades complets (DCA/crypto grid)
+- arrÍt anticipÈ aprËs `max_seconds` de temps de calcul
+- `windows` (optionnel) exÈcute plusieurs sous-pÈriodes et agrËge l'objective
+- `aggregate` contrÙle l'agrÈgation (`mean`, `median`, `min`, `max`)
 - le stockage reste light pour tous les trials
 
 
@@ -221,8 +250,8 @@ sur l'historique complet :
 ```
 
 - le full pass desactive le screening automatiquement
-- les payloads sont ecrits dans `runs/optimize_*/full_pass/`
-- par defaut, le full_pass reutilise `promotion.levels` pour les niveaux d'artefacts
+- les payloads sont -crits dans `runs/optimize_*/full_pass/`
+- par d-faut, le full_pass reutilise `promotion.levels` pour les niveaux d'artefacts
 - tu peux surcharger avec `optimization.full_pass.artifacts.levels`
 
 
@@ -280,6 +309,27 @@ les meilleurs trials de la passe 1.
 - `freeze_keys`: liste de cles a ne pas reduire lors du refine
 - `freeze_prefixes`: liste de prefixes a geler (ex: `strategy.params.grid`)
 
+
+
+### Cache des calculs invariants (two-phase light)
+
+Tu peux activer un cache des filtres/indicateurs pour eviter de recalculer
+les memes series sur le meme dataset pendant l'optimization :
+
+```json
+{
+  "optimization": {
+    "cache_features": {
+      "enabled": true,
+      "max_items": 2048
+    }
+  }
+}
+```
+
+- `max_items` limite la taille du cache en memoire.
+- Le cache est scope par (symbol, dataset, screening) et par filtre+params.
+
 ## Log d'impact stockage
 
 Le runner logue un resume du ratio heavy vs total trials :
@@ -304,12 +354,56 @@ Fallbacks explicites logues :
 - behavior_cluster.mode inconnu -> kmeans
 - promotion.levels manquant -> fallback sur artifacts.mode
 
-## Remaining work
+### Contraintes hard vs soft
 
-- Ajouter un early-stop (max trades, max time) et du sub-window sampling.
-- Ajouter des m√©tadonn√©es explicites (dataset_id / code_version) dans les trials.
-- Ajouter des promotion policies alternatives (objective composite, clustering par comportement).
-- Ajouter des artefacts compress√©s optionnels (equity curve summary, trade stats only).
+Les contraintes hard (gates) eliminent un trial immediatement :
+
+```json
+{
+  "optimization": {
+    "promotion": {
+      "hard_constraints": {
+        "min_trades": 5,
+        "min_winrate_pct": 15
+      }
+    }
+  }
+}
+```
+
+Les contraintes soft ajoutent une penalite dans l'objective :
+
+```json
+{
+  "optimization": {
+    "promotion": {
+      "soft_constraints": {
+        "max_drawdown_pct": {
+          "threshold": 40,
+          "direction": "above",
+          "power": 2,
+          "weight": -0.5
+        }
+      }
+    }
+  }
+}
+```
+
+Notes :
+- Les soft_constraints sont mergees avec `objective.penalties` (si presente).
+- Les hard_constraints remplacent les anciennes cles flat `min_trades`, `max_drawdown_pct`, etc.
+
+
+
+### Reproductibilite renforcee (hash + versions)
+
+Les runs stockent maintenant :
+- `config_hash` : hash de la spec complete.
+- `data_hash` : hash du bloc `data`.
+- `lib_versions` : versions des libs (pandas/numpy/requests/sqlalchemy/deltalake).
+
+Cela permet de tracer exactement pourquoi un resultat change.
 
 ## Composite objective
 
@@ -330,7 +424,7 @@ Tu peux definir une objective composee avec des poids :
 ```
 
 Notes :
-- les weights peuvent etre negatifes pour penaliser un metric (ex: drawdown)
+- les weights peuvent etre negatifes pour p-naliser un metric (ex: drawdown)
 - si un metric est manquant, il est traite comme 0
 
 ### Penalites non lineaires (advanced)
@@ -359,9 +453,9 @@ Tu peux ajouter des penalites pour pousser l'optimizer a eviter certains regimes
 ```
 
 - `threshold`: point de depart de la penalite
-- `direction`: `above` (par defaut) ou `below`
+- `direction`: `above` (par d-faut) ou `below`
 - `power`: exponent pour renforcer la penalite
-- `weight`: signe/poids applique a la penalite (negatif pour penaliser)
+- `weight`: signe/poids applique a la penalite (negatif pour p-naliser)
 ## Diversite par comportement (promotion)
 
 Pour eviter des variantes quasi identiques en performance, tu peux activer un
@@ -402,7 +496,7 @@ Mode avance (histogramme de trades) :
 }
 ```
 
-- `behavior_mode`: `metrics` (par defaut), `trades_hist` ou `equity_signature`
+- `behavior_mode`: `metrics` (par d-faut), `trades_hist` ou `equity_signature`
 - `behavior_bins`: bornes des buckets pour l'histogramme (pnl_pct / r_multiple)
 
 Mode avance (equity signature) :
@@ -419,8 +513,8 @@ Mode avance (equity signature) :
 }
 ```
 
-- `behavior_mode`: `equity_signature` utilise un profil de performance cumule
-  (cumule des pnl_pct) echantillonne sur `behavior_points`
+- `behavior_mode`: `equity_signature` utilise un profil de performance cumul-
+  (cumul- des pnl_pct) -chantillonne sur `behavior_points`
 
 Tu peux basculer de l'un a l'autre en changeant simplement `behavior_mode`.
 
@@ -449,7 +543,7 @@ par cluster (au lieu de garder des variantes tres proches) :
 Option : `k` peut etre `auto` (sqrt du nombre de candidats promus, min 2).
 
 Clustering robuste (auto):
-- `auto_mode`: `silhouette` (defaut) ou `inertia`
+- `auto_mode`: `silhouette` (d-faut) ou `inertia`
 - `fallback_mode`: mode de secours si auto echoue
 - `min_k` / `max_k`: bornes pour la recherche auto
 - `iterations`: iterations du k-means
@@ -514,10 +608,42 @@ Mode avance (DBSCAN-like):
 ## Exemples JSON (optimization)
 
 - `specs/examples/optimization/backtest_eurusd_m1_optimize_pruning_levels.json`
+- `specs/examples/optimization/backtest_eurusd_m1_optimize_cache_features.json`
 - `specs/examples/optimization/backtest_eurusd_m1_optimize_fullpass_levels.json`
 - `specs/examples/optimization/backtest_eurusd_m1_optimize_fullpass_folds.json`
 - `specs/examples/optimization/strategy_dca_equity_optimize_levels.json`
+- `specs/examples/optimization/strategy_dca_equity_optimize_levels_hard_soft.json`
+- `specs/examples/optimization/strategy_dca_equity_optimize_dedupe_logs.json`
+- `specs/examples/optimization/strategy_dca_equity_optimize_retention.json`
+- `specs/examples/optimization/strategy_dca_equity_optimize_repro_hash.json`
 - `specs/examples/optimization/strategy_dca_equity_optimize_windows_median.json`
+
+
+
+### Retention (budget stockage)
+
+Tu peux limiter le nombre de runs conserves et purger les artefacts lourds :
+
+```json
+{
+  "optimization": {
+    "storage": {
+      "retention": {
+        "enabled": true,
+        "keep_last_runs": 5,
+        "keep_best_runs": 3,
+        "mode": "heavy_only",
+        "dry_run": false
+      }
+    }
+  }
+}
+```
+
+- `keep_last_runs` : conserve les N runs les plus recents.
+- `keep_best_runs` : conserve les N meilleurs runs par (strategy_id, dataset_id).
+- `mode`: `heavy_only` (purge `promoted/` + `full_pass/`) ou `full` (supprime le run complet).
+- `dry_run`: log sans suppression.
 
 ## Roadmap "niveau pro" (priorites)
 

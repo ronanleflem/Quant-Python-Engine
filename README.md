@@ -168,9 +168,14 @@ Voir aussi `docs/optimization.md` pour le workflow complet.
 
 ## Exemples d'optimization
 - `specs/examples/optimization/backtest_eurusd_m1_optimize_pruning_levels.json`
+- `specs/examples/optimization/backtest_eurusd_m1_optimize_cache_features.json`
 - `specs/examples/optimization/backtest_eurusd_m1_optimize_fullpass_levels.json`
 - `specs/examples/optimization/backtest_eurusd_m1_optimize_fullpass_folds.json`
 - `specs/examples/optimization/strategy_dca_equity_optimize_levels.json`
+- `specs/examples/optimization/strategy_dca_equity_optimize_levels_hard_soft.json`
+- `specs/examples/optimization/strategy_dca_equity_optimize_dedupe_logs.json`
+- `specs/examples/optimization/strategy_dca_equity_optimize_retention.json`
+- `specs/examples/optimization/strategy_dca_equity_optimize_repro_hash.json`
 - `specs/examples/optimization/strategy_dca_equity_optimize_windows_median.json`
 
 ### Volatilité & tendance

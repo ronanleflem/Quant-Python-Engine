@@ -5,6 +5,10 @@ import json
 import logging
 import math
 import random
+import shutil
+import os
+import hashlib
+import sys
 from pathlib import Path
 from copy import deepcopy
 from itertools import product
@@ -354,14 +358,47 @@ def _dataset_id(spec: Mapping[str, Any]) -> str:
     return "unknown"
 
 
+def _json_hash(payload: Mapping[str, Any]) -> str:
+    try:
+        dumped = json.dumps(payload, sort_keys=True, default=str).encode("utf-8")
+    except Exception:
+        dumped = str(payload).encode("utf-8")
+    return hashlib.sha256(dumped).hexdigest()
+
+
+def _data_hash(spec: Mapping[str, Any]) -> str:
+    data = spec.get("data") or {}
+    if not isinstance(data, Mapping):
+        return _json_hash({"data": "unknown"})
+    return _json_hash(data)
+
+
+def _collect_lib_versions() -> Dict[str, Any]:
+    versions: Dict[str, Any] = {"python": sys.version.split()[0]}
+    for lib in ("pandas", "numpy", "requests", "sqlalchemy", "deltalake"):
+        try:
+            module = __import__(lib)
+            versions[lib] = getattr(module, "__version__", "unknown")
+        except Exception:
+            versions[lib] = None
+    return versions
+
+
 def _trial_metadata(spec: Mapping[str, Any], cfg: Mapping[str, Any]) -> Dict[str, Any]:
     data = spec.get("data") or {}
+    strategy = spec.get("strategy") or {}
+    data_hash = _data_hash(spec)
+    config_hash = _json_hash(spec)
     meta = {
         "seed": cfg.get("seed"),
         "dataset_id": _dataset_id(spec),
         "timeframe": data.get("timeframe"),
         "start": data.get("start"),
         "end": data.get("end"),
+        "strategy_id": strategy.get("strategy_id"),
+        "data_hash": data_hash,
+        "config_hash": config_hash,
+        "lib_versions": _collect_lib_versions(),
     }
     root = Path.cwd()
     code_version = _git_head_sha(root)
@@ -576,6 +613,24 @@ def _objective_summary(objective: Any) -> str:
     return str(objective)
 
 
+def _merge_soft_constraints(objective: Any, promotion_cfg: Mapping[str, Any]) -> Any:
+    soft = promotion_cfg.get("soft_constraints")
+    if not isinstance(soft, Mapping) or not soft:
+        return objective
+    if isinstance(objective, Mapping):
+        merged = dict(objective)
+        penalties = merged.get("penalties")
+        if not isinstance(penalties, Mapping):
+            penalties = {}
+        penalties = dict(penalties)
+        for key, val in soft.items():
+            if key not in penalties and isinstance(val, Mapping):
+                penalties[key] = dict(val)
+        merged["penalties"] = penalties
+        return merged
+    return {"weights": {str(objective): 1.0}, "penalties": dict(soft)}
+
+
 def _log_optimization_plan(
     kind: str,
     *,
@@ -598,8 +653,9 @@ def _log_optimization_plan(
 ) -> None:
     screening_enabled = bool(screening_cfg) and screening_cfg.get("enabled", True) is not False
     windows = screening_cfg.get("windows") or []
+    hard_constraints = promotion_cfg.get("hard_constraints") if isinstance(promotion_cfg.get("hard_constraints"), Mapping) else {}
     constraints = {
-        key: promotion_cfg.get(key)
+        key: (hard_constraints.get(key) if hard_constraints else promotion_cfg.get(key))
         for key in (
             "min_trades",
             "max_drawdown_pct",
@@ -608,7 +664,7 @@ def _log_optimization_plan(
             "min_sharpe",
             "min_sortino",
         )
-        if promotion_cfg.get(key) is not None
+        if (hard_constraints.get(key) if hard_constraints else promotion_cfg.get(key)) is not None
     }
     artifacts_mode = str(artifacts_cfg.get("mode", "full")).lower()
     full_artifacts = full_cfg.get("artifacts") if isinstance(full_cfg.get("artifacts"), Mapping) else {}
@@ -646,11 +702,13 @@ def _log_optimization_plan(
         screening_cfg.get("max_windows_failed"),
     )
     LOGGER.info(
-        "Optimization promotion: top_k=%s constraints=%s dedupe_distance=%s behavior_distance=%s levels=%s",
+        "Optimization promotion: top_k=%s hard_constraints=%s soft_constraints=%s dedupe_distance=%s behavior_distance=%s log_dedupe=%s levels=%s",
         promotion_cfg.get("top_k", 0),
         constraints or None,
+        promotion_cfg.get("soft_constraints"),
         promotion_cfg.get("dedupe_distance"),
         promotion_cfg.get("behavior_distance"),
+        promotion_cfg.get("log_dedupe"),
         _promotion_levels(promotion_cfg),
     )
     LOGGER.info(
@@ -671,6 +729,7 @@ def _log_optimization_plan(
         full_mode,
         full_levels,
     )
+    LOGGER.info("Optimization cache_features: %s", cfg.get("cache_features"))
     LOGGER.info(
         "Optimization refine: enabled=%s top_k=%s shrink_pct=%s freeze_keys=%s freeze_prefixes=%s",
         bool(refine_cfg.get("enabled")),
@@ -739,7 +798,8 @@ def _meets_constraints(
 ) -> bool:
     if not cfg:
         return True
-    min_trades = cfg.get("min_trades")
+    hard = cfg.get("hard_constraints") if isinstance(cfg.get("hard_constraints"), Mapping) else {}
+    min_trades = hard.get("min_trades") if hard else cfg.get("min_trades")
     if min_trades is not None:
         win = run.get("winCount") or 0
         loss = run.get("lossCount") or 0
@@ -749,7 +809,7 @@ def _meets_constraints(
             trades = 0
         if trades < int(min_trades):
             return False
-    max_dd = cfg.get("max_drawdown_pct")
+    max_dd = hard.get("max_drawdown_pct") if hard else cfg.get("max_drawdown_pct")
     if max_dd is not None:
         try:
             dd = float(run.get("maxDrawdownPct"))
@@ -757,7 +817,7 @@ def _meets_constraints(
             return False
         if dd > float(max_dd):
             return False
-    min_winrate = cfg.get("min_winrate_pct")
+    min_winrate = hard.get("min_winrate_pct") if hard else cfg.get("min_winrate_pct")
     if min_winrate is not None:
         try:
             winrate = float(run.get("winratePct"))
@@ -765,7 +825,7 @@ def _meets_constraints(
             return False
         if winrate < float(min_winrate):
             return False
-    min_return = cfg.get("min_return_pct")
+    min_return = hard.get("min_return_pct") if hard else cfg.get("min_return_pct")
     if min_return is not None:
         try:
             ret = float(run.get("returnPct"))
@@ -773,7 +833,7 @@ def _meets_constraints(
             return False
         if ret < float(min_return):
             return False
-    min_sharpe = cfg.get("min_sharpe")
+    min_sharpe = hard.get("min_sharpe") if hard else cfg.get("min_sharpe")
     if min_sharpe is not None:
         try:
             sharpe = float(run.get("sharpe"))
@@ -781,7 +841,7 @@ def _meets_constraints(
             return False
         if sharpe < float(min_sharpe):
             return False
-    min_sortino = cfg.get("min_sortino")
+    min_sortino = hard.get("min_sortino") if hard else cfg.get("min_sortino")
     if min_sortino is not None:
         try:
             sortino = float(run.get("sortino"))
@@ -816,6 +876,60 @@ def _normalized_distance(
     if count == 0:
         return None
     return total / count
+
+
+def _dominant_param_distance(
+    left: Mapping[str, Any],
+    right: Mapping[str, Any],
+    bounds: Mapping[str, Tuple[float, float]],
+) -> Tuple[Optional[str], Optional[float]]:
+    if not left or not right:
+        return None, None
+    best_key = None
+    best_dist = None
+    for key, (vmin, vmax) in bounds.items():
+        lval = left.get(key)
+        rval = right.get(key)
+        if not isinstance(lval, (int, float)) or not isinstance(rval, (int, float)):
+            continue
+        span = vmax - vmin
+        if span <= 0:
+            continue
+        lnorm = (float(lval) - vmin) / span
+        rnorm = (float(rval) - vmin) / span
+        dist = abs(lnorm - rnorm)
+        if best_dist is None or dist > best_dist:
+            best_dist = dist
+            best_key = key
+    return best_key, best_dist
+
+
+def _dominant_metric_distance(
+    left: Mapping[str, Any],
+    right: Mapping[str, Any],
+    metrics: List[str],
+    bounds: Mapping[str, Tuple[float, float]],
+) -> Tuple[Optional[str], Optional[float]]:
+    best_key = None
+    best_dist = None
+    for key in metrics:
+        if key not in bounds:
+            continue
+        lval = left.get(key)
+        rval = right.get(key)
+        if not isinstance(lval, (int, float)) or not isinstance(rval, (int, float)):
+            continue
+        vmin, vmax = bounds[key]
+        span = vmax - vmin
+        if span <= 0:
+            continue
+        lnorm = (float(lval) - vmin) / span
+        rnorm = (float(rval) - vmin) / span
+        dist = abs(lnorm - rnorm)
+        if best_dist is None or dist > best_dist:
+            best_dist = dist
+            best_key = key
+    return best_key, best_dist
 
 
 def _behavior_distance(
@@ -1182,6 +1296,7 @@ def _update_topk(
     behavior_bounds: Mapping[str, Tuple[float, float]],
     behavior_mode: str,
     behavior_bins: List[float],
+    log_dedupe: bool = False,
 ) -> None:
     if top_k <= 0:
         return
@@ -1197,7 +1312,35 @@ def _update_topk(
                 closest_idx = idx
         if closest_dist is not None and closest_dist < float(dedupe_distance):
             if candidate.get("objective", float("-inf")) > topk[closest_idx].get("objective", float("-inf")):
+                if log_dedupe:
+                    key, dist = _dominant_param_distance(
+                        topk[closest_idx].get("params", {}),
+                        candidate.get("params", {}),
+                        bounds,
+                    )
+                    LOGGER.info(
+                        "Dedupe params: replace trial=%s with trial=%s distance=%.4f dominant=%s:%.4f",
+                        topk[closest_idx].get("trial_id"),
+                        candidate.get("trial_id"),
+                        float(closest_dist),
+                        key,
+                        float(dist) if dist is not None else 0.0,
+                    )
                 topk[closest_idx] = candidate
+            elif log_dedupe:
+                key, dist = _dominant_param_distance(
+                    topk[closest_idx].get("params", {}),
+                    candidate.get("params", {}),
+                    bounds,
+                )
+                LOGGER.info(
+                    "Dedupe params: reject trial=%s close to trial=%s distance=%.4f dominant=%s:%.4f",
+                    candidate.get("trial_id"),
+                    topk[closest_idx].get("trial_id"),
+                    float(closest_dist),
+                    key,
+                    float(dist) if dist is not None else 0.0,
+                )
             return
     if behavior_distance and behavior_mode == "metrics":
         closest_idx = None
@@ -1216,7 +1359,37 @@ def _update_topk(
                 closest_idx = idx
         if closest_dist is not None and closest_dist < float(behavior_distance):
             if candidate.get("objective", float("-inf")) > topk[closest_idx].get("objective", float("-inf")):
+                if log_dedupe:
+                    key, dist = _dominant_metric_distance(
+                        topk[closest_idx].get("run", {}),
+                        candidate.get("run", {}),
+                        behavior_metrics,
+                        behavior_bounds,
+                    )
+                    LOGGER.info(
+                        "Dedupe behavior: replace trial=%s with trial=%s distance=%.4f dominant=%s:%.4f",
+                        topk[closest_idx].get("trial_id"),
+                        candidate.get("trial_id"),
+                        float(closest_dist),
+                        key,
+                        float(dist) if dist is not None else 0.0,
+                    )
                 topk[closest_idx] = candidate
+            elif log_dedupe:
+                key, dist = _dominant_metric_distance(
+                    topk[closest_idx].get("run", {}),
+                    candidate.get("run", {}),
+                    behavior_metrics,
+                    behavior_bounds,
+                )
+                LOGGER.info(
+                    "Dedupe behavior: reject trial=%s close to trial=%s distance=%.4f dominant=%s:%.4f",
+                    candidate.get("trial_id"),
+                    topk[closest_idx].get("trial_id"),
+                    float(closest_dist),
+                    key,
+                    float(dist) if dist is not None else 0.0,
+                )
             return
     if behavior_distance and behavior_mode in {"trades_hist", "equity_signature"}:
         cand_sig = candidate.get("behavior_sig")
@@ -1233,7 +1406,23 @@ def _update_topk(
                     closest_idx = idx
             if closest_dist is not None and closest_dist < float(behavior_distance):
                 if candidate.get("objective", float("-inf")) > topk[closest_idx].get("objective", float("-inf")):
+                    if log_dedupe:
+                        LOGGER.info(
+                            "Dedupe behavior: replace trial=%s with trial=%s distance=%.4f mode=%s",
+                            topk[closest_idx].get("trial_id"),
+                            candidate.get("trial_id"),
+                            float(closest_dist),
+                            behavior_mode,
+                        )
                     topk[closest_idx] = candidate
+                elif log_dedupe:
+                    LOGGER.info(
+                        "Dedupe behavior: reject trial=%s close to trial=%s distance=%.4f mode=%s",
+                        candidate.get("trial_id"),
+                        topk[closest_idx].get("trial_id"),
+                        float(closest_dist),
+                        behavior_mode,
+                    )
                 return
     topk.append(candidate)
     topk.sort(key=lambda item: item.get("objective", float("-inf")), reverse=True)
@@ -1412,6 +1601,105 @@ def _log_storage_impact(total_trials: int, promoted_count: int, full_pass_count:
     )
 
 
+def _read_summary(path: Path) -> Optional[Dict[str, Any]]:
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text())
+    except Exception:
+        return None
+
+
+def _collect_runs(base_dir: Path) -> List[Dict[str, Any]]:
+    runs: List[Dict[str, Any]] = []
+    for child in base_dir.iterdir():
+        if not child.is_dir():
+            continue
+        summary_path = child / "summary.json"
+        summary = _read_summary(summary_path)
+        if not summary:
+            continue
+        best = summary.get("best") or {}
+        objective = best.get("objective")
+        metadata = summary.get("metadata") or {}
+        runs.append(
+            {
+                "dir": child,
+                "summary": summary,
+                "objective": objective,
+                "metadata": metadata,
+                "mtime": summary_path.stat().st_mtime if summary_path.exists() else child.stat().st_mtime,
+            }
+        )
+    return runs
+
+
+def _prune_heavy_artifacts(run_dir: Path) -> None:
+    for root, dirs, _ in os.walk(run_dir):
+        for dname in list(dirs):
+            if dname in {"promoted", "full_pass"}:
+                target = Path(root) / dname
+                shutil.rmtree(target, ignore_errors=True)
+
+
+def _apply_retention(out_dir: Path, cfg: Mapping[str, Any]) -> None:
+    storage_cfg = cfg.get("storage") or {}
+    if not isinstance(storage_cfg, Mapping):
+        return
+    retention = storage_cfg.get("retention") or {}
+    if not isinstance(retention, Mapping):
+        return
+    if retention.get("enabled", True) is False:
+        return
+    keep_last = retention.get("keep_last_runs")
+    keep_best = retention.get("keep_best_runs")
+    mode = str(retention.get("mode", "heavy_only")).lower()
+    dry_run = bool(retention.get("dry_run", False))
+    base_dir = out_dir.parent
+    runs = _collect_runs(base_dir)
+    if not runs:
+        return
+    keep_dirs: set[Path] = {out_dir.resolve()}
+    if keep_last:
+        try:
+            keep_last_int = int(keep_last)
+        except Exception:
+            keep_last_int = 0
+        if keep_last_int > 0:
+            recent = sorted(runs, key=lambda r: r.get("mtime", 0), reverse=True)
+            keep_dirs.update({r["dir"].resolve() for r in recent[:keep_last_int]})
+    if keep_best:
+        try:
+            keep_best_int = int(keep_best)
+        except Exception:
+            keep_best_int = 0
+        if keep_best_int > 0:
+            grouped: Dict[Tuple[str, str], List[Dict[str, Any]]] = {}
+            for run in runs:
+                meta = run.get("metadata") or {}
+                key = (str(meta.get("strategy_id") or "unknown"), str(meta.get("dataset_id") or "unknown"))
+                grouped.setdefault(key, []).append(run)
+            for items in grouped.values():
+                ranked = sorted(
+                    items,
+                    key=lambda r: r.get("objective", float("-inf")) if r.get("objective") is not None else float("-inf"),
+                    reverse=True,
+                )
+                keep_dirs.update({r["dir"].resolve() for r in ranked[:keep_best_int]})
+    for run in runs:
+        run_dir = run["dir"].resolve()
+        if run_dir in keep_dirs:
+            continue
+        if mode == "full":
+            LOGGER.info("Retention: deleting run %s", run_dir)
+            if not dry_run:
+                shutil.rmtree(run_dir, ignore_errors=True)
+        else:
+            LOGGER.info("Retention: pruning heavy artifacts in %s", run_dir)
+            if not dry_run:
+                _prune_heavy_artifacts(run_dir)
+
+
 def run_backtest_optimization(spec: Mapping[str, Any], *, out_dir: Optional[str | Path] = None) -> Dict[str, Any]:
     cfg = _optimization_config(spec)
     promotion_cfg = _promotion_config(cfg)
@@ -1433,7 +1721,7 @@ def run_backtest_optimization(spec: Mapping[str, Any], *, out_dir: Optional[str 
     method = _normalize_method(str(cfg.get("method", "grid")))
     max_trials = cfg.get("max_trials")
     seed = cfg.get("seed")
-    objective = cfg.get("objective", "sharpe")
+    objective = _merge_soft_constraints(cfg.get("objective", "sharpe"), promotion_cfg)
     total_trials = _count_trials(values, method, max_trials)
     LOGGER.info("Optimization trials planned: %d", total_trials)
     top_k = int(promotion_cfg.get("top_k", 0) or 0)
@@ -1482,8 +1770,9 @@ def run_backtest_optimization(spec: Mapping[str, Any], *, out_dir: Optional[str 
         keys=keys,
         out_dir=out_dir,
         base_meta=base_meta,
-        behavior_mode=behavior_mode,
-        behavior_bins=behavior_bins,
+      behavior_mode=behavior_mode,
+      behavior_bins=behavior_bins,
+      log_dedupe=bool(promotion_cfg.get("log_dedupe", False)),
         behavior_points=behavior_points,
         cluster_cfg=cluster_cfg,
         artifacts_cfg=artifacts_cfg,
@@ -1556,8 +1845,9 @@ def run_backtest_optimization(spec: Mapping[str, Any], *, out_dir: Optional[str 
                 behavior_distance=behavior_distance,
                 behavior_metrics=behavior_metrics,
                 behavior_bounds=behavior_bounds,
-                behavior_mode=behavior_mode,
-                behavior_bins=behavior_bins,
+      behavior_mode=behavior_mode,
+      behavior_bins=behavior_bins,
+      log_dedupe=bool(promotion_cfg.get("log_dedupe", False)),
             )
 
     artifacts.write_trials(out_dir / "trials.json", trials)
@@ -1631,6 +1921,7 @@ def run_backtest_optimization(spec: Mapping[str, Any], *, out_dir: Optional[str 
         "metadata": base_meta,
     }
     artifacts.write_summary(out_dir / "summary.json", summary)
+    _apply_retention(out_dir, cfg)
     return {
         "trials_path": str(out_dir / "trials.json"),
         "summary": str(out_dir / "summary.json"),
@@ -1664,7 +1955,7 @@ def run_strategy_optimization(spec: Mapping[str, Any], *, out_dir: Optional[str 
     method = _normalize_method(str(cfg.get("method", "grid")))
     max_trials = cfg.get("max_trials")
     seed = cfg.get("seed")
-    objective = cfg.get("objective", "sharpe")
+    objective = _merge_soft_constraints(cfg.get("objective", "sharpe"), promotion_cfg)
     total_trials = _count_trials(values, method, max_trials)
     LOGGER.info("Optimization trials planned: %d", total_trials)
     top_k = int(promotion_cfg.get("top_k", 0) or 0)
@@ -1862,6 +2153,7 @@ def run_strategy_optimization(spec: Mapping[str, Any], *, out_dir: Optional[str 
         "metadata": base_meta,
     }
     artifacts.write_summary(out_dir / "summary.json", summary)
+    _apply_retention(out_dir, cfg)
     return {
         "trials_path": str(out_dir / "trials.json"),
         "summary": str(out_dir / "summary.json"),

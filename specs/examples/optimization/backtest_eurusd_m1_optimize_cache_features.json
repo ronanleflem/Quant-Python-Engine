@@ -1,0 +1,94 @@
+{
+  "strategy": {
+    "strategy_id": "BT_EURUSD_M1_EMA",
+    "asset_class": "FX"
+  },
+  "data": {
+    "dataset_path": "specs/examples/data/eurusd_m1_sample.json",
+    "symbols": [
+      "EURUSD"
+    ],
+    "timeframe": "1m",
+    "start": "2024-01-01",
+    "end": "2024-01-01"
+  },
+  "signal": {
+    "type": "ema_cross",
+    "params": {
+      "fast": 5,
+      "slow": 20,
+      "require_crossing": false
+    }
+  },
+  "tpsl": {
+    "atr_window": 14,
+    "atr_k": 1.0,
+    "r_mult": 2.0,
+    "slippage_bps": 0.0,
+    "fee_bps": 0.0
+  },
+  "performance": {
+    "initial_capital": 10000
+  },
+  "persistence": {
+    "enabled": false
+  },
+  "optimization": {
+    "method": "grid",
+    "objective": "sharpe",
+    "search_space": {
+      "signal.params.fast": {
+        "min": 5,
+        "max": 20,
+        "step": 5
+      },
+      "signal.params.slow": {
+        "min": 20,
+        "max": 60,
+        "step": 10
+      }
+    },
+    "promotion": {
+      "top_k": 10,
+      "min_trades": 1,
+      "levels": [
+        {
+          "max_rank": 2,
+          "mode": "full"
+        },
+        {
+          "max_rank": 5,
+          "mode": "compact",
+          "trade_sample_size": 50,
+          "equity_max_points": 200
+        },
+        {
+          "max_rank": 10,
+          "mode": "stats"
+        }
+      ]
+    },
+    "screening": {
+      "enabled": true,
+      "max_bars": 300,
+      "max_trades": 25,
+      "max_seconds": 2.0,
+      "pruning": {
+        "max_drawdown_pct": 30,
+        "min_signals_after_bars": {
+          "bars": 200,
+          "min_signals": 1
+        }
+      }
+    },
+    "artifacts": {
+      "mode": "compact",
+      "trade_sample_size": 50,
+      "equity_max_points": 200
+    },
+    "cache_features": {
+      "enabled": true,
+      "max_items": 2048
+    }
+  }
+}

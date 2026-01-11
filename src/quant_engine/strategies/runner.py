@@ -91,7 +91,10 @@ def _run_backtest_core(spec: Mapping[str, Any]) -> tuple[Dict[str, Any], Dict[st
         strategy_type, strategy_id=strategy_id, params=strategy_cfg.get("params", {})
     )
     data_spec: Mapping[str, Any] = spec.get("data", {})
-    screening_cfg = (spec.get("optimization", {}) or {}).get("screening") or spec.get("screening") or {}
+    optimization_cfg = spec.get("optimization", {}) or {}
+    screening_cfg = optimization_cfg.get("screening") or spec.get("screening") or {}
+    cache_cfg = optimization_cfg.get("cache_features") or {}
+    cache_enabled = bool(cache_cfg) and cache_cfg.get("enabled", True) is not False
     universe: Iterable[Mapping[str, Any]] = _expand_universe(spec)
     signals_by_symbol: Dict[str, List[Dict[str, Any]]] = {}
     counts: Dict[str, int] = {}
@@ -131,6 +134,20 @@ def _run_backtest_core(spec: Mapping[str, Any]) -> tuple[Dict[str, Any], Dict[st
             if "ts" in df_filter.columns:
                 df_filter["ts"] = pd.to_datetime(df_filter["ts"], utc=True)
                 df_filter = df_filter.set_index("ts")
+            if cache_enabled:
+                cache_key = json.dumps(
+                    {
+                        "symbol": symbol,
+                        "asset_class": asset_class,
+                        "data": data_spec,
+                        "screening": screening_cfg,
+                    },
+                    sort_keys=True,
+                    default=str,
+                )
+                df_filter.attrs["qe_cache_key"] = cache_key
+                if "max_items" in cache_cfg:
+                    df_filter.attrs["qe_cache_max_items"] = cache_cfg.get("max_items")
             try:
                 mask = apply_filter_stack(df_filter, filters_spec, symbol=symbol, logger=LOGGER, strict=True)
             except FilterValidationError as exc:
