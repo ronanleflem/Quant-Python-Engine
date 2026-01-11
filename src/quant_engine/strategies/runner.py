@@ -91,6 +91,7 @@ def _run_backtest_core(spec: Mapping[str, Any]) -> tuple[Dict[str, Any], Dict[st
         strategy_type, strategy_id=strategy_id, params=strategy_cfg.get("params", {})
     )
     data_spec: Mapping[str, Any] = spec.get("data", {})
+    screening_cfg = (spec.get("optimization", {}) or {}).get("screening") or spec.get("screening") or {}
     universe: Iterable[Mapping[str, Any]] = _expand_universe(spec)
     signals_by_symbol: Dict[str, List[Dict[str, Any]]] = {}
     counts: Dict[str, int] = {}
@@ -105,6 +106,16 @@ def _run_backtest_core(spec: Mapping[str, Any]) -> tuple[Dict[str, Any], Dict[st
             getattr(strategy, "asset_class", None) or strategy_cfg.get("asset_class"),
         )
         df = _fetch_ohlc_for_symbol(symbol, asset_class, data_spec, instrument)
+        if isinstance(screening_cfg, Mapping) and screening_cfg.get("enabled"):
+            max_bars = screening_cfg.get("max_bars")
+            if max_bars is not None:
+                try:
+                    max_bars_int = int(max_bars)
+                except Exception:
+                    max_bars_int = 0
+                if max_bars_int > 0 and len(df) > max_bars_int:
+                    df = df.tail(max_bars_int).copy()
+                    LOGGER.info("Screening enabled: keeping last %d bars for %s", max_bars_int, symbol)
         filters_spec = strategy_cfg.get("filters") or spec.get("filters") or []
         if filters_spec:
             df = df.copy()

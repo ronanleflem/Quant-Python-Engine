@@ -201,6 +201,17 @@ def run_backtest_from_spec(spec: Mapping[str, Any]) -> Dict[str, Any]:
     rows, data_source = _load_rows(data_raw, data_spec, asset_class)
     if not rows:
         raise ValueError("No data rows loaded for backtest")
+    screening_cfg = (spec.get("optimization", {}) or {}).get("screening") or spec.get("screening") or {}
+    if isinstance(screening_cfg, Mapping) and screening_cfg.get("enabled"):
+        max_bars = screening_cfg.get("max_bars")
+        if max_bars is not None:
+            try:
+                max_bars_int = int(max_bars)
+            except Exception:
+                max_bars_int = 0
+            if max_bars_int > 0 and len(rows) > max_bars_int:
+                rows = rows[-max_bars_int:]
+                LOGGER.info("Screening enabled: keeping last %d bars", max_bars_int)
 
     symbol = _detect_symbol(rows)
     signal = _build_signal(spec, rows)

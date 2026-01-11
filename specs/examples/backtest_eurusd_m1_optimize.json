@@ -57,6 +57,17 @@
         "max": 3.0,
         "step": 0.5
       }
+    },
+    "promotion": {
+      "top_k": 3,
+      "min_trades": 1,
+      "max_drawdown_pct": 80,
+      "min_winrate_pct": 10,
+      "dedupe_distance": 0.15
+    },
+    "screening": {
+      "enabled": true,
+      "max_bars": 300
     }
   }
 }

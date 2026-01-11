@@ -51,6 +51,7 @@ export $(grep -v '^#' .env | xargs)
 ## 📖 Documentation
 - [Getting started](docs/getting_started.md)
 - [Filtres pré-trade](docs/filters.md)
+- [Optimization workflow](docs/optimization.md)
 - [Seasonality – Dimensions & Métriques](docs/seasonality_reference.md)
 - [Live Trading Runner](docs/live.md)
 - [High-level Strategies](docs/strategies_overview.md)
