@@ -248,6 +248,66 @@ def _aggregate_scores(values: List[float], mode: str) -> float:
     return sum(clean) / len(clean)
 
 
+def _sensitivity_from_trials(
+    trials: List[Mapping[str, Any]],
+    *,
+    top_k: int = 20,
+) -> Dict[str, Any]:
+    scored = [t for t in trials if isinstance(t.get("objective"), (int, float))]
+    scored = sorted(scored, key=lambda t: t.get("objective", float("-inf")), reverse=True)
+    top = scored[: max(1, top_k)]
+    if not top:
+        return {}
+    params_list = [t.get("params") or {} for t in top]
+    objectives = [float(t.get("objective", 0.0)) for t in top]
+    mean_obj = sum(objectives) / len(objectives)
+    var_obj = sum((o - mean_obj) ** 2 for o in objectives) / len(objectives)
+    std_obj = math.sqrt(var_obj) if var_obj > 0 else 0.0
+    param_stats: Dict[str, Dict[str, Any]] = {}
+    for params in params_list:
+        for key, val in params.items():
+            stats = param_stats.setdefault(key, {"values": [], "unique": set()})
+            stats["values"].append(val)
+            stats["unique"].add(val)
+    correlations: Dict[str, Optional[float]] = {}
+    stable: List[str] = []
+    for key, stats in param_stats.items():
+        values = stats["values"]
+        numeric_vals: List[float] = []
+        numeric_obj: List[float] = []
+        for v, obj in zip(values, objectives):
+            if isinstance(v, (int, float)):
+                numeric_vals.append(float(v))
+                numeric_obj.append(float(obj))
+        unique_count = len(stats["unique"])
+        stable_ratio = unique_count / max(1, len(values))
+        if stable_ratio <= 0.2:
+            stable.append(key)
+        if numeric_vals and std_obj > 0:
+            mean_val = sum(numeric_vals) / len(numeric_vals)
+            var_val = sum((v - mean_val) ** 2 for v in numeric_vals) / len(numeric_vals)
+            std_val = math.sqrt(var_val) if var_val > 0 else 0.0
+            if std_val > 0:
+                cov = sum((v - mean_val) * (o - mean_obj) for v, o in zip(numeric_vals, numeric_obj)) / len(numeric_vals)
+                correlations[key] = cov / (std_val * std_obj)
+            else:
+                correlations[key] = None
+        else:
+            correlations[key] = None
+    sorted_corr = sorted(
+        ((k, v) for k, v in correlations.items() if isinstance(v, (int, float))),
+        key=lambda item: abs(item[1]),
+        reverse=True,
+    )
+    return {
+        "top_k": top_k,
+        "objective_mean": mean_obj,
+        "objective_std": std_obj,
+        "correlations": {k: v for k, v in sorted_corr},
+        "stable_params": stable,
+    }
+
+
 def _screening_pass(window_scores: List[float], cfg: Mapping[str, Any]) -> bool:
     if not window_scores:
         return True
@@ -613,6 +673,47 @@ def _objective_summary(objective: Any) -> str:
     return str(objective)
 
 
+def _debug_on_fail_cfg(cfg: Mapping[str, Any]) -> Optional[Dict[str, Any]]:
+    raw = cfg.get("debug_on_fail") or {}
+    if not isinstance(raw, Mapping):
+        return None
+    if raw.get("enabled", False) is not True:
+        return None
+    return dict(raw)
+
+
+def _write_debug_failure(
+    out_dir: Path,
+    trial_id: int,
+    params: Mapping[str, Any],
+    *,
+    error: str,
+    payload: Optional[Mapping[str, Any]] = None,
+    context: Optional[Mapping[str, Any]] = None,
+    debug_cfg: Optional[Mapping[str, Any]] = None,
+) -> None:
+    debug_cfg = debug_cfg or {}
+    debug_dir = out_dir / "debug_failures"
+    debug_dir.mkdir(parents=True, exist_ok=True)
+    compact_mode = str(debug_cfg.get("mode", "stats")).lower()
+    equity_limit = debug_cfg.get("equity_max_points")
+    trade_limit = debug_cfg.get("trade_sample_size")
+    debug_payload = payload or {}
+    if payload and compact_mode in {"compact", "summary", "light", "stats"}:
+        debug_payload = _compact_payload(
+            payload, equity_limit=equity_limit, trade_limit=trade_limit, mode=compact_mode
+        )
+    body = {
+        "trial_id": trial_id,
+        "params": dict(params),
+        "error": error,
+        "context": dict(context or {}),
+        "payload": debug_payload,
+    }
+    path = debug_dir / f"trial_{trial_id}.json"
+    path.write_text(json.dumps(body, indent=2, default=str))
+
+
 def _merge_soft_constraints(objective: Any, promotion_cfg: Mapping[str, Any]) -> Any:
     soft = promotion_cfg.get("soft_constraints")
     if not isinstance(soft, Mapping) or not soft:
@@ -730,6 +831,7 @@ def _log_optimization_plan(
         full_levels,
     )
     LOGGER.info("Optimization cache_features: %s", cfg.get("cache_features"))
+    LOGGER.info("Optimization debug_on_fail: %s", cfg.get("debug_on_fail"))
     LOGGER.info(
         "Optimization refine: enabled=%s top_k=%s shrink_pct=%s freeze_keys=%s freeze_prefixes=%s",
         bool(refine_cfg.get("enabled")),
@@ -1751,6 +1853,7 @@ def run_backtest_optimization(spec: Mapping[str, Any], *, out_dir: Optional[str 
     if not isinstance(cluster_cfg, Mapping):
         cluster_cfg = {}
     full_cfg = cfg.get("full_pass") if isinstance(cfg.get("full_pass"), Mapping) else {}
+    debug_cfg = _debug_on_fail_cfg(cfg)
 
     trials: List[Dict[str, Any]] = []
     best: Dict[str, Any] | None = None
@@ -1780,6 +1883,7 @@ def run_backtest_optimization(spec: Mapping[str, Any], *, out_dir: Optional[str 
     )
     for trial_spec in _trial_specs(spec, keys, values, method, max_trials, seed):
         trial_id += 1
+        trial_params = {k: _get_path_value(trial_spec, k) for k in keys}
         window_scores: List[float] = []
         window_runs: List[Mapping[str, Any]] = []
         windows = screening_cfg.get("windows") or []
@@ -1791,7 +1895,21 @@ def run_backtest_optimization(spec: Mapping[str, Any], *, out_dir: Optional[str 
                 trial_window.setdefault("optimization", {}).setdefault("screening", {})
                 trial_window["optimization"]["screening"]["window_start"] = window.get("start")
                 trial_window["optimization"]["screening"]["window_end"] = window.get("end")
-                result = backtest_runner.run_backtest_from_spec(trial_window)
+                try:
+                    result = backtest_runner.run_backtest_from_spec(trial_window)
+                except Exception as exc:
+                    if debug_cfg:
+                        _write_debug_failure(
+                            out_dir,
+                            trial_id,
+                            trial_params,
+                            error=f"window_failure: {exc}",
+                            context={"window": dict(window)},
+                            debug_cfg=debug_cfg,
+                        )
+                    window_runs.append({"error": str(exc)})
+                    window_scores.append(float("-inf"))
+                    continue
                 payload = result.get("payload") or {}
                 run = payload.get("run") or {}
                 window_runs.append(run)
@@ -1803,11 +1921,41 @@ def run_backtest_optimization(spec: Mapping[str, Any], *, out_dir: Optional[str 
             payload = {"runs": window_runs}
             run = {"window_scores": window_scores, "screening_failed": (not passed)}
         else:
-            result = backtest_runner.run_backtest_from_spec(trial_spec)
+            try:
+                result = backtest_runner.run_backtest_from_spec(trial_spec)
+            except Exception as exc:
+                if debug_cfg:
+                    _write_debug_failure(
+                        out_dir,
+                        trial_id,
+                        trial_params,
+                        error=f"trial_failure: {exc}",
+                        debug_cfg=debug_cfg,
+                    )
+                trials.append(
+                    {
+                        "trial_id": trial_id,
+                        "params": trial_params,
+                        "objective": float("-inf"),
+                        "window_scores": None,
+                        "metadata": base_meta,
+                    }
+                )
+                continue
             payload = result.get("payload") or {}
             run = payload.get("run") or {}
             score = _objective_value(run, objective)
-        trial_params = {k: _get_path_value(trial_spec, k) for k in keys}
+        if not math.isfinite(score):
+            if debug_cfg:
+                _write_debug_failure(
+                    out_dir,
+                    trial_id,
+                    trial_params,
+                    error="non_finite_objective",
+                    payload=payload,
+                    debug_cfg=debug_cfg,
+                )
+            score = float("-inf")
         trials.append(
             {
                 "trial_id": trial_id,
@@ -1911,6 +2059,15 @@ def run_backtest_optimization(spec: Mapping[str, Any], *, out_dir: Optional[str 
             objective=objective,
         )
     _log_storage_impact(total_trials, len(promoted_records), len(full_records))
+    sensitivity_cfg = cfg.get("sensitivity") or {}
+    sensitivity = None
+    if isinstance(sensitivity_cfg, Mapping) and sensitivity_cfg.get("enabled"):
+        top_k = sensitivity_cfg.get("top_k", 20)
+        try:
+            top_k = int(top_k)
+        except Exception:
+            top_k = 20
+        sensitivity = _sensitivity_from_trials(trials, top_k=top_k)
     summary = {
         "objective": objective,
         "best": best,
@@ -1919,6 +2076,7 @@ def run_backtest_optimization(spec: Mapping[str, Any], *, out_dir: Optional[str 
         "refine": refine_records,
         "full_pass": full_records,
         "metadata": base_meta,
+        "sensitivity": sensitivity,
     }
     artifacts.write_summary(out_dir / "summary.json", summary)
     _apply_retention(out_dir, cfg)
@@ -1985,6 +2143,7 @@ def run_strategy_optimization(spec: Mapping[str, Any], *, out_dir: Optional[str 
     if not isinstance(cluster_cfg, Mapping):
         cluster_cfg = {}
     full_cfg = cfg.get("full_pass") if isinstance(cfg.get("full_pass"), Mapping) else {}
+    debug_cfg = _debug_on_fail_cfg(cfg)
 
     trials: List[Dict[str, Any]] = []
     best: Dict[str, Any] | None = None
@@ -2013,6 +2172,7 @@ def run_strategy_optimization(spec: Mapping[str, Any], *, out_dir: Optional[str 
     )
     for trial_spec in _trial_specs(spec, keys, values, method, max_trials, seed):
         trial_id += 1
+        trial_params = {k: _get_path_value(trial_spec, k) for k in keys}
         window_scores: List[float] = []
         window_runs: List[Mapping[str, Any]] = []
         windows = screening_cfg.get("windows") or []
@@ -2024,7 +2184,21 @@ def run_strategy_optimization(spec: Mapping[str, Any], *, out_dir: Optional[str 
                 trial_window.setdefault("optimization", {}).setdefault("screening", {})
                 trial_window["optimization"]["screening"]["window_start"] = window.get("start")
                 trial_window["optimization"]["screening"]["window_end"] = window.get("end")
-                result = strategy_runner.run_backtest_with_payload(trial_window)
+                try:
+                    result = strategy_runner.run_backtest_with_payload(trial_window)
+                except Exception as exc:
+                    if debug_cfg:
+                        _write_debug_failure(
+                            out_dir,
+                            trial_id,
+                            trial_params,
+                            error=f"window_failure: {exc}",
+                            context={"window": dict(window)},
+                            debug_cfg=debug_cfg,
+                        )
+                    window_runs.append({"error": str(exc)})
+                    window_scores.append(float("-inf"))
+                    continue
                 payload = result.get("payload") or {}
                 run = payload.get("run") or {}
                 window_runs.append(run)
@@ -2036,11 +2210,41 @@ def run_strategy_optimization(spec: Mapping[str, Any], *, out_dir: Optional[str 
             payload = {"runs": window_runs}
             run = {"window_scores": window_scores, "screening_failed": (not passed)}
         else:
-            result = strategy_runner.run_backtest_with_payload(trial_spec)
+            try:
+                result = strategy_runner.run_backtest_with_payload(trial_spec)
+            except Exception as exc:
+                if debug_cfg:
+                    _write_debug_failure(
+                        out_dir,
+                        trial_id,
+                        trial_params,
+                        error=f"trial_failure: {exc}",
+                        debug_cfg=debug_cfg,
+                    )
+                trials.append(
+                    {
+                        "trial_id": trial_id,
+                        "params": trial_params,
+                        "objective": float("-inf"),
+                        "window_scores": None,
+                        "metadata": base_meta,
+                    }
+                )
+                continue
             payload = result.get("payload") or {}
             run = payload.get("run") or {}
             score = _objective_value(run, objective)
-        trial_params = {k: _get_path_value(trial_spec, k) for k in keys}
+        if not math.isfinite(score):
+            if debug_cfg:
+                _write_debug_failure(
+                    out_dir,
+                    trial_id,
+                    trial_params,
+                    error="non_finite_objective",
+                    payload=payload,
+                    debug_cfg=debug_cfg,
+                )
+            score = float("-inf")
         trials.append(
             {
                 "trial_id": trial_id,
@@ -2143,6 +2347,15 @@ def run_strategy_optimization(spec: Mapping[str, Any], *, out_dir: Optional[str 
             objective=objective,
         )
     _log_storage_impact(total_trials, len(promoted_records), len(full_records))
+    sensitivity_cfg = cfg.get("sensitivity") or {}
+    sensitivity = None
+    if isinstance(sensitivity_cfg, Mapping) and sensitivity_cfg.get("enabled"):
+        top_k = sensitivity_cfg.get("top_k", 20)
+        try:
+            top_k = int(top_k)
+        except Exception:
+            top_k = 20
+        sensitivity = _sensitivity_from_trials(trials, top_k=top_k)
     summary = {
         "objective": objective,
         "best": best,
@@ -2151,6 +2364,7 @@ def run_strategy_optimization(spec: Mapping[str, Any], *, out_dir: Optional[str 
         "refine": refine_records,
         "full_pass": full_records,
         "metadata": base_meta,
+        "sensitivity": sensitivity,
     }
     artifacts.write_summary(out_dir / "summary.json", summary)
     _apply_retention(out_dir, cfg)

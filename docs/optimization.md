@@ -338,6 +338,27 @@ Le runner logue un resume du ratio heavy vs total trials :
 Optimization storage impact: trials=1000 heavy_promoted=5 (0.5%) full_pass=5
 ```
 
+
+
+### Debug on fail (payload compact)
+
+Tu peux demander un dump compact quand un trial echoue ou retourne une objective non finie :
+
+```json
+{
+  "optimization": {
+    "debug_on_fail": {
+      "enabled": true,
+      "mode": "stats",
+      "trade_sample_size": 50,
+      "equity_max_points": 200
+    }
+  }
+}
+```
+
+Les dumps sont ecrits dans `runs/optimize_*/debug_failures/`.
+
 ## Logs de configuration (traceability)
 
 Au demarrage d'une optimization, le runner logue un resume complet du "cahier des charges" utilise :
@@ -605,10 +626,32 @@ Mode avance (DBSCAN-like):
 
 
 
+
+
+### Analyse de sensibilite (post-optimization)
+
+Tu peux activer une analyse simple sur les meilleurs trials :
+
+```json
+{
+  "optimization": {
+    "sensitivity": {
+      "enabled": true,
+      "top_k": 20
+    }
+  }
+}
+```
+
+Sortie :
+- `correlations`: corr?lation param?tre ? objective (top_k).
+- `stable_params`: param?tres peu sensibles (valeurs quasi constantes).
+
 ## Exemples JSON (optimization)
 
 - `specs/examples/optimization/backtest_eurusd_m1_optimize_pruning_levels.json`
 - `specs/examples/optimization/backtest_eurusd_m1_optimize_cache_features.json`
+- `specs/examples/optimization/backtest_eurusd_m1_optimize_debug_on_fail.json`
 - `specs/examples/optimization/backtest_eurusd_m1_optimize_fullpass_levels.json`
 - `specs/examples/optimization/backtest_eurusd_m1_optimize_fullpass_folds.json`
 - `specs/examples/optimization/strategy_dca_equity_optimize_levels.json`
@@ -616,6 +659,7 @@ Mode avance (DBSCAN-like):
 - `specs/examples/optimization/strategy_dca_equity_optimize_dedupe_logs.json`
 - `specs/examples/optimization/strategy_dca_equity_optimize_retention.json`
 - `specs/examples/optimization/strategy_dca_equity_optimize_repro_hash.json`
+- `specs/examples/optimization/strategy_dca_equity_optimize_sensitivity.json`
 - `specs/examples/optimization/strategy_dca_equity_optimize_windows_median.json`
 
 
@@ -665,6 +709,29 @@ P2 (scalabilite 50k+ trials) :
 P3 (nice to have) :
 - Debug_on_fail (dump compact en cas d'exception/NaN).
 - Analyse de sensibilite post-optimization (importance params, freeze auto).
+
+
+
+## Recap (cahier des charges)
+
+P0
+- Pruning reel intra-window (drawdown / manque de signaux).
+- Promotion Manager avec niveaux d'artefacts (NONE/STATS/EQUITY/TRADES_SAMPLE/FULL).
+- Robustesse pass 1 (aggregate median/min + must-pass par window).
+
+P1
+- Walk-forward / CV temporelle en pass 2 + metrics par fold.
+- Contraintes hard vs soft (gates + penalites dans l'objective).
+- Dedoublonnage comportemental deterministe + logs de rejet explicites.
+
+P2
+- Budget stockage + retention automatique par run.
+- Cache des calculs invariants (two-phase light).
+- Reproductibilite renforcee (config_hash + data_hash + versions libs).
+
+P3
+- Debug_on_fail (dump compact si exception/NaN).
+- Analyse de sensibilite post-optimization (correlations + params stables).
 
 ## Resultats
 
