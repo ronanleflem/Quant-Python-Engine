@@ -1,73 +1,65 @@
-# Levels module overview
+# Overview du module Levels
 
-The levels module computes and persists slow-moving market structure levels in
-`marketdata.levels` so that Python backtests, the Java execution stack and the
-Angular frontend can reuse the same signals.
+Le module Levels calcule et persiste des niveaux de structure de marche lents
+dans `marketdata.levels`, afin que les backtests Python, le stack Java et le
+frontend Angular reutilisent les memes signaux.
 
-## Supported levels
+## Levels supportes
 
-The current detectors cover the following level types:
+Les detecteurs actuels couvrent :
 
-* **PDH/PDL** – previous day high/low anchored on the completed UTC daily bar.
-* **PWH/PWL** – previous ISO week high/low.
-* **PMH/PML** – previous month high/low.
-* **GAP_D / GAP_W** – gap zones between close and next open on the daily/weekly
-  aggregate.
-* **FVG** – three-candle fair value gaps (bullish and bearish) on the base
-  timeframe.
-* **FVG_HTF** – higher-timeframe fair value gaps built from resampled H1/H4/D1
-  candles while keeping the anchor on the centre bar.
-* **POC** – simplified point-of-control using histogram counts.
-* **SWING_H / SWING_L** – n-bar fractal pivots capturing market structure
-  swings.
-* **EQH / EQL** – equal highs/lows (liquidity pools) detected via tolerance
-  bands on recent extremes.
-* **BOS_H / BOS_L / MSS** – Break of Structure and Market Structure Shift events
-  triggered when closes breach the latest swing.
-* **VWAP_SESSION / VWAP_DAY / VWAP_WEEK** – anchored VWAP curves (developing
-  and fixed) with optional sigma bands `VWAP_BAND_{k}+`.
-* **ADR_BAND_k** – daily Average Daily Range envelopes around the current
-  session open.
-* **PIVOT_P / PIVOT_R1..R3 / PIVOT_S1..S3** – classic floor pivot levels derived
-  from the previous session’s range.
+- **PDH/PDL** : previous day high/low, ancre sur la bougie journaliere UTC closee.
+- **PWH/PWL** : previous ISO week high/low.
+- **PMH/PML** : previous month high/low.
+- **GAP_D / GAP_W** : zones de gap entre la close et la prochaine open en daily/weekly.
+- **FVG** : fair value gaps a 3 bougies (bullish/bearish) sur la timeframe de base.
+- **FVG_HTF** : FVG higher-timeframe (H1/H4/D1) via resampling, ancre sur la
+  bougie centrale.
+- **POC** : point-of-control simplifie via histogramme.
+- **SWING_H / SWING_L** : pivots fractals n-bar capturant les swings.
+- **EQH / EQL** : equal highs/lows (liquidity pools) via bandes de tolerance.
+- **BOS_H / BOS_L / MSS** : Break of Structure et Market Structure Shift, declenches
+  quand la close casse le dernier swing.
+- **VWAP_SESSION / VWAP_DAY / VWAP_WEEK** : VWAP ancrees (developing/fixed) avec
+  bandes sigma optionnelles `VWAP_BAND_{k}+`.
+- **ADR_BAND_k** : enveloppes d'Average Daily Range autour de l'open de session.
+- **PIVOT_P / PIVOT_R1..R3 / PIVOT_S1..S3** : niveaux pivot classiques (floor pivots)
+  derives de la session precedente.
 
-Round numbers (RN) can also be generated statically for convenience.
+Les round numbers (RN) peuvent aussi etre generes statiquement.
 
-## Phase 1.5 additions
+## Ajouts Phase 1.5
 
-* **Fills:** `valid_to_ts` is populated on the first closing price that touches
-  the gap or fair value gap zone (MVP logic). Future iterations will add a full
-  intrabar overlap mode.
-* **Endpoints:**
-  * `POST /levels/fill` refreshes FVG/GAP fills. The body is a
-    `LevelsBuildSpec` providing the data source and date range.
-  * `GET /levels/active` returns open zones (`valid_to_ts IS NULL`) filtered by
-    symbol, level types and optional date window.
-* **New levels:** session highs/lows, opening range (ORH/ORL), initial balance
-  (IBH/IBL) and previous open/close levels for daily/weekly/monthly periods
+- **Fills** : `valid_to_ts` est renseigne sur la premiere close qui touche la
+  zone GAP ou FVG (logique MVP). Les iterations suivantes ajouteront un mode
+  d'overlap intrabar complet.
+- **Endpoints** :
+  - `POST /levels/fill` rafraichit les fills FVG/GAP. Le body est un
+    `LevelsBuildSpec` qui fournit la source et le range.
+  - `GET /levels/active` retourne les zones ouvertes (`valid_to_ts IS NULL`) filtrees
+    par symbol, types et fenetre de date optionnelle.
+- **Nouveaux levels** : session highs/lows, opening range (ORH/ORL), initial
+  balance (IBH/IBL) et previous open/close pour daily/weekly/monthly
   (PDO/PDC, PWO/PWC, PMO/PMC).
-* **Phase 2B additions:** anchored VWAP (session/day/week) with sigma bands,
-  higher-timeframe FVGs via resampling, ADR envelopes and daily floor pivots.
-* **Configuration:** session windows and Opening Range/Initial Balance durations
-  are configurable via the `session_windows` and `orib` sections of the
-  `LevelsBuildSpec`.
+- **Ajouts Phase 2B** : VWAP ancrees (session/day/week) avec bandes sigma,
+  FVG higher-timeframe via resampling, ADR envelopes et floor pivots journaliers.
+- **Configuration** : les session windows et les durees Opening Range/Initial
+  Balance sont configurables via `session_windows` et `orib` dans `LevelsBuildSpec`.
 
 ## Structure (Phase 2A)
 
-Phase 2A introduces higher-level structure primitives built on fractal swings
-and liquidity pools:
+La Phase 2A introduit des primitives de structure basees sur les fractal swings
+et les liquidity pools :
 
-* `SWING_H` / `SWING_L` use n-bar fractals (configurable via `left`/`right`) to
-  anchor swings on the base timeframe.
-* `EQH` / `EQL` cluster nearly equal highs/lows inside a configurable lookback
-  window, returning narrow zones `[price_lo, price_hi]` anchored on the latest
-  touch.
-* `BOS_H` / `BOS_L` fire when the closing price breaks the most recent swing in
-  the corresponding direction, while `MSS` marks a shift when the break
-  reverses the previous run.
+- `SWING_H` / `SWING_L` utilisent des fractals n-bar (config via `left`/`right`)
+  pour ancrer les swings sur la timeframe de base.
+- `EQH` / `EQL` clusterisent les highs/lows proches sur une fenetre configurable
+  et retournent des zones `[price_lo, price_hi]` ancrees sur le dernier touch.
+- `BOS_H` / `BOS_L` se declenchent quand la close casse le swing le plus recent
+  dans la direction, et `MSS` marque un shift quand la cassure inverse le run.
 
-The new helpers in `quant_engine.levels.helpers` simplify consumption inside
-stats and backtests:
+Les helpers dans `quant_engine.levels.helpers` facilitent la consommation en stats
+et backtests :
 
 ```python
 from quant_engine.levels import helpers as lvl_helpers, repo
@@ -79,23 +71,22 @@ distance = lvl_helpers.distance_to(ohlcv_df, levels, "EQH", side="edge")
 recent_touch = lvl_helpers.touched_since(ohlcv_df, levels, "EQH", bars=5)
 ```
 
-Statistics conditions wrap these helpers via `in_zone_level`, `distance_to_level`
-and `touched_level_since`, automatically loading persisted levels from
+Les conditions stats encapsulent ces helpers via `in_zone_level`, `distance_to_level`
+et `touched_level_since`, en chargeant automatiquement les levels persistes depuis
 `marketdata.levels`.
 
 ## Idempotence & perf
 
-* Every row carries a deterministic `uniq_hash` (SHA-256) built from
-  `symbol`, `level_type`, `timeframe`, rounded prices, anchor timestamp,
-  optional `valid_from_ts` and the detector `params_hash`. The hash is
-  enforced via a unique index so repeated ingestions stay idempotent.
-* Additional b-tree indices on `(symbol, level_type, anchor_ts)` and
-  `(symbol, valid_from_ts, valid_to_ts)` keep the most common lookups quick for
-  scans, overlays and validity checks.
-* Two helper views expose only active rows (still-open points or zones) for
-  latency-sensitive consumers like the Java execution stack or the Angular UI.
+- Chaque ligne porte un `uniq_hash` deterministe (SHA-256) base sur `symbol`,
+  `level_type`, `timeframe`, prix arrondis, `anchor_ts`, `valid_from_ts` optionnel
+  et `params_hash`. L'index unique assure l'idempotence.
+- Index b-tree additionnels sur `(symbol, level_type, anchor_ts)` et
+  `(symbol, valid_from_ts, valid_to_ts)` pour accelerer les scans, overlays et
+  checks de validite.
+- Deux views exposent uniquement les lignes actives (zones encore ouvertes) pour
+  les consumers sensibles a la latence (Java execution stack, Angular UI).
 
-Example query for open zones:
+Exemple de requete pour les zones ouvertes :
 
 ```sql
 SELECT *
@@ -104,7 +95,7 @@ WHERE symbol = 'EURUSD'
   AND level_type IN ('FVG', 'GAP_D');
 ```
 
-## Running detections
+## Execution des detections
 
 ### CLI
 
@@ -115,13 +106,13 @@ poetry run qe levels build --spec specs/levels_example.json
 
 ### API
 
-Start the API locally:
+Demarrer l'API localement :
 
 ```bash
 poetry run uvicorn quant_engine.api.app:app --reload --port 8000
 ```
 
-Trigger a build and fetch persisted levels:
+Declencher un build et recuperer les levels :
 
 ```bash
 curl -X POST "http://localhost:8000/levels/build" \
@@ -133,8 +124,8 @@ curl "http://localhost:8000/levels?symbol=EURUSD&level_type=PDH&limit=50"
 curl "http://localhost:8000/levels/search?symbol=EURUSD&type=EQH,EQL&limit=20"
 ```
 
-The `/levels/nearest` endpoint returns levels closest to a target price, making
-it convenient for live overlays:
+L'endpoint `/levels/nearest` retourne les levels les plus proches d'un prix cible,
+utile pour les overlays live :
 
 ```bash
 curl "http://localhost:8000/levels/nearest?symbol=EURUSD&price=1.0825&limit=10"
@@ -142,11 +133,9 @@ curl "http://localhost:8000/levels/nearest?symbol=EURUSD&price=1.0825&limit=10"
 
 ## Notes
 
-* All timestamps are normalised to UTC and reference the close of the
-  aggregated period (daily, weekly, monthly).
-* Gap zones capture the range between the previous close and the next open.
-* The MVP FVG detector does not yet handle invalidation; TODOs mark the areas
-  earmarked for refinement.
-* The POC implementation uses a histogram fallback suitable for FX spot where
-  volume data may be unreliable. A full volume profile will be added in a
-  future iteration.
+- Tous les timestamps sont normalises en UTC et references sur la close de la
+  periode agregee (daily, weekly, monthly).
+- Les GAP capturent la range entre la close precedente et l'open suivante.
+- Le detecteur FVG MVP ne gere pas encore l'invalidation (TODOs en place).
+- Le POC utilise un fallback histogramme adapte au FX spot (volume peu fiable).
+  Un vrai volume profile sera ajoute dans une iteration future.

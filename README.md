@@ -110,6 +110,41 @@ Define `optimization.search_space` with discrete lists or `{min,max,step}` range
 }
 ```
 
+### Composite objective + screening + promotion (exemple)
+Voir aussi `docs/optimization.md` pour le workflow complet.
+
+```json
+{
+  "optimization": {
+    "objective": {
+      "weights": {
+        "sharpe": 1.0,
+        "return_pct": 0.3,
+        "max_drawdown_pct": -0.5
+      }
+    },
+    "screening": {
+      "enabled": true,
+      "max_bars": 300,
+      "max_trades": 25,
+      "max_seconds": 2.0,
+      "aggregate": "mean",
+      "windows": [
+        { "start": "2024-01-01", "end": "2024-06-30" },
+        { "start": "2024-07-01", "end": "2024-12-31" }
+      ]
+    },
+    "promotion": {
+      "top_k": 3,
+      "min_trades": 1,
+      "max_drawdown_pct": 80,
+      "min_winrate_pct": 10,
+      "dedupe_distance": 0.15
+    }
+  }
+}
+```
+
 ## Performance, DCA et intégration backend
 - **Module `quant_engine.performance`** : calcule les métriques côté Python et agrège les signaux DCA en `CompletedTrade` (1 cycle = 1 trade logique). Les BUY successifs d’un cycle sont consolidés ; la vente `take_profit` clôture le trade et porte les métadonnées du cycle.
 - **StrategyRunResult** : résumé d’un run (dates, ratios win/loss, drawdown, Sharpe/Sortino calculés en Python). Les champs capital/prix/qty peuvent rester des placeholders selon la stratégie ; les valeurs optionnelles sont envoyées dans `extra` pour compatibilité future.

@@ -35,7 +35,19 @@
   },
   "optimization": {
     "method": "grid",
-    "objective": "sharpe",
+    "objective": {
+      "weights": {
+        "sharpe": 1.0
+      },
+      "penalties": {
+        "max_drawdown_pct": {
+          "threshold": 40,
+          "direction": "above",
+          "power": 2,
+          "weight": -0.5
+        }
+      }
+    },
     "search_space": {
       "signal.params.fast": {
         "min": 5,
@@ -63,11 +75,93 @@
       "min_trades": 1,
       "max_drawdown_pct": 80,
       "min_winrate_pct": 10,
-      "dedupe_distance": 0.15
+      "dedupe_distance": 0.15,
+      "behavior_distance": 0.2,
+      "behavior_metrics": [
+        "returnPct",
+        "maxDrawdownPct",
+        "winratePct",
+        "sharpe"
+      ],
+      "behavior_bounds": {
+        "returnPct": [
+          -50,
+          200
+        ],
+        "maxDrawdownPct": [
+          0,
+          80
+        ],
+        "winratePct": [
+          0,
+          100
+        ],
+        "sharpe": [
+          -2,
+          5
+        ]
+      },
+      "behavior_mode": "equity_signature",
+      "behavior_bins": [
+        -5,
+        -2,
+        -1,
+        -0.5,
+        0,
+        0.5,
+        1,
+        2,
+        5
+      ],
+      "behavior_points": 20,
+      "behavior_cluster": {
+        "enabled": true,
+        "k": "auto",
+        "max_per_cluster": 2,
+        "auto_mode": "silhouette",
+        "min_k": 2,
+        "max_k": 6,
+        "iterations": 10,
+        "fallback_mode": "inertia",
+        "mode": "dbscan",
+        "eps": 0.15,
+        "min_samples": 2
+      }
     },
     "screening": {
       "enabled": true,
-      "max_bars": 300
+      "max_bars": 300,
+      "max_trades": 25,
+      "max_seconds": 2.0,
+      "aggregate": "mean",
+      "windows": [
+        {
+          "start": "2024-01-01",
+          "end": "2024-01-01"
+        }
+      ]
+    },
+    "artifacts": {
+      "mode": "compact",
+      "trade_sample_size": 50,
+      "equity_max_points": 200
+    },
+    "full_pass": {
+      "enabled": true,
+      "artifacts": {
+        "mode": "full"
+      }
+    },
+    "refine": {
+      "enabled": true,
+      "top_k": 5,
+      "shrink_pct": 0.5,
+      "freeze_keys": [
+        "strategy.params.grid[0].dd"
+      ],
+      "freeze_prefixes": [
+        "strategy.params.grid"
+      ]
     }
   }
 }

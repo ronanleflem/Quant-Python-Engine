@@ -107,6 +107,14 @@ def _run_backtest_core(spec: Mapping[str, Any]) -> tuple[Dict[str, Any], Dict[st
         )
         df = _fetch_ohlc_for_symbol(symbol, asset_class, data_spec, instrument)
         if isinstance(screening_cfg, Mapping) and screening_cfg.get("enabled"):
+            window_start = screening_cfg.get("window_start")
+            window_end = screening_cfg.get("window_end")
+            if window_start or window_end:
+                df["ts"] = pd.to_datetime(df["ts"], utc=True)
+                start_ts = pd.to_datetime(window_start, utc=True) if window_start else df["ts"].min()
+                end_ts = pd.to_datetime(window_end, utc=True) if window_end else df["ts"].max()
+                df = df[(df["ts"] >= start_ts) & (df["ts"] <= end_ts)].copy()
+                LOGGER.info("Screening window applied for %s: %s -> %s", symbol, start_ts, end_ts)
             max_bars = screening_cfg.get("max_bars")
             if max_bars is not None:
                 try:

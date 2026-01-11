@@ -1,11 +1,11 @@
 # Filter reference
 
-This document provides a concise reference for the pre-trade filters available in the Quant Engine.
+Ce document fournit une reference concise des pre-trade filters disponibles dans le Quant Engine.
 
 ## Backtest and DCA availability
 
-The table below summarizes which filters can be used in backtest and DCA runs when enabled in JSON specs.
-If required data is missing (volume, levels DB, stats DB, equity or signal columns), the run logs an error
+Le tableau ci-dessous resume quels filters peuvent etre utilises en backtest et en DCA lorsqu'ils sont actives dans les specs JSON.
+Si des donnees requises manquent (volume, levels DB, stats DB, equity ou signal columns), le run logue une erreur
 and stops.
 
 | Filter | Backtest | DCA | One-line summary |

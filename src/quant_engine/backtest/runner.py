@@ -205,6 +205,15 @@ def run_backtest_from_spec(spec: Mapping[str, Any]) -> Dict[str, Any]:
     max_trades = None
     max_seconds = None
     if isinstance(screening_cfg, Mapping) and screening_cfg.get("enabled"):
+        window_start = screening_cfg.get("window_start")
+        window_end = screening_cfg.get("window_end")
+        if window_start or window_end:
+            df_window = _rows_to_frame(rows)
+            start_ts = pd.to_datetime(window_start, utc=True) if window_start else df_window.index.min()
+            end_ts = pd.to_datetime(window_end, utc=True) if window_end else df_window.index.max()
+            df_window = df_window.loc[(df_window.index >= start_ts) & (df_window.index <= end_ts)]
+            rows = _rows_from_dataframe(df_window.reset_index().rename(columns={"index": "ts"}), _detect_symbol(rows))
+            LOGGER.info("Screening window applied: %s -> %s", start_ts, end_ts)
         max_bars = screening_cfg.get("max_bars")
         if max_bars is not None:
             try:
