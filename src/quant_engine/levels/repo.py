@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 from datetime import datetime, timezone
 from hashlib import sha256
-from typing import Iterable, List, Optional
+from typing import Iterable, Iterator, List, Optional, Tuple
 
 import pandas as pd
 from sqlalchemy import create_engine, text
@@ -299,6 +299,71 @@ def select_levels(
     return pd.DataFrame(records)
 
 
+def iter_levels(
+    engine: Engine,
+    table_fqn: str,
+    symbol: str,
+    level_types: List[str],
+    active_only: bool,
+    start: Optional[str | datetime] = None,
+    end: Optional[str | datetime] = None,
+    batch_size: int = 5000,
+) -> Iterator[pd.DataFrame]:
+    """Yield levels in batches using keyset pagination."""
+
+    if batch_size <= 0:
+        raise ValueError("batch_size must be positive")
+    clauses = ["symbol = :symbol"]
+    params: dict = {"symbol": symbol, "limit": batch_size}
+    if level_types:
+        placeholders = ",".join(f":lt{i}" for i in range(len(level_types)))
+        clauses.append(f"level_type IN ({placeholders})")
+        params.update({f"lt{i}": lvl for i, lvl in enumerate(level_types)})
+    if active_only:
+        clauses.append("valid_to_ts IS NULL")
+    start_norm = _parse_optional_ts(start)
+    if start_norm is not None:
+        clauses.append("anchor_ts >= :start")
+        params["start"] = start_norm
+    end_norm = _parse_optional_ts(end)
+    if end_norm is not None:
+        clauses.append("anchor_ts <= :end")
+        params["end"] = end_norm
+
+    cursor: Optional[Tuple[datetime, int]] = None
+    with engine.connect() as conn:
+        while True:
+            batch_clauses = list(clauses)
+            if cursor is not None:
+                params["cursor_anchor"] = cursor[0]
+                params["cursor_id"] = cursor[1]
+                batch_clauses.append(
+                    "(anchor_ts < :cursor_anchor OR (anchor_ts = :cursor_anchor AND id < :cursor_id))"
+                )
+            query = (
+                f"SELECT id, symbol, timeframe, level_type, price, price_lo, price_hi, anchor_ts, "
+                f"valid_from_ts, valid_to_ts, params_hash FROM {table_fqn} "
+                "WHERE " + " AND ".join(batch_clauses) + " ORDER BY anchor_ts DESC, id DESC LIMIT :limit"
+            )
+            rows = conn.execute(text(query), params).fetchall()
+            if not rows:
+                break
+            records: List[dict] = []
+            for row in rows:
+                if hasattr(row, "_mapping"):
+                    records.append(dict(row._mapping))
+                elif hasattr(row, "keys"):
+                    records.append(dict(zip(row.keys(), row)))
+                else:  # pragma: no cover - defensive fallback
+                    records.append(dict(row))
+            batch = pd.DataFrame(records)
+            cursor = (
+                _ensure_datetime(batch["anchor_ts"].iloc[-1]),  # type: ignore[arg-type]
+                int(batch["id"].iloc[-1]),
+            )
+            yield batch.drop(columns=["id"])
+
+
 def upsert_valid_to_ts(engine: Engine, table_fqn: str, df_updates: pd.DataFrame) -> int:
     """Update ``valid_to_ts`` for the specified rows and return affected count."""
 
@@ -340,5 +405,6 @@ __all__ = [
     "ensure_table",
     "upsert_levels",
     "select_levels",
+    "iter_levels",
     "upsert_valid_to_ts",
 ]

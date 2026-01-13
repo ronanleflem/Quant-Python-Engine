@@ -8,7 +8,7 @@ import pandas as pd
 from ..core.dataset import load_ohlcv
 from .builders import build_levels
 from .detectors import fill_fvgs, fill_gaps
-from .repo import ensure_table, get_engine, select_levels, upsert_levels, upsert_valid_to_ts
+from .repo import ensure_table, get_engine, iter_levels, upsert_levels, upsert_valid_to_ts
 from .schemas import LevelsBuildSpec
 
 
@@ -60,7 +60,7 @@ def run_levels_fill(spec: LevelsBuildSpec) -> Dict[str, object]:
             level_types.extend(["GAP_D", "GAP_W"])
         if not level_types:
             continue
-        levels = select_levels(
+        for levels in iter_levels(
             engine,
             table_fqn,
             symbol=symbol,
@@ -68,25 +68,24 @@ def run_levels_fill(spec: LevelsBuildSpec) -> Dict[str, object]:
             active_only=True,
             start=spec.range_start,
             end=spec.range_end,
-            limit=10000,
-        )
-        if levels.empty:
-            continue
-        total_checked += int(len(levels))
-        if do_fill_fvg:
-            fvgs_active = levels[levels["level_type"] == "FVG"]
-            if not fvgs_active.empty:
-                fvgs_filled = fill_fvgs(sym_df, fvgs_active)
-                fvgs_updates = fvgs_filled[fvgs_filled["valid_to_ts"].notna()]
-                if not fvgs_updates.empty:
-                    pending_updates.append(fvgs_updates)
-        if do_fill_gap:
-            gaps_active = levels[levels["level_type"].isin(["GAP_D", "GAP_W"])]
-            if not gaps_active.empty:
-                gaps_filled = fill_gaps(sym_df, gaps_active)
-                gaps_updates = gaps_filled[gaps_filled["valid_to_ts"].notna()]
-                if not gaps_updates.empty:
-                    pending_updates.append(gaps_updates)
+        ):
+            if levels.empty:
+                continue
+            total_checked += int(len(levels))
+            if do_fill_fvg:
+                fvgs_active = levels[levels["level_type"] == "FVG"]
+                if not fvgs_active.empty:
+                    fvgs_filled = fill_fvgs(sym_df, fvgs_active)
+                    fvgs_updates = fvgs_filled[fvgs_filled["valid_to_ts"].notna()]
+                    if not fvgs_updates.empty:
+                        pending_updates.append(fvgs_updates)
+            if do_fill_gap:
+                gaps_active = levels[levels["level_type"].isin(["GAP_D", "GAP_W"])]
+                if not gaps_active.empty:
+                    gaps_filled = fill_gaps(sym_df, gaps_active)
+                    gaps_updates = gaps_filled[gaps_filled["valid_to_ts"].notna()]
+                    if not gaps_updates.empty:
+                        pending_updates.append(gaps_updates)
     if pending_updates:
         updates_df = pd.concat(pending_updates, ignore_index=True)
         updated_count = upsert_valid_to_ts(engine, table_fqn, updates_df)
