@@ -19,6 +19,7 @@ from types import SimpleNamespace
 import pandas as pd
 
 from .spec import DataSpec
+from ..time_sessions import assign_session_label
 
 
 def _parse_timestamp(value: str) -> datetime:
@@ -58,16 +59,7 @@ def _coerce_date(value: str) -> date:
 
 
 def _assign_session(ts: datetime) -> str:
-    hour = ts.hour
-    if 0 <= hour < 7:
-        return "Asia"
-    if 7 <= hour < 12:
-        return "Europe"
-    if 12 <= hour < 16:
-        return "EU_US_overlap"
-    if 16 <= hour < 21:
-        return "US"
-    return "Other"
+    return assign_session_label(ts)
 
 
 def _parse_row_types(row: Dict[str, str]) -> Dict[str, Any]:

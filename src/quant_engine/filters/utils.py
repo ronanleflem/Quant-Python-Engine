@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import logging
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 from collections import OrderedDict
@@ -119,6 +120,19 @@ def _ensure_datetime_index(df: pd.DataFrame, errors: List[str]) -> None:
         errors.append("requires a DatetimeIndex")
 
 
+def _validate_timezone_param(params: Mapping[str, Any], errors: List[str]) -> None:
+    tz = params.get("tz")
+    if tz is None:
+        return
+    if not isinstance(tz, str):
+        errors.append("tz must be a string timezone identifier")
+        return
+    try:
+        ZoneInfo(tz)
+    except ZoneInfoNotFoundError:
+        errors.append(f"unknown timezone '{tz}'")
+
+
 def _require_columns(df: pd.DataFrame, columns: Iterable[str], errors: List[str]) -> None:
     missing = [col for col in columns if col not in df.columns]
     if missing:
@@ -186,6 +200,7 @@ def _validate_filter_inputs(
         "intraday_time",
     }:
         _ensure_datetime_index(df, errors)
+        _validate_timezone_param(params, errors)
     elif flt_type == "k_consecutive":
         use_body = params.get("use_body", True)
         _require_columns(df, ["close"], errors)

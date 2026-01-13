@@ -120,11 +120,11 @@ Ces filtres exploitent des indicateurs de tendance ou de volatilité calculés d
 ## Seasonality & Time filters
 
 ### `session_time`
-- **Sessions pré-définies (UTC)** :
-  - Asia : 23:00–07:00
-  - London : 07:00–15:00
-  - NewYork : 13:00–21:00
-- **Paramètres** : `session` (`"asia"`, `"london"`, `"newyork"`), `tz` (timezone de référence).
+- **Sessions pré-définies (locales, DST-aware)** :
+  - Asia (Tokyo) : 09:00–17:00 JST
+  - London : 08:00–16:30 Europe/London
+  - New York : 09:30–16:00 America/New_York
+- **Paramètres** : `session` (`"asia"`, `"london"`, `"newyork"`), `tz` (optionnel pour forcer la timezone).
 - **Retour** : `True` si la barre tombe dans la session choisie.
 
 ### `day_of_week`
