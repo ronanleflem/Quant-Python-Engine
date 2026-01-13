@@ -111,7 +111,7 @@ def _read_dataset_rows(path: Path) -> List[Dict[str, Any]]:
     return json.loads(path.read_text())
 
 
-def _extract_timestamp(row: Dict[str, Any]) -> datetime:
+def _normalize_row_timestamp(row: Dict[str, Any]) -> datetime:
     ts_value = row.get("timestamp")
     if ts_value is None:
         ts_value = row.get("ts")
@@ -121,6 +121,29 @@ def _extract_timestamp(row: Dict[str, Any]) -> datetime:
     row["timestamp"] = _format_timestamp(ts)
     row.pop("ts", None)
     return ts
+
+
+def _normalize_dataframe_timestamps(df: pd.DataFrame) -> pd.DataFrame:
+    if "ts" in df.columns:
+        ts_col = "ts"
+    elif "timestamp" in df.columns:
+        df = df.rename(columns={"timestamp": "ts"})
+        ts_col = "ts"
+    else:
+        raise RuntimeError("Dataset must contain a 'ts' or 'timestamp' column.")
+    df[ts_col] = pd.to_datetime(df[ts_col].map(_coerce_timestamp), utc=True)
+    return df
+
+
+def _ensure_row_session(row: Dict[str, Any], ts: datetime) -> None:
+    if "session" not in row and "session_id" not in row:
+        row["session"] = _assign_session(ts)
+
+
+def _ensure_session_column(df: pd.DataFrame) -> pd.DataFrame:
+    if "session" not in df.columns and "session_id" not in df.columns:
+        df["session"] = df["ts"].apply(lambda ts: _assign_session(_coerce_timestamp(ts)))
+    return df
 
 
 def _build_data_input_proxy(spec: DataSpec) -> SimpleNamespace:
@@ -149,16 +172,7 @@ def load_dataset(spec: DataSpec) -> List[Dict]:
     elif spec.mysql is not None:
         proxy = _build_data_input_proxy(spec)
         df = load_ohlcv(proxy)
-        rows = []
-        if not df.empty:
-            for rec in df.to_dict("records"):
-                ts_value = rec.pop("ts", None)
-                if ts_value is None:
-                    raise RuntimeError("MySQL dataset must provide a 'ts' column")
-                rec["timestamp"] = _format_timestamp(ts_value)
-                rows.append(rec)
-        else:
-            rows = []
+        rows = df.to_dict("records") if not df.empty else []
     else:
         raise RuntimeError("data.dataset_path or data.mysql must be defined")
 
@@ -166,7 +180,7 @@ def load_dataset(spec: DataSpec) -> List[Dict]:
     end_date = _coerce_date(spec.end)
     out: List[Dict[str, Any]] = []
     for row in rows:
-        ts_dt = _extract_timestamp(row)
+        ts_dt = _normalize_row_timestamp(row)
         ts = ts_dt.date()
         symbol = row.get("symbol")
         if spec.symbols and symbol not in spec.symbols:
@@ -175,8 +189,7 @@ def load_dataset(spec: DataSpec) -> List[Dict]:
             continue
         if symbol is None and spec.symbols:
             row["symbol"] = spec.symbols[0]
-        if "session" not in row and "session_id" not in row:
-            row["session"] = _assign_session(ts_dt)
+        _ensure_row_session(row, ts_dt)
         out.append(row)
     out.sort(key=lambda r: r["timestamp"])
     return out
@@ -193,15 +206,8 @@ def load_ohlcv(spec_data) -> pd.DataFrame:
             df = pd.DataFrame(raw)
         else:
             df = pd.read_csv(str(path))
-        if "ts" in df.columns:
-            df["ts"] = pd.to_datetime(df["ts"], utc=True)
-        elif "timestamp" in df.columns:
-            df.rename(columns={"timestamp": "ts"}, inplace=True)
-            df["ts"] = pd.to_datetime(df["ts"], utc=True)
-        else:
-            raise RuntimeError("CSV must contain a 'ts' or 'timestamp' column.")
-        if "session" not in df.columns and "session_id" not in df.columns:
-            df["session"] = df["ts"].apply(lambda ts: _assign_session(ts.to_pydatetime()))
+        df = _normalize_dataframe_timestamps(df)
+        df = _ensure_session_column(df)
         return df.sort_values(["symbol", "ts"]).reset_index(drop=True)
 
     mysql_spec = getattr(spec_data, "mysql", None)
@@ -235,8 +241,8 @@ def load_ohlcv(spec_data) -> pd.DataFrame:
         )
         if df.empty:
             return df
-        if "session" not in df.columns and "session_id" not in df.columns:
-            df["session"] = df["ts"].apply(lambda ts: _assign_session(ts.to_pydatetime()))
+        df = _normalize_dataframe_timestamps(df)
+        df = _ensure_session_column(df)
         return df.sort_values(["symbol", "ts"]).reset_index(drop=True)
 
     raise RuntimeError("Aucune source data fournie : dataset_path ou data.mysql requis.")
