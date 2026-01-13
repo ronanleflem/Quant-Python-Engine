@@ -9,7 +9,7 @@ from typing import Iterable, Literal, Optional
 
 import pandas as pd
 
-SessionName = Literal["asia", "london", "newyork"]
+from ..time_sessions import SessionName, session_time_mask
 
 
 def _ensure_datetime_index(df: pd.DataFrame) -> pd.DatetimeIndex:
@@ -21,22 +21,17 @@ def _ensure_datetime_index(df: pd.DataFrame) -> pd.DatetimeIndex:
     if idx.tz is None:
         idx = idx.tz_localize("UTC")
     return idx
+
+
 def session_time_filter(
     df: pd.DataFrame,
     session: SessionName = "london",
-    tz: str = "UTC",
+    tz: Optional[str] = None,
 ) -> pd.Series:
     """Return ``True`` when timestamps fall within the configured session."""
 
-    idx = _ensure_datetime_index(df).tz_convert(tz)
-    hours = idx.hour
-    if session == "asia":
-        mask = (hours >= 23) | (hours < 7)
-    elif session == "london":
-        mask = (hours >= 7) & (hours < 15)
-    else:  # "newyork"
-        mask = (hours >= 13) & (hours < 21)
-    return pd.Series(mask, index=df.index)
+    idx = _ensure_datetime_index(df)
+    return session_time_mask(idx, session=session, tz=tz)
 
 
 def day_of_week_filter(
