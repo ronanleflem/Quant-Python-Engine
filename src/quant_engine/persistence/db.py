@@ -11,8 +11,9 @@ from __future__ import annotations
 
 import sqlite3
 from contextlib import contextmanager
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterator
+from typing import Callable, Iterator
 
 from ..config import get_settings
 
@@ -44,7 +45,14 @@ def connect() -> sqlite3.Connection:
     return conn
 
 
-def init_db(conn: sqlite3.Connection) -> None:
+@dataclass(frozen=True)
+class Migration:
+    version: int
+    name: str
+    apply: Callable[[sqlite3.Connection], None]
+
+
+def _migration_1(conn: sqlite3.Connection) -> None:
     cur = conn.cursor()
     cur.execute(
         """
@@ -181,7 +189,6 @@ def init_db(conn: sqlite3.Connection) -> None:
             n INTEGER,
             baseline REAL,
             lift REAL,
-            metrics TEXT,
             start TEXT,
             end TEXT,
             spec_id TEXT,
@@ -191,10 +198,6 @@ def init_db(conn: sqlite3.Connection) -> None:
         )
         """
     )
-    try:
-        cur.execute("ALTER TABLE seasonality_profiles ADD COLUMN metrics TEXT")
-    except sqlite3.OperationalError:
-        pass
     cur.execute(
         """
         CREATE INDEX IF NOT EXISTS ix_seasonality_profiles_lookup
@@ -250,7 +253,55 @@ def init_db(conn: sqlite3.Connection) -> None:
         ON api_jobs(job_type, status)
         """
     )
+
+
+def _migration_2(conn: sqlite3.Connection) -> None:
+    cur = conn.cursor()
+    try:
+        cur.execute("ALTER TABLE seasonality_profiles ADD COLUMN metrics TEXT")
+    except sqlite3.OperationalError:
+        pass
+
+
+MIGRATIONS = [
+    Migration(1, "initial_schema", _migration_1),
+    Migration(2, "seasonality_profiles_metrics", _migration_2),
+]
+
+
+def _ensure_migrations_table(conn: sqlite3.Connection) -> None:
+    cur = conn.cursor()
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS schema_migrations (
+            version INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            applied_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+
+
+def migrate(conn: sqlite3.Connection) -> None:
+    _ensure_migrations_table(conn)
+    cur = conn.cursor()
+    applied = {
+        row["version"]
+        for row in cur.execute("SELECT version FROM schema_migrations").fetchall()
+    }
+    for migration in MIGRATIONS:
+        if migration.version in applied:
+            continue
+        migration.apply(conn)
+        cur.execute(
+            "INSERT INTO schema_migrations(version, name) VALUES (?, ?)",
+            (migration.version, migration.name),
+        )
     conn.commit()
+
+
+def init_db(conn: sqlite3.Connection) -> None:
+    migrate(conn)
 
 
 @contextmanager
@@ -264,4 +315,4 @@ def session() -> Iterator[sqlite3.Connection]:
         conn.close()
 
 
-__all__ = ["connect", "init_db", "session"]
+__all__ = ["connect", "init_db", "migrate", "session"]
