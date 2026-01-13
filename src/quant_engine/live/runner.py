@@ -5,6 +5,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 import threading
 import time
 from dataclasses import dataclass
@@ -80,6 +81,8 @@ class LiveRunner:
         self._strategy_impl = None
         self._strategy_impl_type: Optional[str] = None
         self._strategy_impl_params: Dict[str, Any] = {}
+        self._error_count = 0
+        self._timeframe_seconds = self._parse_timeframe_seconds(self.timeframe)
         impl_spec = getattr(spec.strategy, "impl", None)
         if impl_spec is not None:
             self._strategy_impl = create_strategy(
@@ -116,6 +119,12 @@ class LiveRunner:
             )
 
     def stop(self) -> None:
+        LOGGER.info(
+            "LiveRunner stop requested for strategy %s (emitted=%s, errors=%s)",
+            self.strategy_id,
+            self._emitted,
+            self._error_count,
+        )
         self._stop.set()
 
     def status(self) -> Dict[str, object]:
@@ -135,12 +144,18 @@ class LiveRunner:
         LOGGER.info("Starting LiveRunner for strategy %s", self.strategy_id)
         try:
             while not self._stop.is_set():
+                cycle_start = time.monotonic()
                 self._run_cycle()
+                self._log_cycle_metrics(time.monotonic() - cycle_start)
                 time.sleep(self.poll_interval)
         except KeyboardInterrupt:  # pragma: no cover - manual stop
             LOGGER.info("LiveRunner interrupted by user")
         finally:
-            LOGGER.info("LiveRunner stopped")
+            LOGGER.info(
+                "LiveRunner stopped (emitted=%s, errors=%s)",
+                self._emitted,
+                self._error_count,
+            )
 
     def _run_cycle(self) -> None:
         if self._strategy_impl is not None:
@@ -148,67 +163,82 @@ class LiveRunner:
             return
         for symbol, feed in self._feeds.items():
             state = self._states[symbol]
-            if not state.warm:
-                history = feed.bootstrap()
-                if history.empty:
-                    LOGGER.debug("Warm-up empty for %s", symbol)
+            try:
+                if not state.warm:
+                    history = feed.bootstrap()
+                    if history.empty:
+                        LOGGER.debug("Warm-up empty for %s", symbol)
+                        continue
+                    state.append_history(history)
+                    state.mark_processed(history["ts"].iloc[-1])
+                    state.warm = True
+                    LOGGER.info("Warm-up loaded %s bars for %s", len(history), symbol)
                     continue
-                state.append_history(history)
-                state.mark_processed(history["ts"].iloc[-1])
-                state.warm = True
-                LOGGER.info("Warm-up loaded %s bars for %s", len(history), symbol)
-                continue
-            last_ts = state.last_ts_seen
-            latest = feed.poll_last_bar(last_ts)
-            if latest.empty:
-                continue
-            bar_ts = latest["ts"].iloc[-1]
-            if not state.should_process(bar_ts):
-                continue
-            state.append_history(latest)
-            decision = self._evaluate_symbol(state)
-            if decision is not None:
-                self._emit_signal(state, decision, latest)
-            state.mark_processed(bar_ts)
+                last_ts = state.last_ts_seen
+                latest = feed.poll_last_bar(last_ts)
+                if latest.empty:
+                    continue
+                bar_ts = latest["ts"].iloc[-1]
+                self._log_bar_metrics(symbol, bar_ts, last_ts)
+                if not state.should_process(bar_ts):
+                    continue
+                processing_start = time.monotonic()
+                state.append_history(latest)
+                decision = self._evaluate_symbol(state)
+                if decision is not None:
+                    self._emit_signal(state, decision, latest)
+                state.mark_processed(bar_ts)
+                self._log_processing_metrics(symbol, processing_start)
+            except Exception as exc:  # pragma: no cover - defensive logging
+                self._error_count += 1
+                LOGGER.exception("LiveRunner cycle failed for %s: %s", symbol, exc)
 
     def _run_cycle_strategy_impl(self) -> None:
         positions = self._safe_get_positions()
         grouped = self._group_positions_by_symbol(positions)
         for symbol, feed in self._feeds.items():
             state = self._states[symbol]
-            if not state.warm:
-                history = feed.bootstrap()
-                if history.empty:
-                    LOGGER.debug("Warm-up empty for %s", symbol)
-                    continue
-                state.append_history(history)
-                state.mark_processed(history["ts"].iloc[-1])
-                state.warm = True
-                LOGGER.info("Warm-up loaded %s bars for %s", len(history), symbol)
-                continue
-            last_ts = state.last_ts_seen
-            latest = feed.poll_last_bar(last_ts)
-            if latest.empty:
-                continue
-            bar_ts = latest["ts"].iloc[-1]
-            if not state.should_process(bar_ts):
-                continue
-            state.append_history(latest)
-            history = state.history.copy()
-            history["ts"] = pd.to_datetime(history["ts"], utc=True)
-            history_df = history.set_index("ts")
-            context = self._build_strategy_context(symbol, state, grouped)
             try:
-                signals = self._strategy_impl.evaluate_live_bar(history_df, context)
-            except Exception as exc:  # pragma: no cover - defensive log
-                LOGGER.exception("Strategy evaluation failed for %s: %s", symbol, exc)
-                signals = []
-            if context.get("state") is not None:
-                state.strategy_ctx = context["state"]
-            if signals:
-                for seq, signal in enumerate(signals):
-                    self._emit_strategy_signal(state, signal, latest, seq)
-            state.mark_processed(bar_ts)
+                if not state.warm:
+                    history = feed.bootstrap()
+                    if history.empty:
+                        LOGGER.debug("Warm-up empty for %s", symbol)
+                        continue
+                    state.append_history(history)
+                    state.mark_processed(history["ts"].iloc[-1])
+                    state.warm = True
+                    LOGGER.info("Warm-up loaded %s bars for %s", len(history), symbol)
+                    continue
+                last_ts = state.last_ts_seen
+                latest = feed.poll_last_bar(last_ts)
+                if latest.empty:
+                    continue
+                bar_ts = latest["ts"].iloc[-1]
+                self._log_bar_metrics(symbol, bar_ts, last_ts)
+                if not state.should_process(bar_ts):
+                    continue
+                processing_start = time.monotonic()
+                state.append_history(latest)
+                history = state.history.copy()
+                history["ts"] = pd.to_datetime(history["ts"], utc=True)
+                history_df = history.set_index("ts")
+                context = self._build_strategy_context(symbol, state, grouped)
+                try:
+                    signals = self._strategy_impl.evaluate_live_bar(history_df, context)
+                except Exception as exc:  # pragma: no cover - defensive log
+                    self._error_count += 1
+                    LOGGER.exception("Strategy evaluation failed for %s: %s", symbol, exc)
+                    signals = []
+                if context.get("state") is not None:
+                    state.strategy_ctx = context["state"]
+                if signals:
+                    for seq, signal in enumerate(signals):
+                        self._emit_strategy_signal(state, signal, latest, seq)
+                state.mark_processed(bar_ts)
+                self._log_processing_metrics(symbol, processing_start)
+            except Exception as exc:  # pragma: no cover - defensive logging
+                self._error_count += 1
+                LOGGER.exception("LiveRunner cycle failed for %s: %s", symbol, exc)
 
     def _build_strategy_context(
         self,
@@ -568,6 +598,90 @@ class LiveRunner:
             send_telegram_message("\n".join(msg_lines))
         except Exception as exc:  # pragma: no cover - defensive logging
             LOGGER.error("Erreur lors de la préparation/envoi de l'alerte Telegram: %s", exc)
+
+    @staticmethod
+    def _parse_timeframe_seconds(timeframe: Optional[str]) -> Optional[float]:
+        if not timeframe:
+            return None
+        raw = str(timeframe).strip()
+        if not raw:
+            return None
+        match = re.match(r"^(?P<num>\d+)\s*(?P<unit>[A-Za-z]+)$", raw)
+        if not match:
+            match = re.match(r"^(?P<unit>[A-Za-z]+)\s*(?P<num>\d+)$", raw)
+        if not match:
+            return None
+        value = int(match.group("num"))
+        unit_raw = match.group("unit")
+        unit_lower = unit_raw.lower()
+        if value <= 0:
+            return None
+        if unit_raw == "M" or unit_lower in {"mo", "mon", "month", "months"}:
+            return value * 30.0 * 24.0 * 60.0 * 60.0
+        if unit_raw == "m" or unit_lower in {"min", "mins", "minute", "minutes"}:
+            return value * 60.0
+        if unit_lower in {"s", "sec", "secs", "second", "seconds"}:
+            return float(value)
+        if unit_lower in {"h", "hr", "hrs", "hour", "hours"}:
+            return value * 60.0 * 60.0
+        if unit_lower in {"d", "day", "days"}:
+            return value * 24.0 * 60.0 * 60.0
+        if unit_lower in {"w", "wk", "wks", "week", "weeks"}:
+            return value * 7.0 * 24.0 * 60.0 * 60.0
+        if unit_lower in {"y", "yr", "yrs", "year", "years"}:
+            return value * 365.0 * 24.0 * 60.0 * 60.0
+        return None
+
+    def _log_bar_metrics(
+        self,
+        symbol: str,
+        bar_ts: pd.Timestamp,
+        last_ts: Optional[pd.Timestamp],
+    ) -> None:
+        ts = pd.Timestamp(bar_ts)
+        if ts.tzinfo is None:
+            ts = ts.tz_localize("UTC")
+        else:
+            ts = ts.tz_convert("UTC")
+        now = pd.Timestamp.utcnow().tz_localize("UTC")
+        bar_age_sec = max(0.0, (now - ts).total_seconds())
+        backlog_bars = None
+        if self._timeframe_seconds:
+            backlog_bars = bar_age_sec / self._timeframe_seconds
+        bar_gap_sec = None
+        if last_ts is not None:
+            last = pd.Timestamp(last_ts)
+            if last.tzinfo is None:
+                last = last.tz_localize("UTC")
+            else:
+                last = last.tz_convert("UTC")
+            bar_gap_sec = (ts - last).total_seconds()
+        LOGGER.info(
+            "metrics.live.bar symbol=%s bar_ts=%s bar_age_sec=%.2f backlog_bars=%s bar_gap_sec=%s",
+            symbol,
+            ts.isoformat(),
+            bar_age_sec,
+            f"{backlog_bars:.2f}" if backlog_bars is not None else "n/a",
+            f"{bar_gap_sec:.2f}" if bar_gap_sec is not None else "n/a",
+        )
+
+    def _log_processing_metrics(self, symbol: str, start_time: float) -> None:
+        latency = time.monotonic() - start_time
+        LOGGER.info(
+            "metrics.live.processing symbol=%s latency_sec=%.4f emitted=%s errors=%s",
+            symbol,
+            latency,
+            self._emitted,
+            self._error_count,
+        )
+
+    def _log_cycle_metrics(self, duration: float) -> None:
+        LOGGER.info(
+            "metrics.live.cycle duration_sec=%.4f emitted=%s errors=%s",
+            duration,
+            self._emitted,
+            self._error_count,
+        )
 
 
 __all__ = ["LiveRunner"]
