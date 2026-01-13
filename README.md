@@ -66,6 +66,7 @@ poetry run uvicorn quant_engine.api.app:app --reload --app-dir src
   ```bash
   poetry run quant-engine run-local --spec path/to/spec.json
   ```
+  Utilise le job manager si disponible, sinon le runner legacy (`optimize.runner`).
 - **submit**
   ```bash
   poetry run quant-engine submit --spec path/to/spec.json
@@ -92,6 +93,7 @@ poetry run uvicorn quant_engine.api.app:app --reload --app-dir src
   ```bash
   poetry run qe strategy optimize --spec specs/strategy_dca_equity_example_minimal_optimize.json
   ```
+  Ces commandes utilisent l'optimiseur officiel `optimize.variants` (workflow avancé).
 
 ### Optimization spec (grid/random)
 Define `optimization.search_space` with discrete lists or `{min,max,step}` ranges. Paths can target nested fields (use dots and list indexes).

@@ -1,4 +1,9 @@
-"""Optimization utilities for backtest and strategy specs."""
+"""Optimization utilities for backtest and strategy specs.
+
+This module is the recommended entry point for backtest/strategy optimization
+workflows (CLI `qe backtest optimize` / `qe strategy optimize`). The simpler
+`quant_engine.optimize.runner` exists only as a legacy fallback for `qe run-local`.
+"""
 from __future__ import annotations
 
 import json

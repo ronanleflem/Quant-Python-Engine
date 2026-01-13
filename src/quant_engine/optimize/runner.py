@@ -1,9 +1,9 @@
 """Simple optimisation runner with walk-forward evaluation.
 
 Legacy/minimal runner used as a fallback by `qe run-local` when the job manager
-is unavailable. For backtest/strategy optimization workflows, prefer
-`quant_engine.optimize.variants` which supports screening, promotion, and
-advanced artifacts.
+is unavailable. It is not the entry point for `qe backtest optimize` or
+`qe strategy optimize`; those commands use `quant_engine.optimize.variants`,
+which supports screening, promotion, and advanced artifacts.
 """
 from __future__ import annotations
 
