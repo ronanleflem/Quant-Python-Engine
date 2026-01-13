@@ -309,6 +309,12 @@ python -m json.tool summary.json
 #### Statistiques (in-memory + SQLite)
 ```bash
 curl.exe -X POST http://127.0.0.1:8000/stats/run -H "Content-Type: application/json" --data-binary @specs/examples/stats_run.json
+# -> {"status":"completed","id":"JOB_ID"}
+```
+
+```bash
+curl.exe http://127.0.0.1:8000/status/JOB_ID
+curl.exe http://127.0.0.1:8000/result/JOB_ID | python -m json.tool
 ```
 
 ```bash

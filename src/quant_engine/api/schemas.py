@@ -20,6 +20,7 @@ class SubmitResponse:
 @dataclass
 class StatusResponse:
     status: str
+    id: Optional[str] = None
 
 
 @dataclass
@@ -397,4 +398,3 @@ class SeasonalitySpec(BaseModel):
     validation: ValidationSpec = ValidationSpec()
     artifacts: ArtifactsSpec = ArtifactsSpec()
     persistence: PersistenceSpec = PersistenceSpec()
-

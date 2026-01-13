@@ -221,6 +221,35 @@ def init_db(conn: sqlite3.Connection) -> None:
         ON seasonality_runs(run_id)
         """
     )
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS api_jobs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            job_id TEXT NOT NULL UNIQUE,
+            job_type TEXT NOT NULL,
+            status TEXT NOT NULL,
+            payload_json TEXT,
+            result_json TEXT,
+            error_message TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            started_at TEXT,
+            finished_at TEXT,
+            updated_at TEXT
+        )
+        """
+    )
+    cur.execute(
+        """
+        CREATE UNIQUE INDEX IF NOT EXISTS ix_api_jobs_job_id
+        ON api_jobs(job_id)
+        """
+    )
+    cur.execute(
+        """
+        CREATE INDEX IF NOT EXISTS ix_api_jobs_type_status
+        ON api_jobs(job_type, status)
+        """
+    )
     conn.commit()
 
 
