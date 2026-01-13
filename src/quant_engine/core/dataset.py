@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import csv
 import json
-from datetime import datetime, date
+from datetime import datetime, date, timezone, time
 from pathlib import Path
 from typing import Dict, List, Any
 
@@ -22,18 +22,40 @@ from .spec import DataSpec
 
 
 def _parse_timestamp(value: str) -> datetime:
-    if value.endswith('Z'):
-        value = value[:-1] + '+00:00'
+    value = value.strip()
+    if value.endswith("Z"):
+        value = value[:-1] + "+00:00"
+    if " " in value and "T" not in value:
+        try:
+            return datetime.strptime(value, "%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            return datetime.fromisoformat(value.replace(" ", "T"))
     return datetime.fromisoformat(value)
 
 
+def _coerce_timestamp(value: Any) -> datetime:
+    if isinstance(value, pd.Timestamp):
+        value = value.to_pydatetime()
+    if isinstance(value, datetime):
+        ts = value
+    elif isinstance(value, date):
+        ts = datetime.combine(value, time.min)
+    elif isinstance(value, str):
+        ts = _parse_timestamp(value)
+    else:
+        raise ValueError(f"Unsupported timestamp type: {type(value)!r}")
+    if ts.tzinfo is None:
+        return ts.replace(tzinfo=timezone.utc)
+    return ts.astimezone(timezone.utc)
+
+
+def _format_timestamp(ts: datetime) -> str:
+    return _coerce_timestamp(ts).isoformat()
+
+
 def _coerce_date(value: str) -> date:
-    value = value.strip()
-    if 'T' in value or value.endswith('Z'):
-        return _parse_timestamp(value).date()
-    if ' ' in value:
-        return datetime.strptime(value, '%Y-%m-%d %H:%M:%S').date()
-    return date.fromisoformat(value)
+    return _coerce_timestamp(value).date()
+
 
 def _assign_session(ts: datetime) -> str:
     hour = ts.hour
@@ -48,8 +70,6 @@ def _assign_session(ts: datetime) -> str:
     return "Other"
 
 
-
-
 def _parse_row_types(row: Dict[str, str]) -> Dict[str, Any]:
     """Convert CSV row values to appropriate python types."""
 
@@ -62,7 +82,7 @@ def _parse_row_types(row: Dict[str, str]) -> Dict[str, Any]:
         if value == "":
             parsed[key] = None
             continue
-        if key == "timestamp" or key == "symbol":
+        if key in {"timestamp", "ts", "symbol"}:
             parsed[key] = value
             continue
         # Attempt integer then float conversion, falling back to the raw string
@@ -91,6 +111,18 @@ def _read_dataset_rows(path: Path) -> List[Dict[str, Any]]:
     return json.loads(path.read_text())
 
 
+def _extract_timestamp(row: Dict[str, Any]) -> datetime:
+    ts_value = row.get("timestamp")
+    if ts_value is None:
+        ts_value = row.get("ts")
+    if ts_value is None:
+        raise RuntimeError("Dataset rows must provide a 'timestamp' or 'ts' column")
+    ts = _coerce_timestamp(ts_value)
+    row["timestamp"] = _format_timestamp(ts)
+    row.pop("ts", None)
+    return ts
+
+
 def _build_data_input_proxy(spec: DataSpec) -> SimpleNamespace:
     mysql = None
     if spec.mysql is not None:
@@ -103,6 +135,7 @@ def _build_data_input_proxy(spec: DataSpec) -> SimpleNamespace:
         start=spec.start,
         end=spec.end,
     )
+
 
 def load_dataset(spec: DataSpec) -> List[Dict]:
     """Load OHLCV data from a JSON/CSV file or a MySQL source.
@@ -122,12 +155,7 @@ def load_dataset(spec: DataSpec) -> List[Dict]:
                 ts_value = rec.pop("ts", None)
                 if ts_value is None:
                     raise RuntimeError("MySQL dataset must provide a 'ts' column")
-                ts = pd.Timestamp(ts_value)
-                if ts.tzinfo is None:
-                    ts = ts.tz_localize("UTC")
-                else:
-                    ts = ts.tz_convert("UTC")
-                rec["timestamp"] = ts.isoformat()
+                rec["timestamp"] = _format_timestamp(ts_value)
                 rows.append(rec)
         else:
             rows = []
@@ -138,7 +166,8 @@ def load_dataset(spec: DataSpec) -> List[Dict]:
     end_date = _coerce_date(spec.end)
     out: List[Dict[str, Any]] = []
     for row in rows:
-        ts = _parse_timestamp(row["timestamp"]).date()
+        ts_dt = _extract_timestamp(row)
+        ts = ts_dt.date()
         symbol = row.get("symbol")
         if spec.symbols and symbol not in spec.symbols:
             continue
@@ -146,9 +175,8 @@ def load_dataset(spec: DataSpec) -> List[Dict]:
             continue
         if symbol is None and spec.symbols:
             row["symbol"] = spec.symbols[0]
-        if 'session' not in row and 'session_id' not in row:
-            ts_dt = _parse_timestamp(row['timestamp'])
-            row['session'] = _assign_session(ts_dt)
+        if "session" not in row and "session_id" not in row:
+            row["session"] = _assign_session(ts_dt)
         out.append(row)
     out.sort(key=lambda r: r["timestamp"])
     return out
@@ -172,8 +200,8 @@ def load_ohlcv(spec_data) -> pd.DataFrame:
             df["ts"] = pd.to_datetime(df["ts"], utc=True)
         else:
             raise RuntimeError("CSV must contain a 'ts' or 'timestamp' column.")
-        if 'session' not in df.columns and 'session_id' not in df.columns:
-            df['session'] = df['ts'].apply(lambda ts: _assign_session(ts.to_pydatetime()))
+        if "session" not in df.columns and "session_id" not in df.columns:
+            df["session"] = df["ts"].apply(lambda ts: _assign_session(ts.to_pydatetime()))
         return df.sort_values(["symbol", "ts"]).reset_index(drop=True)
 
     mysql_spec = getattr(spec_data, "mysql", None)
@@ -207,12 +235,8 @@ def load_ohlcv(spec_data) -> pd.DataFrame:
         )
         if df.empty:
             return df
-        if 'session' not in df.columns and 'session_id' not in df.columns:
-            df['session'] = df['ts'].apply(lambda ts: _assign_session(ts.to_pydatetime()))
+        if "session" not in df.columns and "session_id" not in df.columns:
+            df["session"] = df["ts"].apply(lambda ts: _assign_session(ts.to_pydatetime()))
         return df.sort_values(["symbol", "ts"]).reset_index(drop=True)
 
     raise RuntimeError("Aucune source data fournie : dataset_path ou data.mysql requis.")
-
-
-    raise RuntimeError("Aucune source data fournie : dataset_path ou data.mysql requis.")
-
