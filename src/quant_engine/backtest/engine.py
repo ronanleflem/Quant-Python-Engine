@@ -77,9 +77,16 @@ def run(
         if position == 0 and signal == 1:
             entry_price = nxt["open"] * (1 + cost_rate)
             entry_ts = nxt["timestamp"]
-            stop_price, sl_distance = StopInitializer.fixed_atr(
+            stop_data = StopInitializer.fixed_atr(
                 atr_values, atr_mult, 1, i + 1, entry_price
             )
+            if stop_data is None:
+                logger.debug(
+                    "Skipping entry at idx=%d: missing/invalid ATR stop inputs.",
+                    i + 1,
+                )
+                continue
+            stop_price, sl_distance = stop_data
             tp_price = TakeProfit.r_multiple(entry_price, stop_price, r_mult, 1)
             position = 1
         elif position == 1:
