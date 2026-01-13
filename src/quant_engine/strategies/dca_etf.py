@@ -23,6 +23,7 @@ class _EtfState:
     consumed_levels: List[bool] = field(default_factory=list)
     prev_dd: Optional[float] = None
     last_processed_ts: Optional[pd.Timestamp] = None
+    last_rolling_max: Optional[float] = None
     activation_history: List[pd.Timestamp] = field(default_factory=list)
     cycle_high_ref: Optional[float] = None
 
@@ -31,6 +32,7 @@ class _EtfState:
         self.consumed_levels = [False] * level_count
         self.prev_dd = None
         self.cycle_high_ref = None
+        self.last_rolling_max = None
 
 
 class DcaEtfStrategy(Strategy):
@@ -79,9 +81,6 @@ class DcaEtfStrategy(Strategy):
     ) -> List[StrategySignal]:
         if df.empty:
             return []
-        close = df["close"].astype(float)
-        dd_series = self.compute_drawdown(close)
-        rolling_max = close.cummax()
         symbol = context.get("symbol", context.get("symbol_id", ""))
         asset_class = context.get("asset_class", self.asset_class)
         screening = context.get("screening") or {}
@@ -110,7 +109,31 @@ class DcaEtfStrategy(Strategy):
         signals_seen = 0
         results: List[StrategySignal] = []
         last_processed = state.last_processed_ts
-        for ts, price, dd in zip(dd_series.index, close, dd_series):
+        use_incremental = (
+            only_last_ts is not None
+            and last_processed is not None
+            and state.last_rolling_max is not None
+        )
+
+        def _iter_bars() -> Any:
+            if use_incremental:
+                new_df = df.loc[df.index > last_processed]
+                if new_df.empty:
+                    return
+                rolling_max_value = float(state.last_rolling_max)
+                for ts, price in new_df["close"].astype(float).items():
+                    price_f = float(price)
+                    rolling_max_value = max(rolling_max_value, price_f)
+                    dd_value = (price_f / rolling_max_value - 1.0) * 100.0
+                    yield ts, price_f, dd_value, rolling_max_value
+                return
+            close = df["close"].astype(float)
+            dd_series = self.compute_drawdown(close)
+            rolling_max = close.cummax()
+            for ts, price, dd, ref_high in zip(dd_series.index, close, dd_series, rolling_max):
+                yield ts, float(price), float(dd), float(ref_high)
+
+        for ts, price, dd, ref_high in _iter_bars():
             if max_seconds is not None and max_seconds > 0 and (time.monotonic() - start_ts) >= max_seconds:
                 break
             if last_processed is not None and ts <= last_processed:
@@ -118,18 +141,19 @@ class DcaEtfStrategy(Strategy):
             allow_entries = self._allow_entries(df, ts)
             self._ensure_state_initialized(state)
             if allow_entries and not state.cycle_active:
-                self._maybe_start_cycle(state, float(dd), float(rolling_max.loc[ts]))
+                self._maybe_start_cycle(state, float(dd), float(ref_high))
             if state.cycle_active:
                 buys = self._check_buy_levels(state, float(dd), ts, symbol, asset_class) if allow_entries else []
                 signals_seen += len(buys)
                 for sig in buys:
                     if only_last_ts is None or sig.ts_open_utc == only_last_ts:
                         results.append(sig)
-            if self.reset_on_new_high and float(price) >= float(rolling_max.loc[ts]):
+            if self.reset_on_new_high and float(price) >= float(ref_high):
                 self._reset_cycle(state)
             state.prev_dd = float(dd)
-            state.cycle_high_ref = float(rolling_max.loc[ts])
+            state.cycle_high_ref = float(ref_high)
             state.last_processed_ts = ts
+            state.last_rolling_max = float(ref_high)
             bars_seen += 1
             if pruning_enabled:
                 if max_dd_pct is not None:
@@ -282,6 +306,8 @@ class DcaEtfStrategy(Strategy):
         state.last_processed_ts = (
             pd.Timestamp(last_ts).tz_convert("UTC") if last_ts is not None else None
         )
+        rolling_max = data.get("last_rolling_max")
+        state.last_rolling_max = float(rolling_max) if rolling_max is not None else None
         history_raw = [ts for ts in data.get("activation_history", []) if ts]
         state.activation_history = [pd.Timestamp(ts).tz_convert("UTC") for ts in history_raw]
         ref = data.get("cycle_high_ref")
@@ -299,6 +325,7 @@ class DcaEtfStrategy(Strategy):
                 "last_processed_ts": state.last_processed_ts.isoformat()
                 if state.last_processed_ts is not None
                 else None,
+                "last_rolling_max": state.last_rolling_max,
                 "activation_history": [ts.isoformat() for ts in state.activation_history],
                 "cycle_high_ref": state.cycle_high_ref,
             }
