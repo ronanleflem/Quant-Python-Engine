@@ -12,12 +12,12 @@ try:  # pragma: no cover - optional dependency
 except ModuleNotFoundError:  # pragma: no cover - used when dependency missing
     pl = None  # type: ignore
 
-from ..api.schemas import SeasonalitySpec
+from ..api.schemas import SeasonalitySpec, SeasonalityProfileSpec
 from ..backtest import engine
 from ..core.dataset import load_ohlcv
 from ..core.features import atr
 from ..io import artifacts, ids
-from ..signals.seasonality_signal import make_seasonality_signals
+from ..signals.seasonality_signal import DIMENSION_TO_COLUMN, make_seasonality_signals
 from ..validate import splitter
 from ..persistence import db
 from ..persistence.repo import (
@@ -48,6 +48,241 @@ def _rows_to_polars(rows: Sequence[Dict[str, Any]]) -> pl.DataFrame:
         elif ts_dtype != pl.Datetime:
             df = df.with_columns(pl.col("timestamp").cast(pl.Datetime))
     return df
+
+
+def _rows_to_pandas(rows: Sequence[Dict[str, Any]]) -> pd.DataFrame:
+    """Return a pandas dataframe from the list-based dataset representation."""
+
+    if not rows:
+        return pd.DataFrame()
+    df = pd.DataFrame(rows)
+    if "timestamp" in df.columns:
+        df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True, errors="coerce")
+    return df
+
+
+def _add_time_bins_pandas(df: pd.DataFrame) -> pd.DataFrame:
+    """Augment the dataset with calendar bins using pandas."""
+
+    if df.empty:
+        return df.copy()
+    df = df.copy()
+    if "timestamp" not in df.columns:
+        return df
+    ts = pd.to_datetime(df["timestamp"], utc=True, errors="coerce")
+    df["timestamp"] = ts
+    df["hour"] = ts.dt.hour
+    df["dow"] = ts.dt.weekday
+    df["month"] = ts.dt.month
+    df["month_of_year"] = ts.dt.month
+    df["day_in_month"] = ts.dt.day
+    df["week_in_month"] = ((df["day_in_month"] - 1) // 7 + 1).astype(int)
+    df["quarter"] = ((df["month"] - 1) // 3 + 1).astype(int)
+    df["session"] = ts.apply(compute.assign_session)
+    df["is_month_start"] = df["day_in_month"] == 1
+
+    year = ts.dt.year
+    month = ts.dt.month
+    max_day = (
+        df.assign(_year=year, _month=month)
+        .groupby(["symbol", "_year", "_month"])["timestamp"]
+        .transform(lambda s: s.dt.day.max())
+    )
+    days_from_end = max_day - df["day_in_month"]
+    df["is_month_end"] = days_from_end == 0
+    df["is_news_hour"] = df["hour"].isin([13, 14, 20])
+    df["is_third_friday"] = ts.apply(compute._is_third_friday)
+    for offset, name in enumerate(compute.LAST_DAY_COLUMNS, start=1):
+        df[name] = days_from_end == offset
+    for idx, name in enumerate(compute.MONTH_FLAG_COLUMNS, start=1):
+        df[name] = df["month"] == idx
+
+    if "roll_id" in df.columns:
+        df["is_rollover_day"] = (
+            df.groupby("symbol")["roll_id"].apply(lambda s: s.ne(s.shift(1))).fillna(False)
+        )
+    return df
+
+
+def _prepare_features_pandas(
+    dataset: pd.DataFrame,
+    profile: SeasonalityProfileSpec,
+) -> pd.DataFrame:
+    """Prepare features for the pandas-backed seasonality workflow."""
+
+    if dataset.empty:
+        return dataset.copy()
+    df = dataset.sort_values(["symbol", "timestamp"]).copy()
+    horizon = max(int(profile.ret_horizon), 1)
+    df = _add_time_bins_pandas(df)
+    fwd = df.groupby("symbol")["close"].shift(-horizon)
+    eps = 1e-12
+    returns = (fwd / df["close"] - 1.0).where(
+        df["close"].abs() > eps, other=pd.NA
+    )
+    return_col = f"return_h{horizon}"
+    df[return_col] = returns
+    df["forward_ret"] = returns
+    direction_col = f"direction_h{horizon}"
+    df[direction_col] = returns.gt(0).astype("Int64")
+    df["direction"] = df[direction_col]
+    return df
+
+
+def _compute_profiles_pandas(
+    dataset: pd.DataFrame,
+    cfg: spec.NormalisedSeasonalitySpec,
+    fold_dir: Path | None,
+) -> pd.DataFrame:
+    """Compute light-weight seasonality profiles using pandas."""
+
+    if dataset.empty:
+        return pd.DataFrame()
+    horizon = max(int(cfg.profile.ret_horizon), 1)
+    period_start = dataset["timestamp"].min() if "timestamp" in dataset.columns else None
+    period_end = dataset["timestamp"].max() if "timestamp" in dataset.columns else None
+    dims = list(compute.iter_active_bins(cfg.profile))
+
+    tables: list[pd.DataFrame] = []
+    for dim in dims:
+        if dim not in dataset.columns:
+            continue
+        group_cols = ["symbol", dim]
+        if cfg.profile.measure == "direction":
+            direction_col = f"direction_h{horizon}"
+            df_valid = dataset[dataset[direction_col].notna()]
+            if df_valid.empty:
+                continue
+            grouped = (
+                df_valid.groupby(group_cols)[direction_col]
+                .agg(["count", "sum"])
+                .rename(columns={"count": "n", "sum": "successes"})
+            )
+            baseline = df_valid.groupby("symbol")[direction_col].mean()
+            grouped["baseline"] = grouped.index.get_level_values("symbol").map(baseline)
+            grouped["p_hat"] = grouped["successes"] / grouped["n"]
+            grouped["insufficient"] = grouped["n"] < cfg.profile.min_samples_bin
+            grouped.loc[grouped["insufficient"], "p_hat"] = pd.NA
+            grouped["lift"] = grouped["p_hat"] - grouped["baseline"]
+            grouped.loc[grouped["insufficient"], "lift"] = pd.NA
+            grouped["ci_low"] = pd.NA
+            grouped["ci_high"] = pd.NA
+            table = grouped.reset_index().rename(columns={dim: "bin"})
+        else:
+            return_col = f"return_h{horizon}"
+            df_valid = dataset[dataset[return_col].notna()]
+            if df_valid.empty:
+                continue
+            grouped = (
+                df_valid.groupby(group_cols)[return_col]
+                .agg(["count", "mean", "median", "std"])
+                .rename(
+                    columns={
+                        "count": "n",
+                        "mean": "ret_mean",
+                        "median": "ret_median",
+                        "std": "ret_std",
+                    }
+                )
+            )
+            baseline = df_valid.groupby("symbol")[return_col].mean()
+            grouped["baseline"] = grouped.index.get_level_values("symbol").map(baseline)
+            grouped["insufficient"] = grouped["n"] < cfg.profile.min_samples_bin
+            grouped.loc[grouped["insufficient"], ["ret_mean", "ret_median", "ret_std"]] = pd.NA
+            grouped["lift"] = grouped["ret_mean"] - grouped["baseline"]
+            grouped.loc[grouped["insufficient"], "lift"] = pd.NA
+            table = grouped.reset_index().rename(columns={dim: "bin"})
+
+        table["bin"] = table["bin"].astype(str)
+        table["dim"] = dim
+        tables.append(table)
+
+    if tables:
+        combined = pd.concat(tables, ignore_index=True)
+    else:
+        combined = pd.DataFrame(columns=["symbol", "bin", "dim"])
+
+    combined["timeframe"] = cfg.timeframe or ""
+    combined["period_start"] = period_start
+    combined["period_end"] = period_end
+    combined["horizon"] = horizon
+    return combined
+
+
+def _score_column(measure: str, table: pd.DataFrame) -> str | None:
+    preferred = ["p_hat", "lift"] if measure == "direction" else ["ret_mean", "lift"]
+    for col in preferred:
+        if col in table.columns:
+            return col
+    return None
+
+
+def _rules_from_profiles_pandas(
+    profiles_df: pd.DataFrame,
+    cfg: spec.NormalisedSeasonalitySpec,
+) -> profiles.SeasonalityRules:
+    if profiles_df.empty:
+        return profiles.SeasonalityRules(metadata={"thresholds": {}, "counts": {}})
+    requested_dims = list(cfg.signal.dims) if cfg.signal.dims is not None else []
+    if not requested_dims:
+        requested_dims = list(profiles_df["dim"].dropna().unique())
+
+    normalised_threshold = profiles._normalise_threshold(  # type: ignore[attr-defined]
+        cfg.signal.threshold, cfg.profile.measure
+    )
+    active: Dict[str, set[Any]] = {}
+    thresholds_meta: Dict[str, float | None] = {}
+    counts_meta: Dict[str, int] = {}
+
+    insufficient_mask = (
+        ~profiles_df["insufficient"].fillna(False)
+        if "insufficient" in profiles_df.columns
+        else pd.Series(True, index=profiles_df.index)
+    )
+    for dim in requested_dims:
+        table = profiles_df[(profiles_df["dim"] == dim) & insufficient_mask]
+        if table.empty:
+            active[dim] = set()
+            thresholds_meta[dim] = normalised_threshold
+            counts_meta[dim] = 0
+            continue
+        score_col = _score_column(cfg.profile.measure, table)
+        if score_col is None or score_col not in table.columns:
+            active[dim] = set()
+            thresholds_meta[dim] = normalised_threshold
+            counts_meta[dim] = 0
+            continue
+        table = table[table[score_col].notna()]
+        if table.empty:
+            active[dim] = set()
+            thresholds_meta[dim] = normalised_threshold
+            counts_meta[dim] = 0
+            continue
+        if cfg.signal.method == "threshold":
+            thr = normalised_threshold if normalised_threshold is not None else float("-inf")
+            filtered = table[table[score_col] >= thr]
+            cutoff = thr
+        else:
+            k = max(int(cfg.signal.topk), 0)
+            if k == 0:
+                active[dim] = set()
+                thresholds_meta[dim] = normalised_threshold
+                counts_meta[dim] = 0
+                continue
+            filtered = table.sort_values(score_col, ascending=False).head(k)
+            cutoff = filtered[score_col].min() if not filtered.empty else None
+        bins = set(filtered["bin"].dropna().tolist())
+        active[dim] = bins
+        thresholds_meta[dim] = cutoff if cutoff is not None else normalised_threshold
+        counts_meta[dim] = len(bins)
+
+    metadata: Dict[str, Any] = {
+        "thresholds": thresholds_meta,
+        "counts": counts_meta,
+        "method": cfg.signal.method,
+        "measure": cfg.profile.measure,
+    }
+    return profiles.SeasonalityRules(active_bins=active, combine=cfg.signal.combine, metadata=metadata)
 
 
 def _default_rules_metadata(rules: profiles.SeasonalityRules) -> Dict[str, Any]:
@@ -101,12 +336,16 @@ class FoldResult:
 
 
 def _profiles_to_records(
-    profiles_df: "pl.DataFrame",
+    profiles_df: Any,
     cfg: spec.NormalisedSeasonalitySpec,
 ) -> List[Dict[str, Any]]:
     """Convert the best profiles dataframe into persistence-ready rows."""
 
-    if profiles_df.is_empty():
+    if profiles_df is None:
+        return []
+    if hasattr(profiles_df, "is_empty") and profiles_df.is_empty():
+        return []
+    if isinstance(profiles_df, pd.DataFrame) and profiles_df.empty:
         return []
 
     measure = cfg.profile.measure
@@ -116,8 +355,12 @@ def _profiles_to_records(
     spec_id = cfg.persistence.spec_id
     dataset_id = cfg.persistence.dataset_id
 
+    if isinstance(profiles_df, pd.DataFrame):
+        rows = profiles_df.to_dict("records")
+    else:
+        rows = profiles_df.to_dicts()
     records: List[Dict[str, Any]] = []
-    for row in profiles_df.to_dicts():
+    for row in rows:
         timeframe_value = row.get("timeframe") or timeframe
         bin_value = row.get("bin")
         if isinstance(bin_value, bool):
@@ -171,6 +414,38 @@ def _build_signals(
     return [1 if bool(v) else 0 for v in df.get_column("long").to_list()]
 
 
+def _build_signals_pandas(
+    rows: List[Dict[str, Any]],
+    rules: profiles.SeasonalityRules,
+) -> List[int]:
+    df = _rows_to_pandas(rows)
+    if df.empty:
+        return []
+    df = _add_time_bins_pandas(df)
+    masks: list[pd.Series] = []
+    for dim, bins in rules.active_bins.items():
+        column = DIMENSION_TO_COLUMN.get(dim)
+        if column is None or column not in df.columns or not bins:
+            continue
+        bin_values = [str(val) for val in bins]
+        masks.append(df[column].astype(str).isin(bin_values))
+    if not masks:
+        long_mask = pd.Series(False, index=df.index)
+    elif rules.combine == "and":
+        long_mask = masks[0].copy()
+        for mask in masks[1:]:
+            long_mask &= mask
+    elif rules.combine == "or":
+        long_mask = masks[0].copy()
+        for mask in masks[1:]:
+            long_mask |= mask
+    else:
+        threshold = int(rules.metadata.get("sum_threshold", 1)) if rules.metadata else 1
+        mask_sum = sum(mask.astype(int) for mask in masks)
+        long_mask = mask_sum >= threshold
+    return [1 if bool(v) else 0 for v in long_mask.tolist()]
+
+
 def _atr_settings(tp_sl) -> tuple[float, float]:
     atr_mult = float(tp_sl.stop_loss) if tp_sl.stop_loss is not None else 1.0
     r_mult = float(tp_sl.take_profit) if tp_sl.take_profit is not None else 1.0
@@ -180,7 +455,7 @@ def _atr_settings(tp_sl) -> tuple[float, float]:
 def run(spec_model: SeasonalitySpec) -> Dict[str, Any]:
     """Execute a seasonality workflow and return aggregated metrics."""
 
-    _require_polars()
+    use_polars = pl is not None
     cfg = spec.normalise(spec_model)
     df_source = load_ohlcv(spec_model.data)
     rows: List[Dict[str, Any]] = []
@@ -250,20 +525,32 @@ def run(spec_model: SeasonalitySpec) -> Dict[str, Any]:
                 if not train_rows or not test_rows:
                     continue
 
-                train_df = _rows_to_polars(train_rows)
-                if train_df.is_empty():
-                    continue
+                if use_polars:
+                    train_df = _rows_to_polars(train_rows)
+                    if train_df.is_empty():
+                        continue
+                else:
+                    train_df = _rows_to_pandas(train_rows)
+                    if train_df.empty:
+                        continue
 
                 fold_dir = artifact_root / f"fold_{idx}" if artifact_root is not None else None
                 if fold_dir is not None:
                     fold_dir.mkdir(parents=True, exist_ok=True)
 
-                profiles_df = _compute_profiles(train_df, cfg, fold_dir)
-                if profiles_df.is_empty():
-                    continue
-
-                rules = _rules_from_profiles(profiles_df, cfg)
-                signals = _build_signals(test_rows, rules)
+                if use_polars:
+                    profiles_df = _compute_profiles(train_df, cfg, fold_dir)
+                    if profiles_df.is_empty():
+                        continue
+                    rules = _rules_from_profiles(profiles_df, cfg)
+                    signals = _build_signals(test_rows, rules)
+                else:
+                    train_features = _prepare_features_pandas(train_df, cfg.profile)
+                    profiles_df = _compute_profiles_pandas(train_features, cfg, fold_dir)
+                    if profiles_df.empty:
+                        continue
+                    rules = _rules_from_profiles_pandas(profiles_df, cfg)
+                    signals = _build_signals_pandas(test_rows, rules)
                 if not signals:
                     continue
 
@@ -301,11 +588,9 @@ def run(spec_model: SeasonalitySpec) -> Dict[str, Any]:
                     )
                 )
 
-                profiles_path = (
-                    fold_dir / "seasonality_profiles.parquet"
-                    if fold_dir is not None
-                    else None
-                )
+                profiles_path = None
+                if use_polars and fold_dir is not None:
+                    profiles_path = fold_dir / "seasonality_profiles.parquet"
 
                 if is_better:
                     summary_path = None
@@ -331,7 +616,11 @@ def run(spec_model: SeasonalitySpec) -> Dict[str, Any]:
                         trades_path=trades_path,
                         equity_path=equity_path,
                     )
-                    best_profiles_df = profiles_df.clone()
+                    best_profiles_df = (
+                        profiles_df.clone()
+                        if use_polars
+                        else profiles_df.copy(deep=True)
+                    )
 
             if best_result is None:
                 result_payload = {

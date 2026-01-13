@@ -367,14 +367,14 @@ python -m json.tool runs/seasonality_opt_demo/fold_0/summary.json
 | --- | --- | --- | --- |
 | Optimisation (`/submit`) | bloc Optimisation (`curl -X POST .../submit`, `status`, `result`) | `DB_DSN=sqlite:///.db/quant.db` (persistance) ; `QE_MARKETDATA_MYSQL_URL` si lecture MySQL | Prend en charge `dataset_path` (JSON/CSV) ou `data.mysql`. Persistance locale = fichiers `summary.json`/`trials.parquet`. |
 | Statistiques (`/stats/*`) | bloc Statistiques (`/stats/run`, `result`, `stats`, `stats/top`, `stats/summary`, `stats/heatmap`) | `DB_DSN=sqlite:///.db/quant.db` (obligatoire) ; `QE_MARKETDATA_MYSQL_URL` si lecture MySQL | Résultats écrits dans `.db/quant.db` (`market_stats`). Prévoir `session_id` si condition `session`. |
-| Saisonalite (`/seasonality/*`) | bloc Saisonalite (`/seasonality/run`, `/seasonality/optimize`, `/seasonality/runs`, `/seasonality/profiles`) | `DB_DSN=sqlite:///.db/quant.db` ; `QE_MARKETDATA_MYSQL_URL` si lecture MySQL ; `polars` installé | Persistance dans `.db/quant.db` (`seasonality_*`) + artefacts `runs/`. `seasonality_optimize` s'appuie sur Optuna. |
+| Saisonalite (`/seasonality/*`) | bloc Saisonalite (`/seasonality/run`, `/seasonality/optimize`, `/seasonality/runs`, `/seasonality/profiles`) | `DB_DSN=sqlite:///.db/quant.db` ; `QE_MARKETDATA_MYSQL_URL` si lecture MySQL ; `polars` (optionnel) | Persistance dans `.db/quant.db` (`seasonality_*`) + artefacts `runs/`. Fallback pandas en mode lite si `polars` manque. `seasonality_optimize` s'appuie sur Optuna. |
 
 Pense a exporter `DB_DSN=sqlite:///.db/quant.db` avant de lancer l'API, puis `QE_MARKETDATA_MYSQL_URL` vers `mysql+pymysql://restadmin:ronanronan77@127.0.0.1:3306/restdb?charset=utf8mb4` si tu veux lire tes OHLCV MySQL.
 
 #### Nettoyage des artefacts
 - Les API statistiques et saisonnalité écrivent dans `.db/quant.db`. Supprimer ce fichier pour repartir de zéro (`rm .db/quant.db` ou `Remove-Item .db/quant.db`).
 - Les artefacts locaux sont générés dans `runs/` et les fichiers `summary.json` / `trials.parquet` à la racine. Supprimer ces éléments si nécessaire.
-- `seasonality_run` et `seasonality_optimize` requièrent `polars` (installé via Poetry) et utilisent les scénarios réduits fournis.
+- `seasonality_run` et `seasonality_optimize` utilisent `polars` pour les profils complets ; sans `polars`, un mode lite pandas évite le crash mais produit des métriques réduites.
 
 Note: `specs/examples/submit_local.json` référence le mini jeu de données `specs/examples/data/eurusd_m1_sample.json`. Les paramètres de validation (`train_months=0`, `test_months=1`, `folds=1`) sont volontairement minimalistes pour produire un fold sur ce jeu réduit. Remplacez-les (et les données) pour vos tests avancés et veillez à enregistrer vos JSON en UTF-8 sans BOM (PowerShell: `-Encoding utf8NoBOM`).
 
