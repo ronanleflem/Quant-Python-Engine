@@ -5,7 +5,7 @@ import os
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
-import requests
+from ..http_client import DEFAULT_TIMEOUT, get_shared_session, request_json
 
 BASE_URL = os.getenv("QE_JAVA_BASE_URL", "http://localhost:8090")
 
@@ -49,18 +49,16 @@ def get_scan(endpoint: str, params: Dict[str, Any]) -> List[Dict[str, Any]]:
     """Fetch a scan payload from the Java backend using ``GET``."""
 
     url = BASE_URL + endpoint
-    resp = requests.get(url, params=params, timeout=5)
-    resp.raise_for_status()
-    return resp.json()
+    session = get_shared_session()
+    return request_json("GET", url, params=params, session=session)
 
 
 def get_market_scan(scan_type: str, params: Dict[str, Any]) -> List[Dict[str, Any]]:
     """Fetch one of the supported market scans exposed by the Java backend."""
 
     url = BASE_URL + f"/api/market/scans/{scan_type}"
-    resp = requests.get(url, params=params, timeout=5)
-    resp.raise_for_status()
-    return resp.json()
+    session = get_shared_session()
+    return request_json("GET", url, params=params, session=session)
 
 
 def get_ohlc(
@@ -79,6 +77,7 @@ def get_ohlc(
     if start_dt and end_dt and end_dt > start_dt:
         results: List[Dict[str, Any]] = []
         current = start_dt
+        session = get_shared_session()
         while current < end_dt:
             chunk_end = min(current + timedelta(days=365), end_dt)
             params = {
@@ -86,17 +85,22 @@ def get_ohlc(
                 "start": current.isoformat().replace("+00:00", "Z"),
                 "end": chunk_end.isoformat().replace("+00:00", "Z"),
             }
-            resp = requests.get(url, params=params, timeout=10)
-            resp.raise_for_status()
-            results.extend(resp.json())
+            chunk = request_json(
+                "GET",
+                url,
+                params=params,
+                session=session,
+                timeout=DEFAULT_TIMEOUT,
+            )
+            if chunk:
+                results.extend(chunk)
             current = chunk_end
         return results
 
     # Fallback single request when dates are missing or unparsable.
     params = {**base_params, "start": start_iso, "end": end_iso}
-    resp = requests.get(url, params=params, timeout=10)
-    resp.raise_for_status()
-    return resp.json()
+    session = get_shared_session()
+    return request_json("GET", url, params=params, session=session, timeout=DEFAULT_TIMEOUT)
 
 
 def request_historical_ingestion(
@@ -112,9 +116,8 @@ def request_historical_ingestion(
         "start": start,
         "end": end,
     }
-    resp = requests.post(url, json=payload, timeout=10)
-    resp.raise_for_status()
-    return resp.json()
+    session = get_shared_session()
+    return request_json("POST", url, json=payload, session=session, timeout=DEFAULT_TIMEOUT)
 
 
 def get_positions() -> List[Dict[str, Any]]:
@@ -122,8 +125,9 @@ def get_positions() -> List[Dict[str, Any]]:
 
     url = BASE_URL + "/api/portfolio/positions"
     try:
-        resp = requests.get(url, timeout=5)
-        if resp.status_code == 200:
+        session = get_shared_session()
+        resp = session.get(url, timeout=DEFAULT_TIMEOUT)
+        if resp.status_code == 200 and resp.content:
             return resp.json()
     except Exception:
         pass

@@ -5,11 +5,12 @@ from dataclasses import asdict
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-from urllib import error, parse, request
+from urllib import parse
 
 import typer
 
 from ..core import spec as spec_module
+from ..http_client import DEFAULT_TIMEOUT, get_shared_session, request_json
 
 try:  # Job manager may not be available in lightweight tests
     from ..optimize.job_manager import JobManager  # type: ignore
@@ -72,21 +73,16 @@ def submit(
         payload = sp.model_dump()  # type: ignore[union-attr]
     else:
         payload = asdict(sp)
-    data = json.dumps(payload).encode()
-    req = request.Request(
-        "http://127.0.0.1:8000/submit", data=data, headers={"Content-Type": "application/json"}
-    )
     try:
-        with request.urlopen(req) as resp:
-            if resp.status != 200:
-                typer.echo(f"HTTP {resp.status}: {resp.reason}")
-                raise typer.Exit(1)
-            payload = json.loads(resp.read().decode())
-    except error.HTTPError as e:
-        typer.echo(f"HTTP {e.code}: {e.reason}")
-        raise typer.Exit(1)
-    except error.URLError as e:
-        typer.echo(f"Connection error: {e.reason}")
+        payload = request_json(
+            "POST",
+            "http://127.0.0.1:8000/submit",
+            json=payload,
+            timeout=DEFAULT_TIMEOUT,
+            session=get_shared_session(),
+        )
+    except Exception as exc:
+        typer.echo(f"Connection error: {exc}")
         raise typer.Exit(1)
     typer.echo(payload.get("id", ""))
 
@@ -143,16 +139,14 @@ def stats_show(
         params["timeframe"] = timeframe
     url = "http://127.0.0.1:8000/stats?" + parse.urlencode(params)
     try:
-        with request.urlopen(url) as resp:
-            if resp.status != 200:
-                typer.echo(f"HTTP {resp.status}: {resp.reason}")
-                raise typer.Exit(1)
-            rows = json.loads(resp.read().decode())
-    except error.HTTPError as e:
-        typer.echo(f"HTTP {e.code}: {e.reason}")
-        raise typer.Exit(1)
-    except error.URLError as e:
-        typer.echo(f"Connection error: {e.reason}")
+        rows = request_json(
+            "GET",
+            url,
+            timeout=DEFAULT_TIMEOUT,
+            session=get_shared_session(),
+        )
+    except Exception as exc:
+        typer.echo(f"Connection error: {exc}")
         raise typer.Exit(1)
     df = pd.DataFrame(rows)
     if df.empty:
@@ -269,16 +263,14 @@ def seasonality_profiles(
         params["metrics"] = metrics
     url = "http://127.0.0.1:8000/seasonality/profiles?" + parse.urlencode(params)
     try:
-        with request.urlopen(url) as resp:
-            if resp.status != 200:
-                typer.echo(f"HTTP {resp.status}: {resp.reason}")
-                raise typer.Exit(1)
-            rows = json.loads(resp.read().decode())
-    except error.HTTPError as e:
-        typer.echo(f"HTTP {e.code}: {e.reason}")
-        raise typer.Exit(1)
-    except error.URLError as e:
-        typer.echo(f"Connection error: {e.reason}")
+        rows = request_json(
+            "GET",
+            url,
+            timeout=DEFAULT_TIMEOUT,
+            session=get_shared_session(),
+        )
+    except Exception as exc:
+        typer.echo(f"Connection error: {exc}")
         raise typer.Exit(1)
 
     df = pd.DataFrame(rows)
@@ -342,16 +334,14 @@ def seasonality_compare(
             params["timeframe"] = timeframe
         url = "http://127.0.0.1:8000/seasonality/profiles?" + parse.urlencode(params)
         try:
-            with request.urlopen(url) as resp:
-                if resp.status != 200:
-                    typer.echo(f"HTTP {resp.status}: {resp.reason}")
-                    raise typer.Exit(1)
-                rows = json.loads(resp.read().decode())
-        except error.HTTPError as e:
-            typer.echo(f"HTTP {e.code}: {e.reason}")
-            raise typer.Exit(1)
-        except error.URLError as e:
-            typer.echo(f"Connection error: {e.reason}")
+            rows = request_json(
+                "GET",
+                url,
+                timeout=DEFAULT_TIMEOUT,
+                session=get_shared_session(),
+            )
+        except Exception as exc:
+            typer.echo(f"Connection error: {exc}")
             raise typer.Exit(1)
         table = pl.DataFrame(rows)
         if "metrics" in table.columns:
@@ -393,16 +383,14 @@ def list_runs(
         params["status"] = status.value
     url = "http://127.0.0.1:8000/runs?" + parse.urlencode(params)
     try:
-        with request.urlopen(url) as resp:
-            if resp.status != 200:
-                typer.echo(f"HTTP {resp.status}: {resp.reason}")
-                raise typer.Exit(1)
-            runs = json.loads(resp.read().decode())
-    except error.HTTPError as e:
-        typer.echo(f"HTTP {e.code}: {e.reason}")
-        raise typer.Exit(1)
-    except error.URLError as e:
-        typer.echo(f"Connection error: {e.reason}")
+        runs = request_json(
+            "GET",
+            url,
+            timeout=DEFAULT_TIMEOUT,
+            session=get_shared_session(),
+        )
+    except Exception as exc:
+        typer.echo(f"Connection error: {exc}")
         raise typer.Exit(1)
     header = "run_id | status | objective | started_at | finished_at"
     typer.echo(header)
@@ -418,16 +406,14 @@ def show_run(run_id: str) -> None:
 
     url = f"http://127.0.0.1:8000/runs/{run_id}"
     try:
-        with request.urlopen(url) as resp:
-            if resp.status != 200:
-                typer.echo(f"HTTP {resp.status}: {resp.reason}")
-                raise typer.Exit(1)
-            detail = json.loads(resp.read().decode())
-    except error.HTTPError as e:
-        typer.echo(f"HTTP {e.code}: {e.reason}")
-        raise typer.Exit(1)
-    except error.URLError as e:
-        typer.echo(f"Connection error: {e.reason}")
+        detail = request_json(
+            "GET",
+            url,
+            timeout=DEFAULT_TIMEOUT,
+            session=get_shared_session(),
+        )
+    except Exception as exc:
+        typer.echo(f"Connection error: {exc}")
         raise typer.Exit(1)
 
     run = detail.get("run", {})
