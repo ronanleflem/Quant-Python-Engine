@@ -16,6 +16,8 @@ commun (`StrategySignal`) et peuvent être utilisées en backtest via
   `SELL` sont optionnelles via des règles `tp_sl` (mode `per_grid_max_dd`).
 * **Métadonnées** : profondeur atteinte (`dd_pct`), niveau de grille
   (`grid_level`), poids (`palier_used`), règle de take-profit active, etc.
+* **Logs** : `log_drawdown_summary=true` pour afficher un résumé de drawdown en
+  niveau INFO (par défaut, le résumé passe en DEBUG pour éviter le spam).
 
 ### `DcaEtfStrategy`
 
