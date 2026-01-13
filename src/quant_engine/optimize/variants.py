@@ -1729,6 +1729,9 @@ def _collect_runs(base_dir: Path) -> List[Dict[str, Any]]:
         best = summary.get("best") or {}
         objective = best.get("objective")
         metadata = summary.get("metadata") or {}
+        if not isinstance(metadata, Mapping) or not (metadata.get("config_hash") or metadata.get("data_hash")):
+            LOGGER.debug("Retention: skipping %s (missing optimization metadata)", child)
+            continue
         runs.append(
             {
                 "dir": child,
@@ -1749,6 +1752,41 @@ def _prune_heavy_artifacts(run_dir: Path) -> None:
                 shutil.rmtree(target, ignore_errors=True)
 
 
+def _is_within_dir(child: Path, parent: Path) -> bool:
+    try:
+        child.relative_to(parent)
+        return True
+    except ValueError:
+        return False
+
+
+def _resolve_retention_base_dir(out_dir: Path, retention: Mapping[str, Any]) -> Optional[Path]:
+    base_dir_cfg = retention.get("base_dir")
+    if base_dir_cfg:
+        candidate = Path(str(base_dir_cfg)).expanduser()
+        if not candidate.is_absolute():
+            candidate = (out_dir.parent / candidate).resolve()
+        else:
+            candidate = candidate.resolve()
+    else:
+        candidate = out_dir.parent.resolve()
+    if candidate == Path(candidate.anchor):
+        LOGGER.warning("Retention: base_dir=%s is too broad; skipping retention for safety", candidate)
+        return None
+    if not candidate.exists() or not candidate.is_dir():
+        LOGGER.warning("Retention: base_dir=%s is missing or not a directory; skipping", candidate)
+        return None
+    out_dir_resolved = out_dir.resolve()
+    if not _is_within_dir(out_dir_resolved, candidate):
+        LOGGER.warning(
+            "Retention: out_dir=%s is outside base_dir=%s; skipping retention",
+            out_dir_resolved,
+            candidate,
+        )
+        return None
+    return candidate
+
+
 def _apply_retention(out_dir: Path, cfg: Mapping[str, Any]) -> None:
     storage_cfg = cfg.get("storage") or {}
     if not isinstance(storage_cfg, Mapping):
@@ -1762,10 +1800,22 @@ def _apply_retention(out_dir: Path, cfg: Mapping[str, Any]) -> None:
     keep_best = retention.get("keep_best_runs")
     mode = str(retention.get("mode", "heavy_only")).lower()
     dry_run = bool(retention.get("dry_run", False))
-    base_dir = out_dir.parent
+    base_dir = _resolve_retention_base_dir(out_dir, retention)
+    if base_dir is None:
+        return
     runs = _collect_runs(base_dir)
     if not runs:
+        LOGGER.info("Retention: no eligible runs found under %s", base_dir)
         return
+    LOGGER.info(
+        "Retention: scanning base_dir=%s (runs=%d, keep_last=%s, keep_best=%s, mode=%s, dry_run=%s)",
+        base_dir,
+        len(runs),
+        keep_last,
+        keep_best,
+        mode,
+        dry_run,
+    )
     keep_dirs: set[Path] = {out_dir.resolve()}
     if keep_last:
         try:
@@ -1798,11 +1848,11 @@ def _apply_retention(out_dir: Path, cfg: Mapping[str, Any]) -> None:
         if run_dir in keep_dirs:
             continue
         if mode == "full":
-            LOGGER.info("Retention: deleting run %s", run_dir)
+            LOGGER.warning("Retention: deleting run %s (mode=full, dry_run=%s)", run_dir, dry_run)
             if not dry_run:
                 shutil.rmtree(run_dir, ignore_errors=True)
         else:
-            LOGGER.info("Retention: pruning heavy artifacts in %s", run_dir)
+            LOGGER.info("Retention: pruning heavy artifacts in %s (dry_run=%s)", run_dir, dry_run)
             if not dry_run:
                 _prune_heavy_artifacts(run_dir)
 
