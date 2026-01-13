@@ -62,6 +62,7 @@ class DcaEquityStrategy(Strategy):
             self.params.get("drawdown_reference")
         )
         self.require_crossing = bool(self.params.get("require_crossing", True))
+        self.log_drawdown_summary = bool(self.params.get("log_drawdown_summary", False))
 
     @staticmethod
     def compute_drawdown(close: pd.Series) -> pd.Series:
@@ -206,24 +207,27 @@ class DcaEquityStrategy(Strategy):
         bars_seen = 0
         signals_seen = 0
         allow_mask = df["_filter_ok"].astype(bool) if "_filter_ok" in df.columns else pd.Series(True, index=df.index)
-        try:
-            dd_allowed = dd_series[allow_mask]
-            min_dd_all = float(dd_series.min()) if not dd_series.empty else 0.0
-            min_dd_allowed = float(dd_allowed.min()) if not dd_allowed.empty else 0.0
-            crossings: List[str] = []
-            for level in self.grid:
-                threshold = float(level.get("dd", 0.0))
-                crossed = (dd_series <= threshold) & (dd_series.shift(1) > threshold) & allow_mask
-                crossings.append(f"{threshold:.2f}={int(crossed.fillna(False).sum())}")
-            LOGGER.info(
-                "Drawdown summary for %s: min_dd=%.2f%% min_dd_allowed=%.2f%% crossings(%s)",
-                symbol,
-                min_dd_all,
-                min_dd_allowed,
-                ", ".join(crossings),
-            )
-        except Exception:
-            LOGGER.info("Drawdown summary for %s: unavailable", symbol)
+        log_level = logging.INFO if self.log_drawdown_summary else logging.DEBUG
+        if LOGGER.isEnabledFor(log_level):
+            try:
+                dd_allowed = dd_series[allow_mask]
+                min_dd_all = float(dd_series.min()) if not dd_series.empty else 0.0
+                min_dd_allowed = float(dd_allowed.min()) if not dd_allowed.empty else 0.0
+                crossings: List[str] = []
+                for level in self.grid:
+                    threshold = float(level.get("dd", 0.0))
+                    crossed = (dd_series <= threshold) & (dd_series.shift(1) > threshold) & allow_mask
+                    crossings.append(f"{threshold:.2f}={int(crossed.fillna(False).sum())}")
+                LOGGER.log(
+                    log_level,
+                    "Drawdown summary for %s: min_dd=%.2f%% min_dd_allowed=%.2f%% crossings(%s)",
+                    symbol,
+                    min_dd_all,
+                    min_dd_allowed,
+                    ", ".join(crossings),
+                )
+            except Exception:
+                LOGGER.log(log_level, "Drawdown summary for %s: unavailable", symbol)
         results: List[StrategySignal] = []
         last_processed = state.last_processed_ts
         for ts, price, dd, ref_h, high, low in zip(
