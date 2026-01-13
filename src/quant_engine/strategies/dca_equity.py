@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 import logging
 import time
 from typing import Any, Dict, List, Optional, Tuple
+import warnings
 
 import pandas as pd
 
@@ -66,6 +67,13 @@ class DcaEquityStrategy(Strategy):
     def compute_drawdown(close: pd.Series) -> pd.Series:
         """Compute drawdown (in percentage) vs rolling high (deprecated)."""
 
+        warnings.warn(
+            "DcaEquityStrategy.compute_drawdown is deprecated and unused; "
+            "compute drawdown from _compute_reference_high instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
         rolling_max = close.cummax()
         dd = (close / rolling_max - 1.0) * 100.0
         return dd.fillna(0.0)
@@ -107,6 +115,8 @@ class DcaEquityStrategy(Strategy):
         )
 
     def _compute_reference_high(self, close: pd.Series) -> pd.Series:
+        """Compute drawdown reference highs from the configured mode/window."""
+
         mode = (self.dd_reference_mode or "rolling").lower()
         if mode == "ath":
             ref = close.expanding(min_periods=1).max()
@@ -118,10 +128,19 @@ class DcaEquityStrategy(Strategy):
     @staticmethod
     def compute_reference_high(close: pd.Series) -> pd.Series:
         """
+        Deprecated: use drawdown_reference + _compute_reference_high for new behavior.
+
         Rolling high sur les 3 derniers mois (~90 jours calendaires).
         - Si on démarre en début d’historique, on prend le max des bougies disponibles (min_periods=1).
         - Inclut la bougie courante (mise à jour dès qu’un nouveau plus haut apparaît).
         """
+
+        warnings.warn(
+            "DcaEquityStrategy.compute_reference_high is deprecated and unused; "
+            "configure drawdown_reference to control the reference high instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
         ref = close.rolling("90D", min_periods=1).max()
         ref = ref.ffill().fillna(close.iloc[0])
@@ -217,7 +236,7 @@ class DcaEquityStrategy(Strategy):
             allow_entries = self._allow_entries(df, ts)
             state.current_price = float(price)
             self._ensure_cycle_initialized(state)
-            # fige le ref_high une fois un cycle actif (ne pas recalculer pendant un trade)
+            # Fige le ref_high dès qu'un cycle démarre pour garder une base stable (ATH ou rolling window).
             ref_high_value = state.cycle_high_ref if state.cycle_active else float(ref_h)
             if allow_entries and not state.cycle_active:
                 self._maybe_start_cycle(state, float(dd), ref_high_value, float(price))
