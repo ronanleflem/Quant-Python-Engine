@@ -9,7 +9,8 @@ Le moteur utilise deux caches mémoire pour limiter les recalculs :
 
 Chaque cache est borné (LRU) et dispose d'un TTL afin d'éviter toute croissance
 illimitée. Des métriques simples (hits/misses/expirations/evictions) sont
-loguées pour faciliter le suivi.
+loguées à chaque exécution de backtest ou application de filtres pour faciliter
+le suivi.
 
 ## Cache OHLC
 

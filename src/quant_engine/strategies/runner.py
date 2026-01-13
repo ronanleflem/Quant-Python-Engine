@@ -227,7 +227,6 @@ def _fetch_ohlc_for_symbol(
         cached = _cache_ohlc_get(cache_key, ttl_seconds)
         if cached is not None:
             return cached.copy()
-        _OHLC_CACHE_STATS["misses"] += 1
     source = merged_spec.get("source")
     if source == "csv":
         path = Path(merged_spec["path"])
@@ -289,6 +288,7 @@ def _resolve_ohlc_cache_settings(merged_spec: Mapping[str, Any]) -> tuple[bool, 
 def _cache_ohlc_get(cache_key: str, ttl_seconds: float) -> Optional[pd.DataFrame]:
     entry = _OHLC_CACHE.get(cache_key)
     if entry is None:
+        _OHLC_CACHE_STATS["misses"] += 1
         return None
     df, created = entry
     if ttl_seconds > 0:
@@ -296,6 +296,7 @@ def _cache_ohlc_get(cache_key: str, ttl_seconds: float) -> Optional[pd.DataFrame
         if age > ttl_seconds:
             _OHLC_CACHE.pop(cache_key, None)
             _OHLC_CACHE_STATS["expirations"] += 1
+            _OHLC_CACHE_STATS["misses"] += 1
             return None
     _OHLC_CACHE.move_to_end(cache_key)
     _OHLC_CACHE_STATS["hits"] += 1
