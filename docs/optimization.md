@@ -16,7 +16,8 @@ Il existe **deux** chemins d'optimisation dans le repo, avec des objectifs diffe
    - Ne couvre pas les fonctionnalites avancees (promotion, screening, dedup, etc.).
 
 **Recommandation :** pour toute optimisation backtest/strategy, utilisez `optimize.variants`
-via la CLI ou l'API. Le runner simple ne doit servir que pour des tests rapides ou le fallback local.
+via la CLI ou l'API. Le runner simple n'est pas l'entree officielle des commandes `optimize`
+et doit servir uniquement pour des tests rapides ou le fallback local.
 Ce document décrit le workflow d'optimization pour les specs de backtest et de strategy.
 
 ## Ce qui est stocké
