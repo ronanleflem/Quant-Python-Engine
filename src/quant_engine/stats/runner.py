@@ -110,40 +110,73 @@ def _long_form(dataset: List[Dict[str, Any]], spec: StatsSpec) -> pd.DataFrame:
         col = f"tgt::{tgt.name}"
         df[col] = func(df, **tgt.params)
         tgt_cols.append((tgt.name, col))
+    if not event_cols or not tgt_cols:
+        return pd.DataFrame(
+            columns=[
+                "ts",
+                "symbol",
+                "event",
+                "event_on",
+                "condition_name",
+                "condition_value",
+                "target",
+                "outcome_value",
+            ]
+        )
 
-    records: List[Dict[str, Any]] = []
-    for _, row in df.iterrows():
-        base = {"ts": row["ts"], "symbol": row["symbol"]}
-        for ev_name, ev_col in event_cols:
-            ev_on = bool(row[ev_col])
-            for tgt_name, tgt_col in tgt_cols:
-                outcome = row[tgt_col]
-                if cond_cols:
-                    for cond_name, cond_col in cond_cols:
-                        records.append(
-                            {
-                                **base,
-                                "event": ev_name,
-                                "event_on": ev_on,
-                                "condition_name": cond_name,
-                                "condition_value": row[cond_col],
-                                "target": tgt_name,
-                                "outcome_value": outcome,
-                            }
-                        )
-                else:
-                    records.append(
-                        {
-                            **base,
-                            "event": ev_name,
-                            "event_on": ev_on,
-                            "condition_name": None,
-                            "condition_value": None,
-                            "target": tgt_name,
-                            "outcome_value": outcome,
-                        }
-                    )
-    return pd.DataFrame.from_records(records)
+    df = df.reset_index(drop=False).rename(columns={"index": "row_id"})
+    base = df[["row_id", "ts", "symbol"]]
+
+    event_long = (
+        pd.concat({name: df[col] for name, col in event_cols}, axis=1)
+        .stack(dropna=False)
+        .rename("event_on")
+        .reset_index()
+        .rename(columns={"level_0": "row_id", "level_1": "event"})
+    )
+    target_long = (
+        pd.concat({name: df[col] for name, col in tgt_cols}, axis=1)
+        .stack(dropna=False)
+        .rename("outcome_value")
+        .reset_index()
+        .rename(columns={"level_0": "row_id", "level_1": "target"})
+    )
+
+    if cond_cols:
+        condition_long = (
+            pd.concat({name: df[col] for name, col in cond_cols}, axis=1)
+            .stack(dropna=False)
+            .rename("condition_value")
+            .reset_index()
+            .rename(columns={"level_0": "row_id", "level_1": "condition_name"})
+        )
+    else:
+        condition_long = pd.DataFrame(
+            {
+                "row_id": df["row_id"],
+                "condition_name": None,
+                "condition_value": None,
+            }
+        )
+
+    long_df = (
+        base.merge(event_long, on="row_id", how="left")
+        .merge(target_long, on="row_id", how="left")
+        .merge(condition_long, on="row_id", how="left")
+    )
+    long_df = long_df.drop(columns=["row_id"])
+    return long_df[
+        [
+            "ts",
+            "symbol",
+            "event",
+            "event_on",
+            "condition_name",
+            "condition_value",
+            "target",
+            "outcome_value",
+        ]
+    ]
 
 
 def _aggregate(df: pd.DataFrame) -> pd.DataFrame:
@@ -379,4 +412,3 @@ def run_stats(spec: StatsSpec) -> pd.DataFrame:
 
 
 __all__ = ["run_stats"]
-
