@@ -1,19 +1,36 @@
 # Workflow d'optimization
 
-Ce document décrit le workflow d'optimization pour les specs de backtest et de strategy.
+## Entree officielle d'optimisation (recommandee)
 
-## Ce qui est stocké
+Il existe **deux** chemins d'optimisation dans le repo, avec des objectifs differents :
 
-Light data (toujours persistées par trial) :
+1) **`optimize.variants` (officiel/recommande)**  
+   - Utilise par la CLI `qe strategy optimize` et `qe backtest optimize`.  
+   - Supporte grid/random search, screening, promotion, deduplication, full-pass et artefacts
+     detailles.  
+   - Adapte aux specs backtest/strategy modernes (payloads riches, logs, sauvegardes).
+
+2) **`optimize.runner` (runner simple/legacy)**  
+   - Runner minimal base sur un espace de recherche fixe (EMA/ATR/R).  
+   - Utilise comme **fallback** dans `qe run-local` quand le job manager n'est pas disponible.  
+   - Ne couvre pas les fonctionnalites avancees (promotion, screening, dedup, etc.).
+
+**Recommandation :** pour toute optimisation backtest/strategy, utilisez `optimize.variants`
+via la CLI ou l'API. Le runner simple ne doit servir que pour des tests rapides ou le fallback local.
+Ce document dÃ©crit le workflow d'optimization pour les specs de backtest et de strategy.
+
+## Ce qui est stockÃ©
+
+Light data (toujours persistÃ©es par trial) :
 - `trial_id`, `params`
-- metrics agrégées (`sharpe`, `sortino`, `returnPct`, `maxDrawdownPct`, `winratePct`, `totalReturn`)
+- metrics agrÃ©gÃ©es (`sharpe`, `sortino`, `returnPct`, `maxDrawdownPct`, `winratePct`, `totalReturn`)
 - valeur d'objective
 - metadata de reproductibilite (`seed`, `dataset_id`, `timeframe`, `start`, `end`, `code_version`, `strategy_id`, `data_hash`, `config_hash`, `lib_versions`)
 
-Heavy data (persistées uniquement pour les trials promus) :
+Heavy data (persistÃ©es uniquement pour les trials promus) :
 - payload complet du trial (run + trades)
 
-Les heavy payloads sont écrits dans `runs/optimize_backtest/promoted/` ou
+Les heavy payloads sont Ã©crits dans `runs/optimize_backtest/promoted/` ou
 `runs/optimize_strategy/promoted/` en `trial_{id}.json`.
 
 ### Artefacts compactes (light-heavy hybride)
@@ -44,7 +61,7 @@ Pour limiter le volume, tu peux activer un mode "compact" sur les payloads promu
 - durees de trades (min/mean/p25/p50/p75/max en secondes)
 - histogramme R (buckets)
 - MAE/MFE si dispo dans les trades
-- pnl par jour (agrégé par date d'exit)
+- pnl par jour (agrÃ©gÃ© par date d'exit)
 
 
 
@@ -77,7 +94,7 @@ Pour controler le volume disque, tu peux definir des niveaux d'artefacts par ran
 
 ## Promotion policy (top-K + constraints)
 
-La promotion est contrôlée via `optimization.promotion` :
+La promotion est contrÃ´lÃ©e via `optimization.promotion` :
 
 ```json
 {
@@ -97,15 +114,15 @@ La promotion est contrôlée via `optimization.promotion` :
 
 - `top_k` : nombre de meilleurs trials pour lesquels on garde les heavy payloads.
 - `min_trades` : nombre minimum de trades (wins + losses).
-- `max_drawdown_pct` : drawdown max autorisé (en %).
+- `max_drawdown_pct` : drawdown max autorisÃ© (en %).
 - `min_winrate_pct` : win rate minimum (en %).
 - `min_return_pct` : return minimum (en %).
 - `min_sharpe` : Sharpe minimum.
 - `min_sortino` : Sortino minimum.
-- `dedupe_distance` : filtre de diversité optionnel. Quand défini, un candidat
-  est rejeté s'il est trop proche d'un trial déjà promu (distance calculée sur
-  les paramètres normalisés via les bornes du search space).
-- `behavior_distance` : filtre de diversité par comportement, basé sur des
+- `dedupe_distance` : filtre de diversitÃ© optionnel. Quand dÃ©fini, un candidat
+  est rejetÃ© s'il est trop proche d'un trial dÃ©jÃ  promu (distance calculÃ©e sur
+  les paramÃ¨tres normalisÃ©s via les bornes du search space).
+- `behavior_distance` : filtre de diversitÃ© par comportement, basÃ© sur des
   metrics de performance (voir ci-dessous).
 Note: prefer `hard_constraints`/`soft_constraints` dans `promotion`; les cles flat restent acceptees pour compatibilite.
 
@@ -148,8 +165,8 @@ Flow actuel :
 
 ### Mode screening (raccourci)
 
-Le screening permet d'accélérer l'optimization en utilisant un sous-ensemble
-de données. Il est appliqué avant le calcul des filtres/signals.
+Le screening permet d'accÃ©lÃ©rer l'optimization en utilisant un sous-ensemble
+de donnÃ©es. Il est appliquÃ© avant le calcul des filtres/signals.
 
 ```json
 {
@@ -169,12 +186,12 @@ de données. Il est appliqué avant le calcul des filtres/signals.
 }
 ```
 
-Quand activé :
-- seules les dernières `max_bars` sont utilisées pour le trial
-- arrêt anticipé après `max_trades` trades complets (DCA/crypto grid)
-- arrêt anticipé après `max_seconds` de temps de calcul
-- `windows` (optionnel) exécute plusieurs sous-périodes et agrège l'objective
-- `aggregate` contrôle l'agrégation (`mean`, `median`, `min`, `max`)
+Quand activÃ© :
+- seules les derniÃ¨res `max_bars` sont utilisÃ©es pour le trial
+- arrÃªt anticipÃ© aprÃ¨s `max_trades` trades complets (DCA/crypto grid)
+- arrÃªt anticipÃ© aprÃ¨s `max_seconds` de temps de calcul
+- `windows` (optionnel) exÃ©cute plusieurs sous-pÃ©riodes et agrÃ¨ge l'objective
+- `aggregate` contrÃ´le l'agrÃ©gation (`mean`, `median`, `min`, `max`)
 - le stockage reste light pour tous les trials
 
 
