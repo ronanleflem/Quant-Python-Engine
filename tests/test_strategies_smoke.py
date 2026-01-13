@@ -1,7 +1,10 @@
 """Smoke tests covering the high-level strategies and runner plumbing."""
 from __future__ import annotations
 
+import logging
+
 import pandas as pd
+import pytest
 
 from quant_engine.strategies.dca_equity import DcaEquityStrategy
 from quant_engine.strategies.dca_etf import DcaEtfStrategy
@@ -42,7 +45,7 @@ def test_dca_equity_strategy_backtest_and_live() -> None:
         },
     }
     strategy = DcaEquityStrategy("EQ", params)
-    closes = [100, 90, 80, 70, 60, 50, 55, 60, 65, 80]
+    closes = [100, 90, 80, 70, 60, 50, 55, 60, 65, 90]
     df = _make_ohlc(closes)
     context = {"symbol": "EQ", "asset_class": "EQUITY"}
     signals = strategy.backtest(df, context)
@@ -54,6 +57,30 @@ def test_dca_equity_strategy_backtest_and_live() -> None:
     live_context = {"symbol": "EQ", "asset_class": "EQUITY", "state": {}}
     live_signals = strategy.evaluate_live_bar(df, live_context)
     assert live_signals and live_signals[-1].side == "SELL"
+
+
+def test_dca_equity_fallback_for_non_temporal_index(caplog: pytest.LogCaptureFixture) -> None:
+    params = {
+        "asset_class": "EQUITY",
+        "grid": [
+            {"dd": -10.0, "weight": 0.5},
+        ],
+    }
+    strategy = DcaEquityStrategy("EQ", params)
+    closes = [100, 95, 90, 92]
+    df = pd.DataFrame(
+        {
+            "open": closes,
+            "high": [c * 1.01 for c in closes],
+            "low": [c * 0.99 for c in closes],
+            "close": closes,
+            "volume": [1_000] * len(closes),
+        }
+    )
+    context = {"symbol": "EQ", "asset_class": "EQUITY"}
+    with caplog.at_level(logging.WARNING, logger="quant_engine.strategies.dca_equity"):
+        strategy.backtest(df, context)
+    assert any("Rolling drawdown window" in record.message for record in caplog.records)
 
 
 def test_dca_etf_strategy_smoke() -> None:

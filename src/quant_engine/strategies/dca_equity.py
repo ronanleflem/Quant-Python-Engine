@@ -123,7 +123,18 @@ class DcaEquityStrategy(Strategy):
             ref = close.expanding(min_periods=1).max()
         else:
             window = self.dd_reference_window or "90D"
-            ref = close.rolling(window, min_periods=1).max()
+            if isinstance(window, str) and self._is_time_based_window(window):
+                if not isinstance(close.index, (pd.DatetimeIndex, pd.TimedeltaIndex, pd.PeriodIndex)):
+                    LOGGER.warning(
+                        "Rolling drawdown window %s requires a DatetimeIndex; "
+                        "falling back to expanding max.",
+                        window,
+                    )
+                    ref = close.expanding(min_periods=1).max()
+                else:
+                    ref = close.rolling(window, min_periods=1).max()
+            else:
+                ref = close.rolling(window, min_periods=1).max()
         return ref.ffill().fillna(close.iloc[0])
 
     @staticmethod
@@ -546,16 +557,33 @@ class DcaEquityStrategy(Strategy):
             return ohlc
         df = ohlc.copy()
         if "ts" in df.columns:
-            df["ts"] = pd.to_datetime(df["ts"], utc=True)
+            df["ts"] = pd.to_datetime(df["ts"], utc=True, errors="coerce")
+            if df["ts"].isna().any():
+                raise ValueError("OHLC dataframe has invalid timestamps in 'ts' column")
             df = df.set_index("ts")
+        elif isinstance(df.index, pd.DatetimeIndex):
+            df.index = df.index.tz_convert("UTC") if df.index.tz is not None else df.index.tz_localize("UTC")
+        elif isinstance(df.index, pd.PeriodIndex):
+            df.index = df.index.to_timestamp().tz_localize("UTC")
         else:
-            df.index = pd.to_datetime(df.index, utc=True)
+            if df.index.dtype == object:
+                parsed = pd.to_datetime(df.index, utc=True, errors="coerce")
+                if not parsed.isna().any():
+                    df.index = parsed
         df = df.sort_index()
         required = {"open", "high", "low", "close"}
         missing = required - set(df.columns)
         if missing:
             raise ValueError(f"OHLC dataframe missing columns: {missing}")
         return df
+
+    @staticmethod
+    def _is_time_based_window(window: str) -> bool:
+        try:
+            pd.tseries.frequencies.to_offset(window)
+        except (ValueError, TypeError):
+            return False
+        return True
 
     def _state_from_dict(self, data: Dict[str, Any]) -> _CycleState:
         state = _CycleState()
