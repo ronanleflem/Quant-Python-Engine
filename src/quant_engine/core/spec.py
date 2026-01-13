@@ -107,14 +107,11 @@ class Spec:
 # ---------------------------------------------------------------------------
 
 
-def _parse_spec(raw: Mapping[str, Any]) -> Spec:
-    """Build a :class:`Spec` from an in-memory mapping."""
+def parse_data_spec(raw: Mapping[str, Any], *, require_source: bool = True) -> DataSpec:
+    """Build a :class:`DataSpec` from a JSON-compatible mapping."""
 
-    data_raw = raw["data"]
-    strat_raw = raw["strategy"]
-
-    dataset_path = data_raw.get("dataset_path") or data_raw.get("path")
-    mysql_raw = data_raw.get("mysql")
+    dataset_path = raw.get("dataset_path") or raw.get("path")
+    mysql_raw = raw.get("mysql")
     mysql: MySQLDataConfig | None = None
     if mysql_raw is not None:
         mysql = MySQLDataConfig(
@@ -137,17 +134,17 @@ def _parse_spec(raw: Mapping[str, Any]) -> Spec:
             symbol_lookup_id_col=mysql_raw.get("symbol_lookup_id_col", "id"),
         )
 
-    if dataset_path is None and mysql is None:
+    if require_source and dataset_path is None and mysql is None:
         raise ValueError("data must provide either dataset_path/path or mysql configuration")
 
-    symbols = list(data_raw.get("symbols", []))
-    timeframe = data_raw.get("timeframe")
-    start = data_raw.get("start")
-    end = data_raw.get("end")
+    symbols = list(raw.get("symbols", []))
+    timeframe = raw.get("timeframe")
+    start = raw.get("start")
+    end = raw.get("end")
     if start is None or end is None:
         raise ValueError("data.start and data.end are required")
 
-    data = DataSpec(
+    return DataSpec(
         dataset_path=dataset_path,
         mysql=mysql,
         symbols=symbols,
@@ -155,6 +152,15 @@ def _parse_spec(raw: Mapping[str, Any]) -> Spec:
         start=str(start),
         end=str(end),
     )
+
+
+def _parse_spec(raw: Mapping[str, Any]) -> Spec:
+    """Build a :class:`Spec` from an in-memory mapping."""
+
+    data_raw = raw["data"]
+    strat_raw = raw["strategy"]
+
+    data = parse_data_spec(data_raw)
     filters = FiltersSpec(**strat_raw["filters"])
     tpsl = TPSLSpec(**strat_raw["tpsl"])
     val_raw = strat_raw.get("validation", {})
@@ -186,5 +192,4 @@ def spec_from_dict(raw: Mapping[str, Any]) -> Spec:
     """Public helper to build a :class:`Spec` from a JSON-compatible dict."""
 
     return _parse_spec(raw)
-
 

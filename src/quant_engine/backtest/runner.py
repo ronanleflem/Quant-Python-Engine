@@ -13,7 +13,7 @@ import logging
 from . import engine
 from ..core import dataset
 from ..core.features import atr
-from ..core.spec import DataSpec, MySQLDataConfig
+from ..core.spec import DataSpec, parse_data_spec
 from ..filters.utils import apply_filter_stack, FilterValidationError
 from ..performance.backtest_builder import build_backtest_payload
 from ..signals.ema_cross import EmaCross
@@ -37,50 +37,6 @@ def _has_delta_config(raw: Mapping[str, Any]) -> bool:
 
 def _uses_strategy_sources(raw: Mapping[str, Any]) -> bool:
     return bool(raw.get("mysql_env") or _has_delta_config(raw))
-
-
-def _parse_data_spec(raw: Mapping[str, Any]) -> DataSpec:
-    dataset_path = raw.get("dataset_path") or raw.get("path")
-    mysql_raw = raw.get("mysql")
-    mysql: MySQLDataConfig | None = None
-    if mysql_raw is not None:
-        mysql = MySQLDataConfig(
-            connection_url=mysql_raw.get("connection_url"),
-            env_var=mysql_raw.get("env_var", "QE_MARKETDATA_MYSQL_URL"),
-            schema=mysql_raw.get("schema"),
-            table=mysql_raw.get("table", "ohlcv"),
-            symbol_col=mysql_raw.get("symbol_col", "symbol"),
-            ts_col=mysql_raw.get("ts_col", "ts"),
-            open_col=mysql_raw.get("open_col", "open"),
-            high_col=mysql_raw.get("high_col", "high"),
-            low_col=mysql_raw.get("low_col", "low"),
-            close_col=mysql_raw.get("close_col", "close"),
-            volume_col=mysql_raw.get("volume_col", "volume"),
-            timeframe_col=mysql_raw.get("timeframe_col", "timeframe"),
-            extra_where=mysql_raw.get("extra_where"),
-            chunk_minutes=int(mysql_raw.get("chunk_minutes", 0)),
-            symbol_lookup_table=mysql_raw.get("symbol_lookup_table"),
-            symbol_lookup_symbol_col=mysql_raw.get("symbol_lookup_symbol_col", "symbol"),
-            symbol_lookup_id_col=mysql_raw.get("symbol_lookup_id_col", "id"),
-        )
-
-    symbols = list(raw.get("symbols", []))
-    timeframe = raw.get("timeframe")
-    start = raw.get("start")
-    end = raw.get("end")
-    if start is None or end is None:
-        raise ValueError("data.start and data.end are required")
-    if dataset_path is None and mysql is None and not _uses_strategy_sources(raw):
-        raise ValueError("data must provide dataset_path/path, mysql, or delta/mysql_env configuration")
-
-    return DataSpec(
-        dataset_path=dataset_path,
-        mysql=mysql,
-        symbols=symbols,
-        timeframe=timeframe,
-        start=str(start),
-        end=str(end),
-    )
 
 
 def _single_symbol(symbols: List[str], fallback: Optional[str] = None) -> str:
@@ -195,7 +151,9 @@ def run_backtest_from_spec(spec: Mapping[str, Any]) -> Dict[str, Any]:
     """Execute a classic backtest based on a JSON specification."""
 
     data_raw = spec.get("data", {}) or {}
-    data_spec = _parse_data_spec(data_raw)
+    data_spec = parse_data_spec(data_raw, require_source=False)
+    if data_spec.dataset_path is None and data_spec.mysql is None and not _uses_strategy_sources(data_raw):
+        raise ValueError("data must provide dataset_path/path, mysql, or delta/mysql_env configuration")
     strategy_cfg = spec.get("strategy", {}) or {}
     asset_class = strategy_cfg.get("asset_class") or "EQUITY"
     rows, data_source = _load_rows(data_raw, data_spec, asset_class)
