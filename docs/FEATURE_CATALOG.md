@@ -26,7 +26,8 @@
 - **Backtest** : moteur bar-based appliquant signaux EMA/VWAP, exécution trade-by-trade, agrège les métriques Sharpe/Sortino/MaxDD/CAGR/Hit rate/Avg-R.【F:docs/architecture_overview.md†L19-L43】【F:src/quant_engine/backtest/metrics.py†L1-L56】
 - **TP/SL** : stops ATR multiples (`StopInitializer.fixed_atr`), take-profit en R multiples (`TakeProfit.r_multiple`).【F:docs/architecture_overview.md†L24-L33】【F:src/quant_engine/tpsl/rules.py†L1-L32】
 - **Walk-Forward Analysis** : génération de folds train/test avec embargo via `splitter.generate_folds`.【F:docs/architecture_overview.md†L21-L29】【F:src/quant_engine/validate/splitter.py†L1-L38】
-- **Optimisation** : runner Optuna explore search space EMA & R multiples, écrit artefacts `trials.parquet`, `summary.json`, `trades_*.parquet`, `equity_*.parquet`.【F:src/quant_engine/optimize/runner.py†L1-L76】【F:src/quant_engine/optimize/runner.py†L78-L120】
+- **Optimisation (recommandée)** : `optimize.variants` orchestre grid/random search, screening, promotion et artefacts détaillés pour backtest/strategy.【F:src/quant_engine/optimize/variants.py†L1-L120】【F:src/quant_engine/optimize/variants.py†L1805-L2391】
+- **Optimisation (runner simple)** : `optimize.runner` reste un runner minimal (EMA/ATR/R) pour le fallback local (`qe run-local`).【F:src/quant_engine/optimize/runner.py†L1-L120】【F:src/quant_engine/cli/main.py†L31-L62】
 
 ## Persistance & Artefacts
 - **Base SQL (quant)** : tables `experiment_runs`, `run_metrics`, `trials`, `market_stats`, `seasonality_profiles`, `seasonality_runs` (clé unique, timestamps).【F:src/quant_engine/persistence/db.py†L48-L215】
