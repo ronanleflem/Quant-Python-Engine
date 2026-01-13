@@ -3,10 +3,10 @@
 ## API FastAPI
 | Endpoint | Méthode | Description | Entrée/Sortie | Référence |
 |----------|---------|-------------|---------------|-----------|
-| `/submit` | POST | Lance une optimisation synchronisée et enregistre le run en mémoire. | Body = spec JSON validée via Pydantic → `{ "id": run_id }`. | 【F:src/quant_engine/api/app.py†L540-L555】 |
+| `/submit` | POST | Lance une optimisation synchronisée et persiste le job. | Body = spec JSON validée via Pydantic → `{ "id": run_id }`. | 【F:src/quant_engine/api/app.py†L540-L560】 |
 | `/status/{job_id}` | GET | Vérifie l’état (`completed`, `unknown`, …) d’un job soumis. | Path param `job_id` → `{ "status": ... }`. | 【F:src/quant_engine/api/app.py†L557-L566】 |
 | `/result/{job_id}` | GET | Récupère le résultat complet d’un job (paramètres, métriques, artefacts). | Path param `job_id` → `{ "result": {...} }`. | 【F:src/quant_engine/api/app.py†L568-L576】 |
-| `/stats/run` | POST | Calcule un run Market Stats synchrone. | Body = `StatsSpec` → `{ "status": "completed" }`. | 【F:src/quant_engine/api/app.py†L578-L587】 |
+| `/stats/run` | POST | Calcule un run Market Stats synchrone (job persisté). | Body = `StatsSpec` → `{ "status": "completed", "id": job_id }`. | 【F:src/quant_engine/api/app.py†L600-L612】 |
 | `/stats/result` | GET | Renvoie la dernière table de stats calculée. | `{ "result": {columns, rows} }`. | 【F:src/quant_engine/api/app.py†L589-L600】 |
 | `/stats` | GET | Liste les stats persistées filtrables (symbol, event, target, split, significance). | Query params → liste de lignes enrichies (p_hat, lifts, FDR). | 【F:src/quant_engine/api/app.py†L602-L622】 |
 | `/stats/summary` | GET | Agrège les stats par condition/target et calcule Wilson CI. | Query params (symbol/timeframe/event) → tableau agrégé. | 【F:src/quant_engine/api/app.py†L624-L648】 |
@@ -62,4 +62,5 @@
 - `market_stats` : résultats stats conditionnelles (p_hat, lifts, FDR, bornes temporelles).【F:src/quant_engine/persistence/db.py†L120-L167】
 - `seasonality_profiles` : profils saisonniers, lifts et métriques sérialisées.【F:src/quant_engine/persistence/db.py†L168-L206】
 - `seasonality_runs` : suivi des runs saisonnalité (status, best_summary).【F:src/quant_engine/persistence/db.py†L207-L215】
+- `api_jobs` : persistance des jobs API (type, statut, payload, résultat).【F:src/quant_engine/persistence/db.py†L216-L245】
 - Migrations : gérées via Alembic (déclaré côté dépendances, migrations custom dans `persistence/`).【F:pyproject.toml†L9-L20】【F:docs/architecture_overview.md†L11-L36】

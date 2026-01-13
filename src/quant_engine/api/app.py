@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+from dataclasses import asdict, is_dataclass
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Sequence
 
@@ -30,26 +31,171 @@ from ..seasonality.optimize import run_optimization as seasonality_run_optimizat
 from ..filters import list_filter_types
 from . import schemas
 
-_jobs: Dict[str, Dict[str, Any]] = {}
-_last_stats: Dict[str, Any] | None = None
+JOB_TYPE_OPTIMIZATION = "optimization"
+JOB_TYPE_STATS = "stats"
+JOB_TYPE_LEVELS_BUILD = "levels_build"
+JOB_TYPE_LEVELS_FILL = "levels_fill"
+JOB_TYPE_SEASONALITY_RUN = "seasonality_run"
+JOB_TYPE_SEASONALITY_OPTIMIZE = "seasonality_optimize"
+
+JOB_STATUSES = {"pending", "running", "completed", "failed"}
+
+
+def _utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _normalize_payload(payload: Any) -> Any:
+    if is_dataclass(payload):
+        return asdict(payload)
+    return payload
+
+
+def _serialize_payload(payload: Any) -> str | None:
+    if payload is None:
+        return None
+    try:
+        return json.dumps(_normalize_payload(payload), default=str)
+    except TypeError:
+        return json.dumps(str(payload))
+
+
+def _decode_json(payload: Any) -> Any:
+    if payload in (None, ""):
+        return None
+    if isinstance(payload, str):
+        try:
+            return json.loads(payload)
+        except json.JSONDecodeError:
+            return payload
+    return payload
+
+
+def _init_job(job_id: str, job_type: str, payload: Any | None) -> None:
+    with db.session() as conn:
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO api_jobs(
+                job_id,
+                job_type,
+                status,
+                payload_json,
+                created_at,
+                updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (job_id, job_type, "pending", _serialize_payload(payload), _utc_now(), _utc_now()),
+        )
+
+
+def _update_job_status(job_id: str, status: str, *, error: str | None = None) -> None:
+    if status not in JOB_STATUSES:
+        raise ValueError(f"Unknown job status: {status}")
+    now = _utc_now()
+    started_at = now if status == "running" else None
+    finished_at = now if status in {"completed", "failed"} else None
+    with db.session() as conn:
+        conn.execute(
+            """
+            UPDATE api_jobs
+            SET status = ?,
+                error_message = COALESCE(?, error_message),
+                started_at = COALESCE(?, started_at),
+                finished_at = COALESCE(?, finished_at),
+                updated_at = ?
+            WHERE job_id = ?
+            """,
+            (status, error, started_at, finished_at, now, job_id),
+        )
+
+
+def _update_job_result(job_id: str, result: Any) -> None:
+    with db.session() as conn:
+        conn.execute(
+            """
+            UPDATE api_jobs
+            SET status = ?,
+                result_json = ?,
+                finished_at = ?,
+                updated_at = ?
+            WHERE job_id = ?
+            """,
+            ("completed", _serialize_payload(result), _utc_now(), _utc_now(), job_id),
+        )
+
+
+def _get_job(job_id: str) -> Dict[str, Any] | None:
+    with db.session() as conn:
+        row = conn.execute(
+            """
+            SELECT job_id, job_type, status, payload_json, result_json, error_message,
+                   created_at, started_at, finished_at, updated_at
+            FROM api_jobs
+            WHERE job_id = ?
+            """,
+            (job_id,),
+        ).fetchone()
+        if not row:
+            return None
+        payload = dict(row)
+        payload["payload"] = _decode_json(payload.pop("payload_json", None))
+        payload["result"] = _decode_json(payload.pop("result_json", None))
+        return payload
+
+
+def _latest_job(job_type: str) -> Dict[str, Any] | None:
+    with db.session() as conn:
+        row = conn.execute(
+            """
+            SELECT job_id, job_type, status, payload_json, result_json, error_message,
+                   created_at, started_at, finished_at, updated_at
+            FROM api_jobs
+            WHERE job_type = ?
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            (job_type,),
+        ).fetchone()
+        if not row:
+            return None
+        payload = dict(row)
+        payload["payload"] = _decode_json(payload.pop("payload_json", None))
+        payload["result"] = _decode_json(payload.pop("result_json", None))
+        return payload
+
+
+def _run_job(job_type: str, payload: Any | None, runner) -> tuple[str, Any]:
+    job_id = ids.generate_id()
+    _init_job(job_id, job_type, payload=payload)
+    _update_job_status(job_id, "running")
+    try:
+        result = runner()
+    except Exception as exc:  # pragma: no cover - defensive
+        _update_job_status(job_id, "failed", error=str(exc))
+        raise
+    _update_job_result(job_id, result)
+    return job_id, result
 
 
 def submit(spec: Spec) -> schemas.SubmitResponse:
-    job_id = ids.generate_id()
-    result = run_optimisation(spec)
-    _jobs[job_id] = {"status": "completed", "result": result}
+    job_id, _ = _run_job(
+        JOB_TYPE_OPTIMIZATION,
+        payload={"spec": asdict(spec)},
+        runner=lambda: run_optimisation(spec),
+    )
     return schemas.SubmitResponse(id=job_id)
 
 
 def status(job_id: str) -> schemas.StatusResponse:
-    job = _jobs.get(job_id)
+    job = _get_job(job_id)
     if not job:
         return schemas.StatusResponse(status="unknown")
     return schemas.StatusResponse(status=job["status"])
 
 
 def result(job_id: str) -> schemas.ResultResponse:
-    job = _jobs.get(job_id)
+    job = _get_job(job_id)
     if not job:
         return schemas.ResultResponse(result=None)
     return schemas.ResultResponse(result=job.get("result"))
@@ -62,28 +208,40 @@ def result(job_id: str) -> schemas.ResultResponse:
 def stats_run(spec: schemas.StatsSpec) -> schemas.StatusResponse:
     """Execute a statistics run synchronously and store the result."""
 
-    global _last_stats
-    _last_stats = stats_runner.run_stats(spec)
-    return schemas.StatusResponse(status="completed")
+    job_id = ids.generate_id()
+    _init_job(job_id, JOB_TYPE_STATS, payload=spec.model_dump(mode="json"))
+    _update_job_status(job_id, "running")
+    try:
+        result_df = stats_runner.run_stats(spec)
+    except Exception as exc:  # pragma: no cover - defensive
+        _update_job_status(job_id, "failed", error=str(exc))
+        raise
+    payload = _stats_payload_from_df(result_df)
+    payload["job_id"] = job_id
+    _update_job_result(job_id, payload)
+    return schemas.StatusResponse(status="completed", id=job_id)
+
+
+def _stats_payload_from_df(df: Any) -> Dict[str, Any]:
+    try:
+        import pandas as pd  # type: ignore
+    except Exception:  # pragma: no cover - pandas is an install dependency
+        payload_df = df
+    else:
+        payload_df = df.where(pd.notna(df), None)
+    return {
+        "columns": list(payload_df.columns),
+        "rows": payload_df.to_dict(orient="records"),
+    }
 
 
 def stats_result() -> schemas.ResultResponse:
     """Return the last statistics result if available."""
 
-    if _last_stats is None:
+    job = _latest_job(JOB_TYPE_STATS)
+    if not job or not job.get("result"):
         return schemas.ResultResponse(result=None)
-
-    try:
-        import pandas as pd  # type: ignore
-    except Exception:  # pragma: no cover - pandas is an install dependency
-        df = _last_stats
-    else:
-        df = _last_stats.where(pd.notna(_last_stats), None)
-    payload = {
-        "columns": list(df.columns),
-        "rows": df.to_dict(orient="records"),
-    }
-    return schemas.ResultResponse(result=payload)
+    return schemas.ResultResponse(result=job.get("result"))
 
 
 def stats_condition_types() -> List[str]:
@@ -240,13 +398,35 @@ def _nearest_levels(
 def levels_build(spec: LevelsBuildSpec) -> Dict[str, Any]:
     """Execute a levels build request synchronously."""
 
-    return run_levels_build(spec)
+    job_id, result = _run_job(
+        JOB_TYPE_LEVELS_BUILD,
+        payload=spec.model_dump(mode="json"),
+        runner=lambda: run_levels_build(spec),
+    )
+    if isinstance(result, dict):
+        payload = dict(result)
+    else:
+        payload = {"result": result}
+    payload["job_id"] = job_id
+    _update_job_result(job_id, payload)
+    return payload
 
 
 def levels_fill(spec: LevelsBuildSpec) -> Dict[str, Any]:
     """Refresh fills for GAP and FVG levels."""
 
-    return run_levels_fill(spec)
+    job_id, result = _run_job(
+        JOB_TYPE_LEVELS_FILL,
+        payload=spec.model_dump(mode="json"),
+        runner=lambda: run_levels_fill(spec),
+    )
+    if isinstance(result, dict):
+        payload = dict(result)
+    else:
+        payload = {"result": result}
+    payload["job_id"] = job_id
+    _update_job_result(job_id, payload)
+    return payload
 
 
 def levels_list(
@@ -332,15 +512,35 @@ def levels_nearest(
 def seasonality_run(spec: schemas.SeasonalitySpec) -> schemas.ResultResponse:
     """Execute a seasonality run synchronously and return its summary."""
 
-    result = seasonality_runner.run(spec)
-    return schemas.ResultResponse(result=result)
+    job_id, result = _run_job(
+        JOB_TYPE_SEASONALITY_RUN,
+        payload=spec.model_dump(mode="json"),
+        runner=lambda: seasonality_runner.run(spec),
+    )
+    if isinstance(result, dict):
+        payload = dict(result)
+    else:
+        payload = {"result": result}
+    payload["job_id"] = job_id
+    _update_job_result(job_id, payload)
+    return schemas.ResultResponse(result=payload)
 
 
 def seasonality_optimize(spec: schemas.SeasonalitySpec) -> schemas.ResultResponse:
     """Launch the seasonality optimisation loop and return its outcome."""
 
-    result = seasonality_run_optimization(spec)
-    return schemas.ResultResponse(result=result)
+    job_id, result = _run_job(
+        JOB_TYPE_SEASONALITY_OPTIMIZE,
+        payload=spec.model_dump(mode="json"),
+        runner=lambda: seasonality_run_optimization(spec),
+    )
+    if isinstance(result, dict):
+        payload = dict(result)
+    else:
+        payload = {"result": result}
+    payload["job_id"] = job_id
+    _update_job_result(job_id, payload)
+    return schemas.ResultResponse(result=payload)
 
 
 def list_seasonality_profiles(
