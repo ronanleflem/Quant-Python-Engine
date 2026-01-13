@@ -1,12 +1,19 @@
 """Modular stop-loss and take-profit helpers."""
 from __future__ import annotations
 
-from typing import List
+from math import isfinite
+from typing import List, Optional, Tuple
 
 
 class StopInitializer:
     @staticmethod
-    def fixed_atr(atr_values: List[float], atr_mult: float, side: int, idx: int, entry_price: float) -> tuple[float, float]:
+    def fixed_atr(
+        atr_values: List[float],
+        atr_mult: float,
+        side: int,
+        idx: int,
+        entry_price: float,
+    ) -> Optional[Tuple[float, float]]:
         """Return stop price and distance based on ATR.
 
         Parameters
@@ -17,7 +24,22 @@ class StopInitializer:
         idx: index of the entry bar in ``atr_values``.
         entry_price: execution price of the trade.
         """
-        dist = atr_values[idx] * atr_mult
+        if idx < 0 or idx >= len(atr_values):
+            return None
+        atr = atr_values[idx]
+        if atr is None:
+            return None
+        try:
+            atr_value = float(atr)
+        except (TypeError, ValueError):
+            return None
+        if not isfinite(atr_value) or atr_value <= 0:
+            return None
+        if not isfinite(atr_mult) or atr_mult <= 0:
+            return None
+        dist = atr_value * atr_mult
+        if not isfinite(dist) or dist <= 0:
+            return None
         if side > 0:
             stop = entry_price - dist
         else:
