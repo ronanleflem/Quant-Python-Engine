@@ -107,7 +107,22 @@ class Spec:
 # ---------------------------------------------------------------------------
 
 
-def parse_data_spec(raw: Mapping[str, Any], *, require_source: bool = True) -> DataSpec:
+def _has_delta_config(raw: Mapping[str, Any]) -> bool:
+    return any(str(key).startswith("delta_") for key in raw.keys())
+
+
+def uses_strategy_sources(raw: Mapping[str, Any]) -> bool:
+    """Return True when data spec should be resolved via strategy integrations."""
+
+    return bool(raw.get("mysql_env") or _has_delta_config(raw))
+
+
+def parse_data_spec(
+    raw: Mapping[str, Any],
+    *,
+    require_source: bool = True,
+    allow_strategy_sources: bool = False,
+) -> DataSpec:
     """Build a :class:`DataSpec` from a JSON-compatible mapping."""
 
     dataset_path = raw.get("dataset_path") or raw.get("path")
@@ -135,7 +150,8 @@ def parse_data_spec(raw: Mapping[str, Any], *, require_source: bool = True) -> D
         )
 
     if require_source and dataset_path is None and mysql is None:
-        raise ValueError("data must provide either dataset_path/path or mysql configuration")
+        if not allow_strategy_sources or not uses_strategy_sources(raw):
+            raise ValueError("data must provide either dataset_path/path or mysql configuration")
 
     symbols = list(raw.get("symbols", []))
     timeframe = raw.get("timeframe")
@@ -192,4 +208,3 @@ def spec_from_dict(raw: Mapping[str, Any]) -> Spec:
     """Public helper to build a :class:`Spec` from a JSON-compatible dict."""
 
     return _parse_spec(raw)
-

@@ -13,7 +13,7 @@ import logging
 from . import engine
 from ..core import dataset
 from ..core.features import atr
-from ..core.spec import DataSpec, parse_data_spec
+from ..core.spec import DataSpec, parse_data_spec, uses_strategy_sources
 from ..filters.utils import apply_filter_stack, FilterValidationError
 from ..performance.backtest_builder import build_backtest_payload
 from ..signals.ema_cross import EmaCross
@@ -29,14 +29,6 @@ def load_backtest_spec(path: Path | str) -> Dict[str, Any]:
 
     path_obj = Path(path)
     return json.loads(path_obj.read_text())
-
-
-def _has_delta_config(raw: Mapping[str, Any]) -> bool:
-    return any(str(key).startswith("delta_") for key in raw.keys())
-
-
-def _uses_strategy_sources(raw: Mapping[str, Any]) -> bool:
-    return bool(raw.get("mysql_env") or _has_delta_config(raw))
 
 
 def _single_symbol(symbols: List[str], fallback: Optional[str] = None) -> str:
@@ -103,7 +95,7 @@ def _load_rows(
     cached = _ROWS_CACHE.get(cache_key)
     if cached is not None:
         return cached
-    if _uses_strategy_sources(data_spec_raw):
+    if uses_strategy_sources(data_spec_raw):
         symbol = _single_symbol(data_spec.symbols, data_spec_raw.get("symbol"))
         df, source = _fetch_ohlc_with_source(symbol, asset_class, data_spec_raw)
         rows = _rows_from_dataframe(df, symbol)
@@ -151,9 +143,7 @@ def run_backtest_from_spec(spec: Mapping[str, Any]) -> Dict[str, Any]:
     """Execute a classic backtest based on a JSON specification."""
 
     data_raw = spec.get("data", {}) or {}
-    data_spec = parse_data_spec(data_raw, require_source=False)
-    if data_spec.dataset_path is None and data_spec.mysql is None and not _uses_strategy_sources(data_raw):
-        raise ValueError("data must provide dataset_path/path, mysql, or delta/mysql_env configuration")
+    data_spec = parse_data_spec(data_raw, allow_strategy_sources=True)
     strategy_cfg = spec.get("strategy", {}) or {}
     asset_class = strategy_cfg.get("asset_class") or "EQUITY"
     rows, data_source = _load_rows(data_raw, data_spec, asset_class)
