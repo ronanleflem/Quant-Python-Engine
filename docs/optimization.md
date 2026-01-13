@@ -164,6 +164,24 @@ Flow actuel :
 2) Promotion des top-K qui passent les constraints.
 3) Persistance des heavy payloads uniquement pour les trials promus.
 
+## require_crossing (filtres + signaux)
+
+Quand des filtres sont définis, ils produisent un masque `filter_pass`.
+Le champ `require_crossing` contrôle comment ce masque est combiné avec le signal :
+
+- **`true` (défaut)** : le signal doit **croiser** le filtre sur la même barre.
+  Un signal ne passe que si `signal == 1` **et** `filter_pass == true`.
+- **`false`** : mode **latch**. Le signal doit croiser le filtre une seule fois,
+  puis il peut rester actif tant que le signal reste à 1, même si le filtre redevient faux.
+
+Priorité de lecture :
+1) `signal.params.require_crossing`
+2) `strategy.params.require_crossing`
+3) valeur par défaut `true`
+
+Valeurs acceptées : booléen, `true`/`false`, `1`/`0`, `yes`/`no`, `on`/`off`.
+Une valeur invalide déclenche une erreur pour éviter un comportement implicite.
+
 ### Mode screening (raccourci)
 
 Le screening permet d'accélérer l'optimization en utilisant un sous-ensemble

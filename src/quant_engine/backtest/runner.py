@@ -139,6 +139,46 @@ def _rows_to_frame(rows: List[Dict[str, Any]]) -> pd.DataFrame:
     return df
 
 
+def _coerce_bool(value: Any, *, default: bool = True) -> bool:
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(value)
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in {"true", "1", "yes", "y", "on"}:
+            return True
+        if lowered in {"false", "0", "no", "n", "off"}:
+            return False
+    raise ValueError(f"Invalid boolean value for require_crossing: {value!r}")
+
+
+def _resolve_require_crossing(spec: Mapping[str, Any]) -> bool:
+    signal_params = (spec.get("signal", {}) or {}).get("params", {}) or {}
+    if "require_crossing" in signal_params:
+        return _coerce_bool(signal_params.get("require_crossing"))
+    strategy_params = (spec.get("strategy", {}) or {}).get("params", {}) or {}
+    return _coerce_bool(strategy_params.get("require_crossing"), default=True)
+
+
+def _apply_filter_mask(
+    signal: List[int],
+    mask: List[bool],
+    require_crossing: bool,
+) -> List[int]:
+    if require_crossing:
+        return [int(bool(s) and bool(m)) for s, m in zip(signal, mask)]
+    gated: List[int] = []
+    for idx, (s, m) in enumerate(zip(signal, mask)):
+        if idx > 0 and gated[idx - 1] == 1:
+            gated.append(int(bool(s)))
+        else:
+            gated.append(int(bool(s) and bool(m)))
+    return gated
+
+
 def run_backtest_from_spec(spec: Mapping[str, Any]) -> Dict[str, Any]:
     """Execute a classic backtest based on a JSON specification."""
 
@@ -209,21 +249,8 @@ def run_backtest_from_spec(spec: Mapping[str, Any]) -> Dict[str, Any]:
         except FilterValidationError as exc:
             LOGGER.error("Backtest filters failed: %s", exc)
             raise
-        signal_params = (spec.get("signal", {}) or {}).get("params", {}) or {}
-        require_crossing = signal_params.get("require_crossing")
-        if require_crossing is None:
-            require_crossing = (spec.get("strategy", {}) or {}).get("params", {}) or {}
-            require_crossing = require_crossing.get("require_crossing", True)
-        if require_crossing:
-            signal = [int(bool(s) and bool(m)) for s, m in zip(signal, mask)]
-        else:
-            gated: List[int] = []
-            for idx, (s, m) in enumerate(zip(signal, mask)):
-                if idx > 0 and gated[idx - 1] == 1:
-                    gated.append(int(bool(s)))
-                else:
-                    gated.append(int(bool(s) and bool(m)))
-            signal = gated
+        require_crossing = _resolve_require_crossing(spec)
+        signal = _apply_filter_mask(signal, mask, require_crossing)
 
     tpsl = spec.get("tpsl", {}) or {}
     atr_window = int(tpsl.get("atr_window", tpsl.get("atr_period", 14)))
