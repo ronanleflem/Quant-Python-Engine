@@ -1,10 +1,14 @@
 """Light-weight persistence layer with SQLite fallback.
 
 The original project targets SQLAlchemy with MySQL, however the execution
-environment does not provide SQLAlchemy.  This module offers a minimal subset
-using ``sqlite3`` so that tests can exercise the persistence logic.  The DSN is
+environment does not provide SQLAlchemy. This module offers a minimal subset
+using ``sqlite3`` so that tests can exercise the persistence logic. The DSN is
 controlled through environment variables and mimics the structure expected by
 SQLAlchemy-based configurations.
+
+SQLite support is intended for tests and local development only. For production
+MySQL deployments, use the SQLAlchemy + Alembic stack and apply the MySQL
+migration statements captured alongside the SQLite migrations in this module.
 """
 
 from __future__ import annotations
@@ -13,7 +17,7 @@ import sqlite3
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Iterator
+from typing import Callable, Iterator, Sequence
 
 from ..config import get_settings
 
@@ -31,7 +35,10 @@ def _effective_db_path() -> str:
     if not dsn:
         dsn = f"sqlite:///{settings.db_sqlite_path}"
     if not dsn.startswith("sqlite"):
-        raise RuntimeError("Only sqlite DSNs are supported in this environment")
+        raise RuntimeError(
+            "Only sqlite DSNs are supported in this environment. "
+            "Use SQLAlchemy + Alembic with MySQL in production."
+        )
     path = dsn.split("sqlite:///")[1]
     return path
 
@@ -49,7 +56,8 @@ def connect() -> sqlite3.Connection:
 class Migration:
     version: int
     name: str
-    apply: Callable[[sqlite3.Connection], None]
+    sqlite_apply: Callable[[sqlite3.Connection], None]
+    mysql_statements: Sequence[str]
 
 
 def _migration_1(conn: sqlite3.Connection) -> None:
@@ -263,9 +271,173 @@ def _migration_2(conn: sqlite3.Connection) -> None:
         pass
 
 
+MYSQL_MIGRATION_1 = (
+    """
+    CREATE TABLE IF NOT EXISTS experiment_runs (
+        id BIGINT PRIMARY KEY AUTO_INCREMENT,
+        run_id VARCHAR(255) NOT NULL,
+        spec_id VARCHAR(255),
+        dataset_id VARCHAR(255),
+        status VARCHAR(64),
+        objective TEXT,
+        out_dir TEXT,
+        started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        finished_at TIMESTAMP NULL,
+        UNIQUE KEY ux_experiment_runs_run_id (run_id)
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS run_metrics (
+        id BIGINT PRIMARY KEY AUTO_INCREMENT,
+        run_id VARCHAR(255) NOT NULL,
+        fold INTEGER,
+        metric_name VARCHAR(255) NOT NULL,
+        metric_value DOUBLE NOT NULL,
+        UNIQUE KEY ux_run_metrics (run_id, fold, metric_name),
+        INDEX ix_run_metrics_run_id (run_id)
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS trials (
+        id BIGINT PRIMARY KEY AUTO_INCREMENT,
+        run_id VARCHAR(255) NOT NULL,
+        trial_number INTEGER NOT NULL,
+        params_json TEXT,
+        objective_value DOUBLE,
+        status VARCHAR(64),
+        n_trades INTEGER,
+        max_dd DOUBLE,
+        sharpe DOUBLE,
+        sortino DOUBLE,
+        cagr DOUBLE,
+        hit_rate DOUBLE,
+        avg_r DOUBLE,
+        UNIQUE KEY ux_trials_run (run_id, trial_number),
+        INDEX ix_trials_run_id (run_id),
+        INDEX ix_trials_trial_number (trial_number)
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS market_stats (
+        id BIGINT PRIMARY KEY AUTO_INCREMENT,
+        symbol VARCHAR(64) NOT NULL,
+        timeframe VARCHAR(64) NOT NULL,
+        event VARCHAR(255) NOT NULL,
+        condition_name VARCHAR(255),
+        condition_value VARCHAR(255),
+        target VARCHAR(255) NOT NULL,
+        split VARCHAR(64) NOT NULL,
+        n INTEGER NOT NULL,
+        successes INTEGER NOT NULL,
+        p_hat DOUBLE NOT NULL,
+        ci_low DOUBLE,
+        ci_high DOUBLE,
+        lift DOUBLE NOT NULL,
+        start VARCHAR(255) NOT NULL,
+        end VARCHAR(255) NOT NULL,
+        spec_id VARCHAR(255),
+        dataset_id VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY ux_market_stats (
+            symbol,
+            timeframe,
+            event,
+            condition_name,
+            condition_value,
+            target,
+            split,
+            start,
+            end,
+            spec_id
+        ),
+        INDEX ix_market_stats_lookup (
+            symbol,
+            timeframe,
+            event,
+            condition_name,
+            condition_value,
+            target,
+            split
+        )
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS seasonality_profiles (
+        id BIGINT PRIMARY KEY AUTO_INCREMENT,
+        symbol VARCHAR(64) NOT NULL,
+        timeframe VARCHAR(64),
+        dim VARCHAR(255) NOT NULL,
+        bin INTEGER NOT NULL,
+        measure VARCHAR(255) NOT NULL,
+        score DOUBLE,
+        n INTEGER,
+        baseline DOUBLE,
+        lift DOUBLE,
+        start VARCHAR(255),
+        end VARCHAR(255),
+        spec_id VARCHAR(255),
+        dataset_id VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY ux_seasonality_profiles (
+            symbol,
+            timeframe,
+            dim,
+            bin,
+            measure,
+            start,
+            end,
+            spec_id,
+            dataset_id
+        ),
+        INDEX ix_seasonality_profiles_lookup (symbol, timeframe, dim, measure)
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS seasonality_runs (
+        id BIGINT PRIMARY KEY AUTO_INCREMENT,
+        run_id VARCHAR(255) NOT NULL,
+        spec_id VARCHAR(255),
+        dataset_id VARCHAR(255),
+        out_dir TEXT,
+        status VARCHAR(64) NOT NULL,
+        best_summary TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY ux_seasonality_runs_run_id (run_id)
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS api_jobs (
+        id BIGINT PRIMARY KEY AUTO_INCREMENT,
+        job_id VARCHAR(255) NOT NULL,
+        job_type VARCHAR(255) NOT NULL,
+        status VARCHAR(64) NOT NULL,
+        payload_json TEXT,
+        result_json TEXT,
+        error_message TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        started_at TIMESTAMP NULL,
+        finished_at TIMESTAMP NULL,
+        updated_at TIMESTAMP NULL,
+        UNIQUE KEY ux_api_jobs_job_id (job_id),
+        INDEX ix_api_jobs_type_status (job_type, status)
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS schema_migrations (
+        version INTEGER PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+)
+
+MYSQL_MIGRATION_2 = (
+    "ALTER TABLE seasonality_profiles ADD COLUMN metrics TEXT",
+)
+
 MIGRATIONS = [
-    Migration(1, "initial_schema", _migration_1),
-    Migration(2, "seasonality_profiles_metrics", _migration_2),
+    Migration(1, "initial_schema", _migration_1, MYSQL_MIGRATION_1),
+    Migration(2, "seasonality_profiles_metrics", _migration_2, MYSQL_MIGRATION_2),
 ]
 
 
@@ -292,7 +464,7 @@ def migrate(conn: sqlite3.Connection) -> None:
     for migration in MIGRATIONS:
         if migration.version in applied:
             continue
-        migration.apply(conn)
+        migration.sqlite_apply(conn)
         cur.execute(
             "INSERT INTO schema_migrations(version, name) VALUES (?, ?)",
             (migration.version, migration.name),
@@ -315,4 +487,12 @@ def session() -> Iterator[sqlite3.Connection]:
         conn.close()
 
 
-__all__ = ["connect", "init_db", "migrate", "session"]
+def mysql_migration_plan() -> list[tuple[int, str, Sequence[str]]]:
+    """Return MySQL-compatible DDL statements for each migration."""
+    return [
+        (migration.version, migration.name, migration.mysql_statements)
+        for migration in MIGRATIONS
+    ]
+
+
+__all__ = ["connect", "init_db", "migrate", "mysql_migration_plan", "session"]
