@@ -5,7 +5,9 @@ import json
 import logging
 import os
 import re
+import time
 import uuid
+from collections import OrderedDict
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence
 
@@ -33,7 +35,10 @@ except Exception:
 _WARNED_MCAL_MISSING = False
 _WARNED_MCAL_ERROR = False
 _MARKET_SCHEDULE_CACHE: Dict[tuple[str, object, object], pd.DatetimeIndex] = {}
-_OHLC_CACHE: Dict[str, pd.DataFrame] = {}
+_OHLC_CACHE: "OrderedDict[str, tuple[pd.DataFrame, float]]" = OrderedDict()
+_OHLC_CACHE_DEFAULT_MAX = 256
+_OHLC_CACHE_DEFAULT_TTL_SECONDS = 900.0
+_OHLC_CACHE_STATS = {"hits": 0, "misses": 0, "evictions": 0, "expirations": 0}
 
 logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger(__name__)
@@ -99,6 +104,7 @@ def _run_backtest_core(spec: Mapping[str, Any]) -> tuple[Dict[str, Any], Dict[st
     signals_by_symbol: Dict[str, List[Dict[str, Any]]] = {}
     counts: Dict[str, int] = {}
     ohlc_by_symbol: Dict[str, pd.DataFrame] = {}
+    cache_stats_start = dict(_OHLC_CACHE_STATS)
     for instrument in universe:
         symbol = instrument.get("symbol")
         if not symbol:
@@ -148,6 +154,11 @@ def _run_backtest_core(spec: Mapping[str, Any]) -> tuple[Dict[str, Any], Dict[st
                 df_filter.attrs["qe_cache_key"] = cache_key
                 if "max_items" in cache_cfg:
                     df_filter.attrs["qe_cache_max_items"] = cache_cfg.get("max_items")
+                if "ttl_seconds" in cache_cfg or "ttl" in cache_cfg:
+                    df_filter.attrs["qe_cache_ttl_seconds"] = cache_cfg.get(
+                        "ttl_seconds",
+                        cache_cfg.get("ttl"),
+                    )
             try:
                 mask = apply_filter_stack(df_filter, filters_spec, symbol=symbol, logger=LOGGER, strict=True)
             except FilterValidationError as exc:
@@ -171,6 +182,7 @@ def _run_backtest_core(spec: Mapping[str, Any]) -> tuple[Dict[str, Any], Dict[st
         serialized = [_serialize_signal(sig) for sig in signals]
         signals_by_symbol[symbol] = serialized
         counts[symbol] = len(serialized)
+    _log_ohlc_cache_stats_delta(cache_stats_start)
     result = {
         "strategy_id": strategy_id,
         "strategy_type": strategy_type,
@@ -210,9 +222,12 @@ def _fetch_ohlc_for_symbol(
         sort_keys=True,
         default=str,
     )
-    cached = _OHLC_CACHE.get(cache_key)
-    if cached is not None:
-        return cached.copy()
+    cache_enabled, ttl_seconds, max_items = _resolve_ohlc_cache_settings(merged_spec)
+    if cache_enabled and max_items > 0:
+        cached = _cache_ohlc_get(cache_key, ttl_seconds)
+        if cached is not None:
+            return cached.copy()
+        _OHLC_CACHE_STATS["misses"] += 1
     source = merged_spec.get("source")
     if source == "csv":
         path = Path(merged_spec["path"])
@@ -240,8 +255,75 @@ def _fetch_ohlc_for_symbol(
     missing = required - set(df.columns)
     if missing:
         raise ValueError(f"Missing OHLC columns for {symbol}: {missing}")
-    _OHLC_CACHE[cache_key] = df.copy()
+    if cache_enabled and max_items > 0:
+        _cache_ohlc_set(cache_key, df.copy(), max_items)
     return df
+
+
+def _resolve_ohlc_cache_settings(merged_spec: Mapping[str, Any]) -> tuple[bool, float, int]:
+    cache_cfg = merged_spec.get("ohlc_cache")
+    if cache_cfg is None:
+        cache_cfg = merged_spec.get("cache_ohlc")
+    if cache_cfg is None:
+        cache_cfg = merged_spec.get("cache")
+    if not isinstance(cache_cfg, Mapping):
+        cache_cfg = {}
+    enabled = cache_cfg.get("enabled", True) is not False
+    ttl_seconds = cache_cfg.get("ttl_seconds", cache_cfg.get("ttl", _OHLC_CACHE_DEFAULT_TTL_SECONDS))
+    max_items = cache_cfg.get("max_items", _OHLC_CACHE_DEFAULT_MAX)
+    try:
+        ttl_seconds = float(ttl_seconds)
+    except Exception:
+        ttl_seconds = _OHLC_CACHE_DEFAULT_TTL_SECONDS
+    try:
+        max_items = int(max_items)
+    except Exception:
+        max_items = _OHLC_CACHE_DEFAULT_MAX
+    if max_items <= 0:
+        enabled = False
+    if ttl_seconds <= 0:
+        ttl_seconds = 0.0
+    return enabled, ttl_seconds, max_items
+
+
+def _cache_ohlc_get(cache_key: str, ttl_seconds: float) -> Optional[pd.DataFrame]:
+    entry = _OHLC_CACHE.get(cache_key)
+    if entry is None:
+        return None
+    df, created = entry
+    if ttl_seconds > 0:
+        age = time.monotonic() - created
+        if age > ttl_seconds:
+            _OHLC_CACHE.pop(cache_key, None)
+            _OHLC_CACHE_STATS["expirations"] += 1
+            return None
+    _OHLC_CACHE.move_to_end(cache_key)
+    _OHLC_CACHE_STATS["hits"] += 1
+    return df
+
+
+def _cache_ohlc_set(cache_key: str, df: pd.DataFrame, max_items: int) -> None:
+    _OHLC_CACHE[cache_key] = (df, time.monotonic())
+    _OHLC_CACHE.move_to_end(cache_key)
+    while len(_OHLC_CACHE) > max_items:
+        _OHLC_CACHE.popitem(last=False)
+        _OHLC_CACHE_STATS["evictions"] += 1
+
+
+def _log_ohlc_cache_stats_delta(start_stats: Mapping[str, int]) -> None:
+    delta = {
+        key: _OHLC_CACHE_STATS.get(key, 0) - start_stats.get(key, 0)
+        for key in _OHLC_CACHE_STATS
+    }
+    if any(value > 0 for value in delta.values()):
+        LOGGER.info(
+            "OHLC cache stats: hits=%d misses=%d expirations=%d evictions=%d size=%d",
+            delta.get("hits", 0),
+            delta.get("misses", 0),
+            delta.get("expirations", 0),
+            delta.get("evictions", 0),
+            len(_OHLC_CACHE),
+        )
 
 
 def _build_delta_storage_options() -> Dict[str, Any]:
