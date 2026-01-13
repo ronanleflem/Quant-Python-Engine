@@ -80,6 +80,13 @@ def test_dca_etf_strategy_smoke() -> None:
     live_context = {"symbol": "ETF", "asset_class": "ETF", "state": {}}
     live_signals = strategy.evaluate_live_bar(df, live_context)
     assert live_signals == []
+    rolling_context = {"symbol": "ETF", "asset_class": "ETF", "state": {}}
+    collected: list[str] = []
+    for i in range(len(df)):
+        window = df.iloc[: i + 1]
+        signals_now = strategy.evaluate_live_bar(window, rolling_context)
+        collected.extend(sig.side for sig in signals_now)
+    assert collected.count("BUY") == 5
 
 
 def test_crypto_grid_strategy_generates_buy_and_sell() -> None:
