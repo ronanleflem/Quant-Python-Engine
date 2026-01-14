@@ -275,6 +275,7 @@ pre-commit run --all-files
 
 ## Endpoints clés
 - `POST /submit`
+- `POST /submit/async`
 - `GET /status/{id}`
 - `GET /result/{id}`
 - `GET /runs`
@@ -306,7 +307,7 @@ python -m json.tool summary.json
 > Exemple MySQL : `specs/examples/submit_mysql.json` (requiert `QE_MARKETDATA_MYSQL_URL`).
 ```
 
-#### Statistiques (in-memory + SQLite)
+#### Statistiques (SQLite persisté)
 ```bash
 curl.exe -X POST http://127.0.0.1:8000/stats/run -H "Content-Type: application/json" --data-binary @specs/examples/stats_run.json
 # -> {"status":"completed","id":"JOB_ID"}
@@ -335,6 +336,31 @@ curl.exe "http://127.0.0.1:8000/stats/summary?symbol=EURUSD&timeframe=M1" | pyth
 
 ```bash
 curl.exe "http://127.0.0.1:8000/stats/heatmap?symbol=EURUSD&timeframe=M1&event=k_consecutive&target=up_next_bar&condition_name=session" | python -m json.tool
+```
+
+#### Mode async (jobs persistés)
+Les endpoints suffixés par `/async` (`/submit/async`, `/stats/run/async`, `/levels/build/async`, `/levels/fill/async`,
+`/seasonality/run/async`, `/seasonality/optimize/async`) mettent les jobs en file d'attente (statut `pending`)
+et retournent immédiatement un `job_id`. Un worker peut ensuite dépiler les jobs et exécuter `run_next_job` pour
+traiter la file.
+
+```bash
+curl.exe -X POST http://127.0.0.1:8000/submit/async -H "Content-Type: application/json" --data-binary @specs/examples/submit_local.json
+# -> {"status":"pending","id":"JOB_ID"}
+```
+
+```bash
+curl.exe http://127.0.0.1:8000/status/JOB_ID
+curl.exe http://127.0.0.1:8000/result/JOB_ID | python -m json.tool
+```
+
+```bash
+python - <<'PY'
+from quant_engine.api import app
+
+job_result = app.run_next_job()
+print(job_result)
+PY
 ```
 
 #### Saisonalité (profil + optimisation Optuna)
