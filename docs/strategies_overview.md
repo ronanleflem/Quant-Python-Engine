@@ -18,6 +18,10 @@ commun (`StrategySignal`) et peuvent être utilisées en backtest via
   (`grid_level`), poids (`palier_used`), règle de take-profit active, etc.
 * **Logs** : `log_drawdown_summary=true` pour afficher un résumé de drawdown en
   niveau INFO (par défaut, le résumé passe en DEBUG pour éviter le spam).
+* **Référence drawdown** : configurez `drawdown_reference` (ex : `"ATH"`,
+  `"3M"`, `"90D"`, ou `{ "mode": "rolling", "window": "90D" }`) pour piloter le
+  calcul; les helpers legacy `compute_drawdown` / `compute_reference_high` ne
+  sont plus exposés.
 
 ### `DcaEtfStrategy`
 
