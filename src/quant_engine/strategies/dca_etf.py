@@ -109,6 +109,8 @@ class DcaEtfStrategy(Strategy):
         signals_seen = 0
         results: List[StrategySignal] = []
         last_processed = state.last_processed_ts
+        if only_last_ts is not None and last_processed is not None:
+            self._hydrate_incremental_state(df, state)
         use_incremental = (
             only_last_ts is not None
             and last_processed is not None
@@ -186,6 +188,21 @@ class DcaEtfStrategy(Strategy):
                     )
                     break
         return results
+
+    def _hydrate_incremental_state(self, df: pd.DataFrame, state: _EtfState) -> None:
+        if state.last_rolling_max is not None and state.prev_dd is not None:
+            return
+        if state.last_processed_ts is None:
+            return
+        history = df.loc[df.index <= state.last_processed_ts, "close"]
+        if history.empty:
+            return
+        rolling_max_value = float(history.max())
+        last_price = float(history.iloc[-1])
+        if state.last_rolling_max is None:
+            state.last_rolling_max = rolling_max_value
+        if state.prev_dd is None:
+            state.prev_dd = (last_price / rolling_max_value - 1.0) * 100.0
 
     @staticmethod
     def _allow_entries(df: pd.DataFrame, ts: pd.Timestamp) -> bool:
