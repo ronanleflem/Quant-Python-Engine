@@ -39,6 +39,11 @@ _OHLC_CACHE: "OrderedDict[str, tuple[pd.DataFrame, float]]" = OrderedDict()
 _OHLC_CACHE_DEFAULT_MAX = 256
 _OHLC_CACHE_DEFAULT_TTL_SECONDS = 900.0
 _OHLC_CACHE_STATS = {"hits": 0, "misses": 0, "evictions": 0, "expirations": 0}
+_OHLC_CACHE_CONFIG = {
+    "enabled": True,
+    "ttl_seconds": _OHLC_CACHE_DEFAULT_TTL_SECONDS,
+    "max_items": _OHLC_CACHE_DEFAULT_MAX,
+}
 
 logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger(__name__)
@@ -255,7 +260,7 @@ def _fetch_ohlc_for_symbol(
     if missing:
         raise ValueError(f"Missing OHLC columns for {symbol}: {missing}")
     if cache_enabled and max_items > 0:
-        _cache_ohlc_set(cache_key, df.copy(), max_items)
+        _cache_ohlc_set(cache_key, df.copy(), max_items, ttl_seconds)
     return df
 
 
@@ -282,10 +287,25 @@ def _resolve_ohlc_cache_settings(merged_spec: Mapping[str, Any]) -> tuple[bool, 
         enabled = False
     if ttl_seconds <= 0:
         ttl_seconds = 0.0
+    _OHLC_CACHE_CONFIG.update(
+        {"enabled": enabled, "ttl_seconds": ttl_seconds, "max_items": max_items}
+    )
     return enabled, ttl_seconds, max_items
 
 
+def _prune_ohlc_cache(ttl_seconds: float) -> int:
+    if ttl_seconds <= 0 or not _OHLC_CACHE:
+        return 0
+    now = time.monotonic()
+    expired = [key for key, (_, created) in _OHLC_CACHE.items() if now - created > ttl_seconds]
+    for key in expired:
+        _OHLC_CACHE.pop(key, None)
+        _OHLC_CACHE_STATS["expirations"] += 1
+    return len(expired)
+
+
 def _cache_ohlc_get(cache_key: str, ttl_seconds: float) -> Optional[pd.DataFrame]:
+    _prune_ohlc_cache(ttl_seconds)
     entry = _OHLC_CACHE.get(cache_key)
     if entry is None:
         _OHLC_CACHE_STATS["misses"] += 1
@@ -303,7 +323,13 @@ def _cache_ohlc_get(cache_key: str, ttl_seconds: float) -> Optional[pd.DataFrame
     return df
 
 
-def _cache_ohlc_set(cache_key: str, df: pd.DataFrame, max_items: int) -> None:
+def _cache_ohlc_set(
+    cache_key: str,
+    df: pd.DataFrame,
+    max_items: int,
+    ttl_seconds: float,
+) -> None:
+    _prune_ohlc_cache(ttl_seconds)
     _OHLC_CACHE[cache_key] = (df, time.monotonic())
     _OHLC_CACHE.move_to_end(cache_key)
     while len(_OHLC_CACHE) > max_items:
@@ -318,12 +344,14 @@ def _log_ohlc_cache_stats_delta(start_stats: Mapping[str, int]) -> None:
     }
     if any(value > 0 for value in delta.values()):
         LOGGER.info(
-            "OHLC cache stats: hits=%d misses=%d expirations=%d evictions=%d size=%d",
+            "OHLC cache stats: hits=%d misses=%d expirations=%d evictions=%d size=%d max=%d ttl=%.0fs",
             delta.get("hits", 0),
             delta.get("misses", 0),
             delta.get("expirations", 0),
             delta.get("evictions", 0),
             len(_OHLC_CACHE),
+            _OHLC_CACHE_CONFIG.get("max_items", _OHLC_CACHE_DEFAULT_MAX),
+            _OHLC_CACHE_CONFIG.get("ttl_seconds", _OHLC_CACHE_DEFAULT_TTL_SECONDS),
         )
 
 
