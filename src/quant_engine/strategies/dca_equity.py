@@ -5,7 +5,6 @@ from dataclasses import dataclass, field
 import logging
 import time
 from typing import Any, Dict, List, Optional, Tuple
-import warnings
 
 import pandas as pd
 
@@ -44,7 +43,13 @@ class _CycleState:
 
 
 class DcaEquityStrategy(Strategy):
-    """Drawdown-weighted DCA logic driven by configurable grids."""
+    """
+    Drawdown-weighted DCA logic driven by configurable grids.
+
+    Configure the drawdown anchor via the ``drawdown_reference`` parameter
+    (ATH or rolling window); legacy helper methods were removed in favor of
+    the unified reference computation.
+    """
 
     def __init__(self, strategy_id: str, params: Dict[str, Any]) -> None:
         self.strategy_id = strategy_id
@@ -63,21 +68,6 @@ class DcaEquityStrategy(Strategy):
         )
         self.require_crossing = bool(self.params.get("require_crossing", True))
         self.log_drawdown_summary = bool(self.params.get("log_drawdown_summary", False))
-
-    @staticmethod
-    def compute_drawdown(close: pd.Series) -> pd.Series:
-        """Compute drawdown (in percentage) vs rolling high (deprecated)."""
-
-        warnings.warn(
-            "DcaEquityStrategy.compute_drawdown is deprecated and unused; "
-            "compute drawdown from _compute_reference_high instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-
-        rolling_max = close.cummax()
-        dd = (close / rolling_max - 1.0) * 100.0
-        return dd.fillna(0.0)
 
     @staticmethod
     def _parse_drawdown_reference(value: Any) -> Tuple[str, Optional[str]]:
@@ -136,27 +126,6 @@ class DcaEquityStrategy(Strategy):
             else:
                 ref = close.rolling(window, min_periods=1).max()
         return ref.ffill().fillna(close.iloc[0])
-
-    @staticmethod
-    def compute_reference_high(close: pd.Series) -> pd.Series:
-        """
-        Deprecated: use drawdown_reference + _compute_reference_high for new behavior.
-
-        Rolling high sur les 3 derniers mois (~90 jours calendaires).
-        - Si on démarre en début d’historique, on prend le max des bougies disponibles (min_periods=1).
-        - Inclut la bougie courante (mise à jour dès qu’un nouveau plus haut apparaît).
-        """
-
-        warnings.warn(
-            "DcaEquityStrategy.compute_reference_high is deprecated and unused; "
-            "configure drawdown_reference to control the reference high instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-
-        ref = close.rolling("90D", min_periods=1).max()
-        ref = ref.ffill().fillna(close.iloc[0])
-        return ref
 
     def backtest(self, ohlc: pd.DataFrame, context: Dict[str, Any]) -> List[StrategySignal]:
         df = self._normalize_ohlc(ohlc)
