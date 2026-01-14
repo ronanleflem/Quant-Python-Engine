@@ -1764,30 +1764,92 @@ def _resolve_retention_base_dir(out_dir: Path, retention: Mapping[str, Any]) -> 
     base_dir_cfg = retention.get("base_dir")
     if not base_dir_cfg:
         LOGGER.warning(
-            "Retention: disabled because base_dir is not set. "
+            "Retention: SAFETY STOP - base_dir is required. "
             "Configure retention.base_dir explicitly to enable pruning."
         )
         return None
     candidate = Path(str(base_dir_cfg)).expanduser()
     if not candidate.is_absolute():
-        candidate = (out_dir.parent / candidate).resolve()
+        candidate = (Path.cwd() / candidate).resolve()
     else:
         candidate = candidate.resolve()
-    if candidate == Path(candidate.anchor):
-        LOGGER.warning("Retention: base_dir=%s is too broad; skipping retention for safety", candidate)
+    cwd = Path.cwd().resolve()
+    if candidate in {Path(candidate.anchor), cwd}:
+        LOGGER.warning(
+            "Retention: SAFETY STOP - base_dir=%s is too broad; skipping retention", candidate
+        )
         return None
     if not candidate.exists() or not candidate.is_dir():
-        LOGGER.warning("Retention: base_dir=%s is missing or not a directory; skipping", candidate)
+        LOGGER.warning(
+            "Retention: SAFETY STOP - base_dir=%s is missing or not a directory; skipping", candidate
+        )
         return None
     out_dir_resolved = out_dir.resolve()
     if not _is_within_dir(out_dir_resolved, candidate):
         LOGGER.warning(
-            "Retention: out_dir=%s is outside base_dir=%s; skipping retention",
+            "Retention: SAFETY STOP - out_dir=%s is outside base_dir=%s; skipping retention",
             out_dir_resolved,
             candidate,
         )
         return None
     return candidate
+
+
+def _resolve_retention_scope(retention: Mapping[str, Any]) -> Optional[str]:
+    scope = retention.get("scope")
+    if scope is None:
+        LOGGER.warning(
+            "Retention: SAFETY STOP - scope is required (base_dir/current_dataset/current_config)."
+        )
+        return None
+    scope_val = str(scope).lower()
+    if scope_val not in {"base_dir", "current_dataset", "current_config"}:
+        LOGGER.warning(
+            "Retention: SAFETY STOP - invalid scope=%s (expected base_dir/current_dataset/current_config).",
+            scope,
+        )
+        return None
+    return scope_val
+
+
+def _filter_runs_for_scope(
+    runs: List[Dict[str, Any]],
+    *,
+    scope: str,
+    current_meta: Optional[Mapping[str, Any]],
+) -> List[Dict[str, Any]]:
+    if scope == "base_dir":
+        return runs
+    if not current_meta:
+        LOGGER.warning(
+            "Retention: SAFETY STOP - missing current metadata for scope=%s; skipping retention",
+            scope,
+        )
+        return []
+    if scope == "current_dataset":
+        strategy_id = str(current_meta.get("strategy_id") or "unknown")
+        dataset_id = str(current_meta.get("dataset_id") or "unknown")
+        return [
+            run
+            for run in runs
+            if str(run.get("metadata", {}).get("strategy_id") or "unknown") == strategy_id
+            and str(run.get("metadata", {}).get("dataset_id") or "unknown") == dataset_id
+        ]
+    if scope == "current_config":
+        config_hash = current_meta.get("config_hash")
+        data_hash = current_meta.get("data_hash")
+        if not config_hash and not data_hash:
+            LOGGER.warning(
+                "Retention: SAFETY STOP - missing config/data hash for scope=current_config; skipping retention"
+            )
+            return []
+        return [
+            run
+            for run in runs
+            if run.get("metadata", {}).get("config_hash") == config_hash
+            or (data_hash and run.get("metadata", {}).get("data_hash") == data_hash)
+        ]
+    return []
 
 
 def _apply_retention(out_dir: Path, cfg: Mapping[str, Any]) -> None:
@@ -1803,6 +1865,9 @@ def _apply_retention(out_dir: Path, cfg: Mapping[str, Any]) -> None:
     keep_best = retention.get("keep_best_runs")
     mode = str(retention.get("mode", "heavy_only")).lower()
     dry_run = bool(retention.get("dry_run", False))
+    scope = _resolve_retention_scope(retention)
+    if scope is None:
+        return
     base_dir = _resolve_retention_base_dir(out_dir, retention)
     if base_dir is None:
         return
@@ -1810,10 +1875,17 @@ def _apply_retention(out_dir: Path, cfg: Mapping[str, Any]) -> None:
     if not runs:
         LOGGER.info("Retention: no eligible runs found under %s", base_dir)
         return
+    current_summary = _read_summary(out_dir / "summary.json")
+    current_meta = current_summary.get("metadata") if current_summary else None
+    runs = _filter_runs_for_scope(runs, scope=scope, current_meta=current_meta)
+    if not runs:
+        LOGGER.warning("Retention: SAFETY STOP - no runs in scope=%s under %s", scope, base_dir)
+        return
     LOGGER.info(
-        "Retention: scanning base_dir=%s (runs=%d, keep_last=%s, keep_best=%s, mode=%s, dry_run=%s)",
+        "Retention: scanning base_dir=%s (runs=%d, scope=%s, keep_last=%s, keep_best=%s, mode=%s, dry_run=%s)",
         base_dir,
         len(runs),
+        scope,
         keep_last,
         keep_best,
         mode,
