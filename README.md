@@ -94,6 +94,12 @@ poetry run uvicorn quant_engine.api.app:app --reload --app-dir src
   poetry run qe strategy optimize --spec specs/strategy_dca_equity_example_minimal_optimize.json
   ```
   Ces commandes utilisent l'optimiseur officiel `optimize.variants` (workflow avancé).
+- **export-delta-csv**
+  ```bash
+  poetry run qe export-delta-csv --asset-class crypto --symbol BTC --timeframe 1h
+  ```
+  Exporte un CSV OHLC vers `specs/examples/data/<asset>` au format `Timestamp,Open,High,Low,Close,Volume`.
+  Pour `ACTION`/`ETF`, fournir `--delta-exchange` (ex: `NASDAQ`) car le path Delta inclut un segment exchange.
 
 ### Optimization spec (grid/random)
 Define `optimization.search_space` with discrete lists or `{min,max,step}` ranges. Paths can target nested fields (use dots and list indexes).
@@ -159,11 +165,9 @@ Voir aussi `docs/optimization.md` pour le workflow complet.
 - **Backtest**
   ```bash
   poetry run qe strategy backtest --spec specs/strategy_dca_equity_example.json
-  ```
 - **Live (avec implémentation)**
   ```bash
   poetry run qe live run --spec specs/live_example.json
-  ```
   Assurez-vous que `specs/live_example.json` contient `"strategy": { "impl": { "type": "dca_equity", ... } }`.
 
 ## Exemples de filtres

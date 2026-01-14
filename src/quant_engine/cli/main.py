@@ -4,7 +4,7 @@ import os
 from dataclasses import asdict
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from urllib import parse
 
 import typer
@@ -40,6 +40,23 @@ class RunStatus(str, Enum):
     RUNNING = "running"
     FINISHED = "finished"
     FAILED = "failed"
+
+
+def _resolve_data_folder(asset_class: str) -> Tuple[str, str]:
+    raw = str(asset_class).strip().lower()
+    mapping = {
+        "crypto": ("crypto", "CRYPTO"),
+        "cryptos": ("crypto", "CRYPTO"),
+        "forex": ("forex", "FOREX"),
+        "fx": ("forex", "FOREX"),
+        "etf": ("etf", "ETF"),
+        "action": ("action", "ACTION"),
+        "equity": ("action", "ACTION"),
+        "stock": ("action", "ACTION"),
+    }
+    if raw in mapping:
+        return mapping[raw]
+    return raw, raw.upper()
 
 
 def _api_url(path: str, params: Optional[Dict[str, Any]] = None) -> str:
@@ -502,6 +519,52 @@ def backtest_optimize(
     spec_dict = load_backtest_spec(spec)
     result = run_backtest_optimization(spec_dict)
     typer.echo(json.dumps(result, separators=(",", ":")))
+
+
+@app.command("export-delta-csv")
+def export_delta_csv_cli(
+    asset_class: str = typer.Option(..., "--asset-class"),
+    symbol: str = typer.Option(..., "--symbol"),
+    timeframe: str = typer.Option(..., "--timeframe"),
+    output_root: Path = typer.Option(Path("specs/examples/data"), "--output-root"),
+    folder: Optional[str] = typer.Option(None, "--folder"),
+    delta_base: Optional[str] = typer.Option(None, "--delta-base"),
+    delta_prefix: Optional[str] = typer.Option(None, "--delta-prefix"),
+    delta_exchange: Optional[str] = typer.Option(None, "--delta-exchange"),
+    delta_market_type: Optional[str] = typer.Option(None, "--delta-market-type"),
+    delta_quotes: Optional[str] = typer.Option(None, "--delta-quotes"),
+    delta_broker: Optional[str] = typer.Option(None, "--delta-broker"),
+    delta_asset_dir: Optional[str] = typer.Option(None, "--delta-asset-dir"),
+    delta_table: Optional[str] = typer.Option(None, "--delta-table"),
+    delta_calendar: Optional[str] = typer.Option(None, "--delta-calendar"),
+) -> None:
+    """Export Delta OHLC data to a CSV under specs/examples/data."""
+
+    from ..io.export_delta_csv import export_delta_csv
+
+    data_folder, asset_value = _resolve_data_folder(asset_class)
+    folder_value = folder or data_folder
+    try:
+        result = export_delta_csv(
+            symbol=symbol,
+            asset_class=asset_value,
+            timeframe=timeframe,
+            output_root=output_root,
+            folder=folder_value,
+            delta_base=delta_base,
+            delta_prefix=delta_prefix,
+            delta_exchange=delta_exchange,
+            delta_market_type=delta_market_type,
+            delta_quotes=delta_quotes,
+            delta_broker=delta_broker,
+            delta_asset_dir=delta_asset_dir,
+            delta_table=delta_table,
+            delta_calendar=delta_calendar,
+        )
+    except RuntimeError as exc:
+        typer.echo(str(exc))
+        raise typer.Exit(1)
+    typer.echo(str(result.path))
 
 
 if __name__ == "__main__":
