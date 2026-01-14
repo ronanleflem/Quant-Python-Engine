@@ -127,6 +127,18 @@ class DcaEquityStrategy(Strategy):
                 ref = close.rolling(window, min_periods=1).max()
         return ref.ffill().fillna(close.iloc[0])
 
+    def _compute_drawdown_series(self, close: pd.Series) -> Tuple[pd.Series, pd.Series]:
+        """
+        Compute the drawdown series and its reference high.
+
+        Legacy ``compute_drawdown`` / ``compute_reference_high`` helpers are no longer
+        exposed; use ``drawdown_reference`` configuration instead.
+        """
+
+        ref_high = self._compute_reference_high(close)
+        dd_series = ((close / ref_high) - 1.0) * 100.0
+        return dd_series.fillna(0.0), ref_high
+
     def backtest(self, ohlc: pd.DataFrame, context: Dict[str, Any]) -> List[StrategySignal]:
         df = self._normalize_ohlc(ohlc)
         state = _CycleState()
@@ -155,9 +167,7 @@ class DcaEquityStrategy(Strategy):
         if df.empty:
             return []
         close = df["close"].astype(float)
-        ref_high = self._compute_reference_high(close)
-        dd_series = ((close / ref_high) - 1.0) * 100.0
-        dd_series = dd_series.fillna(0.0)
+        dd_series, ref_high = self._compute_drawdown_series(close)
         symbol = context.get("symbol", context.get("symbol_id", ""))
         asset_class = context.get("asset_class", self.asset_class)
         screening = context.get("screening") or {}
