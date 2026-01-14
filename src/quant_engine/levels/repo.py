@@ -261,42 +261,42 @@ def select_levels(
     active_only: bool,
     start: Optional[str | datetime] = None,
     end: Optional[str | datetime] = None,
-    limit: int = 10000,
+    limit: Optional[int] = None,
+    batch_size: int = 5000,
 ) -> pd.DataFrame:
     """Return levels filtered by symbol, type and validity flags."""
 
-    clauses = ["symbol = :symbol"]
-    params: dict = {"symbol": symbol, "limit": limit}
-    if level_types:
-        placeholders = ",".join(f":lt{i}" for i in range(len(level_types)))
-        clauses.append(f"level_type IN ({placeholders})")
-        params.update({f"lt{i}": lvl for i, lvl in enumerate(level_types)})
-    if active_only:
-        clauses.append("valid_to_ts IS NULL")
-    start_norm = _parse_optional_ts(start)
-    if start_norm is not None:
-        clauses.append("anchor_ts >= :start")
-        params["start"] = start_norm
-    end_norm = _parse_optional_ts(end)
-    if end_norm is not None:
-        clauses.append("anchor_ts <= :end")
-        params["end"] = end_norm
-    query = (
-        f"SELECT symbol, timeframe, level_type, price, price_lo, price_hi, anchor_ts, "
-        f"valid_from_ts, valid_to_ts, params_hash FROM {table_fqn} "
-        "WHERE " + " AND ".join(clauses) + " ORDER BY anchor_ts DESC LIMIT :limit"
-    )
-    with engine.connect() as conn:
-        rows = conn.execute(text(query), params).fetchall()
-    records: List[dict] = []
-    for row in rows:
-        if hasattr(row, "_mapping"):
-            records.append(dict(row._mapping))
-        elif hasattr(row, "keys"):
-            records.append(dict(zip(row.keys(), row)))
-        else:  # pragma: no cover - defensive fallback
-            records.append(dict(row))
-    return pd.DataFrame(records)
+    if limit is not None and limit <= 0:
+        return pd.DataFrame()
+    if batch_size <= 0:
+        raise ValueError("batch_size must be positive")
+
+    collected: List[pd.DataFrame] = []
+    remaining = limit
+    per_page = batch_size if remaining is None else min(batch_size, remaining)
+    for batch in iter_levels(
+        engine,
+        table_fqn,
+        symbol=symbol,
+        level_types=level_types,
+        active_only=active_only,
+        start=start,
+        end=end,
+        batch_size=per_page,
+    ):
+        if batch.empty:
+            continue
+        if remaining is not None and len(batch) > remaining:
+            batch = batch.iloc[:remaining]
+        collected.append(batch)
+        if remaining is not None:
+            remaining -= len(batch)
+            if remaining <= 0:
+                break
+        per_page = batch_size
+    if not collected:
+        return pd.DataFrame()
+    return pd.concat(collected, ignore_index=True)
 
 
 def iter_levels(

@@ -82,6 +82,9 @@ et `touched_level_since`, en chargeant automatiquement les levels persistes depu
   et `params_hash`. L'index unique assure l'idempotence.
 - Les refresh `fill` parcourent les niveaux actifs en lots (pagination keyset)
   pour eviter des limites fixes et garantir la scalabilite sur de gros univers.
+- `select_levels` s'appuie sur la meme pagination keyset : `limit=None` charge
+  l'ensemble des niveaux filtrés, avec un `batch_size` configurable pour le
+  streaming.
 - Index b-tree additionnels sur `(symbol, level_type, anchor_ts)` et
   `(symbol, valid_from_ts, valid_to_ts)` pour accelerer les scans, overlays et
   checks de validite.

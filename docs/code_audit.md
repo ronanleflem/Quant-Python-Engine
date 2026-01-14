@@ -161,13 +161,13 @@
 ## 11) Levels
 
 **Constat**
-- `run_levels_fill` traite un lot limité (limit=10000) sans pagination et peut être coûteux en RAM si les niveaux sont nombreux.【F:src/quant_engine/levels/runner.py†L32-L95】
+- Le fill parcourt désormais les niveaux actifs par pages (keyset) et applique les updates par lot, ce qui réduit la pression mémoire sur des univers étendus.【F:src/quant_engine/levels/runner.py†L32-L95】
 
 **Risques/impact**
-- Scalabilité limitée pour gros univers.
+- La volumétrie extrême reste sensible au coût DB (index et batch_size à ajuster).
 
 **Recommandations**
-- Ajouter une pagination DB et un mode batch chunké.
+- Ajuster `batch_size` côté repo si besoin et monitorer la latence DB.
 
 ---
 

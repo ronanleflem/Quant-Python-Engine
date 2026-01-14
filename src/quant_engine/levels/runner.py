@@ -48,7 +48,7 @@ def run_levels_fill(spec: LevelsBuildSpec) -> Dict[str, object]:
     ensure_table(engine, table_fqn)
 
     total_checked = 0
-    pending_updates: list[pd.DataFrame] = []
+    total_updated = 0
     for symbol in spec.symbols:
         sym_df = df[df["symbol"] == symbol]
         if sym_df.empty:
@@ -72,6 +72,7 @@ def run_levels_fill(spec: LevelsBuildSpec) -> Dict[str, object]:
             if levels.empty:
                 continue
             total_checked += int(len(levels))
+            pending_updates: list[pd.DataFrame] = []
             if do_fill_fvg:
                 fvgs_active = levels[levels["level_type"] == "FVG"]
                 if not fvgs_active.empty:
@@ -86,12 +87,10 @@ def run_levels_fill(spec: LevelsBuildSpec) -> Dict[str, object]:
                     gaps_updates = gaps_filled[gaps_filled["valid_to_ts"].notna()]
                     if not gaps_updates.empty:
                         pending_updates.append(gaps_updates)
-    if pending_updates:
-        updates_df = pd.concat(pending_updates, ignore_index=True)
-        updated_count = upsert_valid_to_ts(engine, table_fqn, updates_df)
-    else:
-        updated_count = 0
-    return {"updated": int(updated_count), "checked": int(total_checked)}
+            if pending_updates:
+                updates_df = pd.concat(pending_updates, ignore_index=True)
+                total_updated += upsert_valid_to_ts(engine, table_fqn, updates_df)
+    return {"updated": int(total_updated), "checked": int(total_checked)}
 
 
 __all__ = ["run_levels_build", "run_levels_fill"]
