@@ -1762,14 +1762,17 @@ def _is_within_dir(child: Path, parent: Path) -> bool:
 
 def _resolve_retention_base_dir(out_dir: Path, retention: Mapping[str, Any]) -> Optional[Path]:
     base_dir_cfg = retention.get("base_dir")
-    if base_dir_cfg:
-        candidate = Path(str(base_dir_cfg)).expanduser()
-        if not candidate.is_absolute():
-            candidate = (out_dir.parent / candidate).resolve()
-        else:
-            candidate = candidate.resolve()
+    if not base_dir_cfg:
+        LOGGER.warning(
+            "Retention: disabled because base_dir is not set. "
+            "Configure retention.base_dir explicitly to enable pruning."
+        )
+        return None
+    candidate = Path(str(base_dir_cfg)).expanduser()
+    if not candidate.is_absolute():
+        candidate = (out_dir.parent / candidate).resolve()
     else:
-        candidate = out_dir.parent.resolve()
+        candidate = candidate.resolve()
     if candidate == Path(candidate.anchor):
         LOGGER.warning("Retention: base_dir=%s is too broad; skipping retention for safety", candidate)
         return None
