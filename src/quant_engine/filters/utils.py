@@ -74,6 +74,10 @@ _FILTER_CACHE: "OrderedDict[tuple, tuple[pd.Series, float]]" = OrderedDict()
 _CACHE_DEFAULT_MAX = 2048
 _CACHE_DEFAULT_TTL_SECONDS = 900.0
 _FILTER_CACHE_STATS = {"hits": 0, "misses": 0, "evictions": 0, "expirations": 0}
+_FILTER_CACHE_CONFIG = {
+    "max_items": _CACHE_DEFAULT_MAX,
+    "ttl_seconds": _CACHE_DEFAULT_TTL_SECONDS,
+}
 
 
 def _make_cache_key(df: pd.DataFrame, flt_type: str, params: Mapping[str, Any]) -> Optional[tuple]:
@@ -87,7 +91,19 @@ def _make_cache_key(df: pd.DataFrame, flt_type: str, params: Mapping[str, Any]) 
     return (cache_key, flt_type, params_key)
 
 
+def _prune_filter_cache(ttl_seconds: float) -> int:
+    if ttl_seconds <= 0 or not _FILTER_CACHE:
+        return 0
+    now = time.monotonic()
+    expired = [k for k, (_, created) in _FILTER_CACHE.items() if now - created > ttl_seconds]
+    for k in expired:
+        _FILTER_CACHE.pop(k, None)
+        _FILTER_CACHE_STATS["expirations"] += 1
+    return len(expired)
+
+
 def _cache_get(key: tuple, ttl_seconds: float) -> Optional[pd.Series]:
+    _prune_filter_cache(ttl_seconds)
     entry = _FILTER_CACHE.get(key)
     if entry is None:
         _FILTER_CACHE_STATS["misses"] += 1
@@ -105,7 +121,8 @@ def _cache_get(key: tuple, ttl_seconds: float) -> Optional[pd.Series]:
     return series
 
 
-def _cache_set(key: tuple, series: pd.Series, max_items: int) -> None:
+def _cache_set(key: tuple, series: pd.Series, max_items: int, ttl_seconds: float) -> None:
+    _prune_filter_cache(ttl_seconds)
     _FILTER_CACHE[key] = (series, time.monotonic())
     _FILTER_CACHE.move_to_end(key)
     while len(_FILTER_CACHE) > max_items:
@@ -113,19 +130,24 @@ def _cache_set(key: tuple, series: pd.Series, max_items: int) -> None:
         _FILTER_CACHE_STATS["evictions"] += 1
 
 
-def _log_filter_cache_stats_delta(start_stats: Mapping[str, int], logger: logging.Logger) -> None:
+def _log_filter_cache_stats_delta(
+    start_stats: Mapping[str, int],
+    logger: logging.Logger,
+) -> None:
     delta = {
         key: _FILTER_CACHE_STATS.get(key, 0) - start_stats.get(key, 0)
         for key in _FILTER_CACHE_STATS
     }
     if any(value > 0 for value in delta.values()):
         logger.info(
-            "Filter cache stats: hits=%d misses=%d expirations=%d evictions=%d size=%d",
+            "Filter cache stats: hits=%d misses=%d expirations=%d evictions=%d size=%d max=%d ttl=%.0fs",
             delta.get("hits", 0),
             delta.get("misses", 0),
             delta.get("expirations", 0),
             delta.get("evictions", 0),
             len(_FILTER_CACHE),
+            _FILTER_CACHE_CONFIG.get("max_items", _CACHE_DEFAULT_MAX),
+            _FILTER_CACHE_CONFIG.get("ttl_seconds", _CACHE_DEFAULT_TTL_SECONDS),
         )
 
 
@@ -335,6 +357,8 @@ def apply_filter_stack(
         ttl_seconds = _CACHE_DEFAULT_TTL_SECONDS
     if ttl_seconds < 0:
         ttl_seconds = _CACHE_DEFAULT_TTL_SECONDS
+    _FILTER_CACHE_CONFIG.update({"max_items": max_cache, "ttl_seconds": ttl_seconds})
+    _prune_filter_cache(ttl_seconds)
 
     for raw in filters:
         flt_type, params = _normalize_filter_spec(raw)
@@ -379,7 +403,7 @@ def apply_filter_stack(
                         raise FilterValidationError(msg) from exc
                     continue
                 if max_cache > 0:
-                    _cache_set(cache_key, series, max_cache)
+                    _cache_set(cache_key, series, max_cache, ttl_seconds)
         else:
             try:
                 series = fn(df, **params)
