@@ -26,3 +26,12 @@ def test_resolve_require_crossing_prefers_signal_params():
     }
 
     assert runner._resolve_require_crossing(spec) is False
+
+
+def test_apply_filter_mask_gated_on_first_signal():
+    signal = [0, 1, 1, 0, 1, 1, 1]
+    mask = [False, True, False, False, False, True, False]
+
+    gated = runner._apply_filter_mask(signal, mask, False)
+
+    assert gated == [0, 1, 1, 0, 0, 1, 1]

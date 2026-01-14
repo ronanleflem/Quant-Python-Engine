@@ -171,8 +171,21 @@ Le champ `require_crossing` contrôle comment ce masque est combiné avec le sig
 
 - **`true` (défaut)** : le signal doit **croiser** le filtre sur la même barre.
   Un signal ne passe que si `signal == 1` **et** `filter_pass == true`.
-- **`false`** : mode **latch**. Le signal doit croiser le filtre une seule fois,
-  puis il peut rester actif tant que le signal reste à 1, même si le filtre redevient faux.
+- **`false`** : mode **gated on first signal** (latch). Le filtre sert uniquement
+  à **ouvrir la porte** sur la première barre où `signal == 1`. Tant que le signal
+  reste à 1, le filtre est ignoré même s'il redevient faux. Quand le signal repasse
+  à 0, la porte se referme et un **nouveau passage** nécessite un nouveau crossing.
+
+Exemple simplifié (signal vs filtre) :
+
+| bar | signal | filtre | require_crossing=true | require_crossing=false |
+| --- | ------ | ------ | --------------------- | ---------------------- |
+| 0   | 0      | false  | 0                     | 0                      |
+| 1   | 1      | true   | 1                     | 1                      |
+| 2   | 1      | false  | 0                     | 1                      |
+| 3   | 0      | false  | 0                     | 0                      |
+| 4   | 1      | false  | 0                     | 0                      |
+| 5   | 1      | true   | 1                     | 1                      |
 
 Priorité de lecture :
 1) `signal.params.require_crossing`
