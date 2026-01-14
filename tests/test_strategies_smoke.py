@@ -113,6 +113,8 @@ def test_dca_etf_strategy_smoke() -> None:
         window = df.iloc[: i + 1]
         signals_now = strategy.evaluate_live_bar(window, rolling_context)
         collected.extend(sig.side for sig in signals_now)
+        repeat_signals = strategy.evaluate_live_bar(window, rolling_context)
+        assert repeat_signals == []
     assert collected.count("BUY") == 5
 
 
@@ -147,5 +149,7 @@ def test_crypto_grid_strategy_generates_buy_and_sell() -> None:
         window = df.iloc[: i + 1]
         signals_now = strategy.evaluate_live_bar(window, live_context)
         collected.extend(sig.side for sig in signals_now)
+        repeat_signals = strategy.evaluate_live_bar(window, live_context)
+        assert repeat_signals == []
     assert collected.count("BUY") == 3
     assert collected[-1] == "SELL"

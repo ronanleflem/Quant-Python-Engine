@@ -116,6 +116,12 @@ class CryptoGridStrategy(Strategy):
         signals_seen = 0
         results: List[StrategySignal] = []
         last_processed = state.last_processed_ts
+        if (
+            only_last_ts is not None
+            and last_processed is not None
+            and only_last_ts <= last_processed
+        ):
+            return results
         if only_last_ts is not None and last_processed is not None:
             self._hydrate_incremental_state(df, state)
         use_incremental = (
