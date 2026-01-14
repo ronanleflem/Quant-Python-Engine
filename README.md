@@ -246,9 +246,11 @@ poetry run qe strategy optimize --spec specs/strategy_dca_equity_example_minimal
 poetry run pytest tests/test_backtest_data_sources.py
 poetry run pytest tests/test_strategy_dca_variants.py
 poetry run pytest tests/test_backtest_trade_expectations.py
+poetry run pytest tests/test_trade_expectations_details.py
 poetry run pytest tests/test_optimize_variants_baseline.py
 poetry run pytest tests/test_optimize_variants_filters.py
 poetry run pytest tests/test_optimize_variants_screening.py
+poetry run pytest tests/test_strategy_dca_stop_loss.py
 poetry run pytest tests/test_stats_basic_spec.py
 poetry run pytest tests/test_seasonality_basic_spec.py
 poetry run pytest tests/test_stats_seasonality_combo.py
@@ -256,6 +258,8 @@ poetry run pytest tests/test_stats_gate_filter.py
 poetry run pytest tests/test_combo_backtest_dca_seasonality.py
 poetry run pytest tests/test_timeframe_variants.py
 poetry run pytest tests/test_data_edge_cases.py
+poetry run pytest -m slow tests/test_large_dataset_perf.py
+
 
 
 poetry run pytest tests/test_strategy_dca_variants.py tests/test_backtest_trade_expectations.py tests/test_backtest_data_sources.py tests/test_optimize_variants_baseline.py

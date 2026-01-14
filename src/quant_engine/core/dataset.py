@@ -175,12 +175,13 @@ def load_dataset(spec: DataSpec) -> List[Dict]:
         ts_dt = _normalize_row_timestamp(row)
         ts = ts_dt.date()
         symbol = row.get("symbol")
+        if symbol is None and spec.symbols:
+            row["symbol"] = spec.symbols[0]
+            symbol = row["symbol"]
         if spec.symbols and symbol not in spec.symbols:
             continue
         if ts < start_date or ts > end_date:
             continue
-        if symbol is None and spec.symbols:
-            row["symbol"] = spec.symbols[0]
         _ensure_row_session(row, ts_dt)
         out.append(row)
     out.sort(key=lambda r: r["timestamp"])

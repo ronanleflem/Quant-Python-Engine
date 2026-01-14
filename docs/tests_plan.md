@@ -63,51 +63,70 @@ No hard duplication found. Some intentional overlaps:
    - Status: implemented.
 
 2) Strategy DCA - core variants
-   - Specs: strategy_dca_equity_csv_basic, strategy_dca_equity_csv_filters, strategy_dca_etf_csv_basic
+   - Specs: strategy_dca_equity_csv_basic, strategy_dca_equity_csv_filters, strategy_dca_etf_csv_basic,
+     strategy_dca_equity_intracandle, strategy_dca_equity_drawdown_3m, strategy_dca_equity_require_crossing
+   - Tests: tests/test_strategy_dca_variants.py, tests/test_strategy_dca_stop_loss.py
    - Status: implemented.
 
 3) Execution/trades expected (new group)
-   - Goal: assert at least one trade when data is deterministic.
+   - Goal: assert at least one trade and basic trade integrity.
    - Specs: backtest_csv_trades, strategy_dca_equity_csv_trades
+   - Tests: tests/test_backtest_trade_expectations.py, tests/test_trade_expectations_details.py
    - Status: implemented.
 
 4) Advanced optimization - baseline
    - Specs: optimize_backtest_grid_basic, optimize_backtest_random_basic,
      optimize_strategy_grid_basic, optimize_strategy_random_basic
+   - Tests: tests/test_optimize_variants_baseline.py
    - Status: implemented.
 
 5) Advanced optimization - with filters
    - Specs: optimize_backtest_filters, optimize_strategy_filters
+   - Notes: includes require_crossing variants in search space
    - Status: implemented.
 
 6) Advanced optimization - screening / pruning
    - Specs: optimize_backtest_screening, optimize_strategy_screening
+   - Notes: backtest screening includes pruning (max_drawdown_pct, min_signals_after_bars)
    - Status: implemented.
 
 7) Stats only
    - Specs: stats_basic
+   - Notes: validation folds + q_value/significant checks + sqlite memory persistence
    - Status: implemented.
 
 8) Seasonality only
    - Specs: seasonality_basic
+   - Notes: return measure + topk signals + artifacts (profiles/trades/equity)
    - Status: implemented.
 
 9) Stats + seasonality combined
    - Specs: stats_seasonality_combo_stats, stats_seasonality_combo_seasonality
+   - Notes: shared spec_id/dataset_id persistence and bins/dims coherence
    - Status: implemented.
 
 10) Stats gate / stats-based filters
-    - Specs: strategy_dca_equity_stats_gate
+   - Specs: strategy_dca_equity_stats_gate
+    - Notes: allow_if_missing=false error, conditional value + non-p_hat metric
     - Status: implemented.
 
 11) Backtest + DCA + seasonality
-    - Specs: backtest_csv_basic, strategy_dca_equity_csv_basic, seasonality_basic
-    - Status: implemented.
+   - Specs: backtest_csv_basic, strategy_dca_equity_csv_basic, seasonality_basic
+   - Notes: CLI combo path + artifacts isolation
+   - Status: implemented.
 
 12) Timeframe variants
-    - Specs: backtest_csv_basic, backtest_csv_h1, backtest_csv_d1
-    - Status: implemented.
+   - Specs: backtest_csv_basic, backtest_csv_h1, backtest_csv_d1
+   - Notes: alias normalization + default timeframe when missing
+   - Status: implemented.
 
 13) Data edge cases
-    - Specs: backtest_missing_bars, backtest_naive_timestamps
-    - Status: implemented.
+   - Specs: backtest_missing_bars, backtest_naive_timestamps
+   - Notes: invalid timestamp + NaN OHLC raise, missing symbol fallback
+   - Status: implemented.
+
+14) Large dataset perf / trades (manual or slow)
+   - Uses: specs/examples/data/forex/EURUSD_20250101_20250601_1min.csv
+   - Tests: tests/test_large_dataset_perf.py
+   - Notes: optional memory cap + throughput check + filters-on variant
+   - Status: implemented (marked slow).

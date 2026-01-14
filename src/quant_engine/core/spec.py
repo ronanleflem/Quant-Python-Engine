@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import json
 from pathlib import Path
-from typing import List, Dict, Any, Mapping
+from typing import List, Dict, Any, Mapping, Optional
 
 
 @dataclass
@@ -154,7 +154,7 @@ def parse_data_spec(
             raise ValueError("data must provide either dataset_path/path or mysql configuration")
 
     symbols = list(raw.get("symbols", []))
-    timeframe = raw.get("timeframe")
+    timeframe = _normalize_timeframe(raw.get("timeframe"))
     start = raw.get("start")
     end = raw.get("end")
     if start is None or end is None:
@@ -168,6 +168,26 @@ def parse_data_spec(
         start=str(start),
         end=str(end),
     )
+
+
+def _normalize_timeframe(raw: Optional[str]) -> str:
+    if raw is None or str(raw).strip() == "":
+        return "1m"
+    value = str(raw).strip().lower()
+    aliases = {
+        "m1": "1m",
+        "1min": "1m",
+        "1mins": "1m",
+        "1minute": "1m",
+        "1minutes": "1m",
+        "h1": "1h",
+        "1hour": "1h",
+        "1hours": "1h",
+        "d1": "1d",
+        "1day": "1d",
+        "1days": "1d",
+    }
+    return aliases.get(value, value)
 
 
 def _parse_spec(raw: Mapping[str, Any]) -> Spec:

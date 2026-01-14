@@ -1,12 +1,23 @@
 {
   "strategy": {
-    "strategy_id": "OPT_STRAT_FILTERS",
+    "strategy_id": "DCA_EQUITY_STATS_GATE_CONDITION",
     "type": "dca_equity",
     "filters": [
       {
-        "type": "day_of_week",
+        "type": "stats_gate",
         "params": {
-          "blocked_days": [6]
+          "event": "always_true",
+          "target": "up_next_bar",
+          "threshold": 1.1,
+          "metric": "lift",
+          "comparator": "gte",
+          "condition_name": "day_of_week",
+          "condition_value": "2",
+          "symbol": "SPY",
+          "timeframe": "1D",
+          "min_samples": 10,
+          "allow_if_missing": false,
+          "allow_if_insufficient": false
         }
       }
     ],
@@ -14,7 +25,8 @@
       "asset_class": "EQUITY",
       "drawdown_reference": "ATH",
       "grid": [
-        {"dd": -5.0, "weight": 1.0}
+        {"dd": -5.0, "weight": 1.0},
+        {"dd": -10.0, "weight": 1.0}
       ],
       "tp_sl": {
         "enabled": false
@@ -38,18 +50,5 @@
   "performance": {
     "initial_capital": 10000,
     "capital_per_unit": 100
-  },
-  "optimization": {
-    "method": "grid",
-    "objective": "sharpe",
-    "search_space": {
-      "strategy.params.grid[0].dd": [-5.0, -8.0],
-      "strategy.params.require_crossing": [true, false]
-    },
-    "cache_features": {
-      "enabled": true,
-      "max_items": 32,
-      "ttl_seconds": 60
-    }
   }
 }

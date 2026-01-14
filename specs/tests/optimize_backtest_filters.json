@@ -44,7 +44,8 @@
     "objective": "sharpe",
     "search_space": {
       "signal.params.fast": [1, 2],
-      "signal.params.slow": [2, 3]
+      "signal.params.slow": [2, 3],
+      "signal.params.require_crossing": [true, false]
     },
     "cache_features": {
       "enabled": true,

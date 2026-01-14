@@ -43,6 +43,14 @@
       "max_bars": 5,
       "max_trades": 1,
       "max_seconds": 1.0,
+      "pruning": {
+        "enabled": true,
+        "max_drawdown_pct": 1.0,
+        "min_signals_after_bars": {
+          "bars": 3,
+          "min_signals": 2
+        }
+      },
       "windows": [
         {
           "start": "2025-01-01",

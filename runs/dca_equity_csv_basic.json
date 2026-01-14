@@ -1,0 +1,77 @@
+{
+  "strategy_id": "DCA_EQUITY_CSV_BASIC",
+  "strategy_type": "dca_equity",
+  "counts": {
+    "SPY": 2
+  },
+  "signals": {
+    "SPY": [
+      {
+        "strategy_id": "DCA_EQUITY_CSV_BASIC",
+        "symbol": "SPY",
+        "asset_class": "EQUITY",
+        "side": "BUY",
+        "ts_open_utc": "2025-01-06T00:00:00+00:00",
+        "qty": 1.0,
+        "meta": {
+          "dd_pct": -5.000000000000004,
+          "drawdown_pct": -5.000000000000004,
+          "grid_level": -5.0,
+          "palier_used": 1.0,
+          "grid_config": [
+            {
+              "dd": -10.0,
+              "weight": 1.0
+            },
+            {
+              "dd": -5.0,
+              "weight": 1.0
+            }
+          ],
+          "cycle_id": 1,
+          "max_dd_reached": -5.000000000000004,
+          "tp_target": null,
+          "tp_mode": null,
+          "tp_pct": null,
+          "be_pct": null,
+          "tp_rule": null,
+          "position_qty": 0.0,
+          "position_cost": 0.0
+        }
+      },
+      {
+        "strategy_id": "DCA_EQUITY_CSV_BASIC",
+        "symbol": "SPY",
+        "asset_class": "EQUITY",
+        "side": "BUY",
+        "ts_open_utc": "2025-01-12T00:00:00+00:00",
+        "qty": 1.0,
+        "meta": {
+          "dd_pct": -10.999999999999998,
+          "drawdown_pct": -10.999999999999998,
+          "grid_level": -10.0,
+          "palier_used": 1.0,
+          "grid_config": [
+            {
+              "dd": -10.0,
+              "weight": 1.0
+            },
+            {
+              "dd": -5.0,
+              "weight": 1.0
+            }
+          ],
+          "cycle_id": 1,
+          "max_dd_reached": -10.999999999999998,
+          "tp_target": null,
+          "tp_mode": null,
+          "tp_pct": null,
+          "be_pct": null,
+          "tp_rule": null,
+          "position_qty": 1.0,
+          "position_cost": 95.0
+        }
+      }
+    ]
+  }
+}

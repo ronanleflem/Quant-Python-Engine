@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import os
 import uuid
+import math
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Tuple
 
@@ -119,6 +120,16 @@ def _build_signal(spec: Mapping[str, Any], rows: List[Dict[str, Any]]) -> List[i
     raise ValueError(f"Unsupported signal type '{signal_type}'")
 
 
+def _validate_ohlc_rows(rows: List[Dict[str, Any]]) -> None:
+    for row in rows:
+        for col in ("open", "high", "low", "close"):
+            value = row.get(col)
+            if value is None:
+                raise ValueError(f"Missing OHLC value for '{col}'")
+            if isinstance(value, float) and math.isnan(value):
+                raise ValueError(f"NaN OHLC value for '{col}'")
+
+
 def _detect_symbol(rows: List[Dict[str, Any]]) -> str:
     symbols = sorted({str(r.get("symbol")) for r in rows if r.get("symbol")})
     if len(symbols) > 1:
@@ -189,6 +200,7 @@ def run_backtest_from_spec(spec: Mapping[str, Any]) -> Dict[str, Any]:
     rows, data_source = _load_rows(data_raw, data_spec, asset_class)
     if not rows:
         raise ValueError("No data rows loaded for backtest")
+    _validate_ohlc_rows(rows)
     optimization_cfg = spec.get("optimization", {}) or {}
     screening_cfg = optimization_cfg.get("screening") or spec.get("screening") or {}
     cache_cfg = optimization_cfg.get("cache_features") or {}

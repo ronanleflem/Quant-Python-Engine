@@ -1,0 +1,42 @@
+{
+  "strategy": {
+    "strategy_id": "DCA_EQUITY_INTRACANDLE",
+    "type": "dca_equity",
+    "params": {
+      "asset_class": "EQUITY",
+      "execution_mode": "intracandle",
+      "drawdown_reference": "ATH",
+      "grid": [
+        {"dd": -5.0, "weight": 1.0},
+        {"dd": -10.0, "weight": 1.0}
+      ],
+      "tp_sl": {
+        "enabled": true,
+        "mode": "per_grid_max_dd",
+        "sl_dd": -50.0,
+        "rules": [
+          {"max_dd_reached": -5.0, "tp_pct": 0.5, "be_pct": 0.2},
+          {"max_dd_reached": -10.0, "tp_pct": 0.5, "be_pct": 0.2}
+        ]
+      },
+      "require_crossing": false
+    }
+  },
+  "data": {
+    "source": "csv",
+    "path": "tests/data/ohlcv_ts_rebound.csv",
+    "timeframe": "1D",
+    "start": "2025-01-01",
+    "end": "2025-01-09"
+  },
+  "universe": [
+    {
+      "symbol": "SPY",
+      "asset_class": "EQUITY"
+    }
+  ],
+  "performance": {
+    "initial_capital": 10000,
+    "capital_per_unit": 100
+  }
+}

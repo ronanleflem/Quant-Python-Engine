@@ -1,0 +1,25 @@
+{
+  "data": {
+    "dataset_path": "tests/data/ohlcv_two_months.csv",
+    "symbols": ["EURUSD"],
+    "timeframe": "1D",
+    "start": "2025-01-01",
+    "end": "2025-02-28"
+  },
+  "events": [
+    { "name": "always_true", "params": {} }
+  ],
+  "conditions": [
+    { "name": "day_of_week", "params": {} }
+  ],
+  "targets": [
+    { "name": "up_next_bar", "params": {} }
+  ],
+  "validation": {
+    "train_months": 1,
+    "test_months": 1,
+    "folds": 1,
+    "embargo_days": 0
+  },
+  "artifacts": { "out_dir": "runs/stats_validation_folds" }
+}

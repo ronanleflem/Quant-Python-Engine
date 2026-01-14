@@ -1,18 +1,11 @@
 {
   "strategy": {
-    "strategy_id": "OPT_STRAT_FILTERS",
+    "strategy_id": "DCA_EQUITY_DD_3M",
     "type": "dca_equity",
-    "filters": [
-      {
-        "type": "day_of_week",
-        "params": {
-          "blocked_days": [6]
-        }
-      }
-    ],
     "params": {
       "asset_class": "EQUITY",
-      "drawdown_reference": "ATH",
+      "execution_mode": "bar_close",
+      "drawdown_reference": "3M",
       "grid": [
         {"dd": -5.0, "weight": 1.0}
       ],
@@ -38,18 +31,5 @@
   "performance": {
     "initial_capital": 10000,
     "capital_per_unit": 100
-  },
-  "optimization": {
-    "method": "grid",
-    "objective": "sharpe",
-    "search_space": {
-      "strategy.params.grid[0].dd": [-5.0, -8.0],
-      "strategy.params.require_crossing": [true, false]
-    },
-    "cache_features": {
-      "enabled": true,
-      "max_items": 32,
-      "ttl_seconds": 60
-    }
   }
 }

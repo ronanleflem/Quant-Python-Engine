@@ -2,9 +2,10 @@
 from __future__ import annotations
 import json
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, TYPE_CHECKING
 
-import pandas as pd
+if TYPE_CHECKING:
+    import pandas as pd
 
 
 def _json_default(obj: Any) -> Any:
@@ -41,8 +42,10 @@ def write_summary(path: str | Path, summary: Dict[str, Any]) -> None:
     Path(path).write_text(json.dumps(summary, indent=2, default=_json_default))
 
 
-def write_stats_summary(path: str | Path, df: pd.DataFrame) -> None:
+def write_stats_summary(path: str | Path, df: "pd.DataFrame") -> None:
     """Persist aggregate statistics to a Parquet file."""
+
+    import pandas as pd
 
     if not df.empty:
         df = df.copy()
@@ -52,7 +55,7 @@ def write_stats_summary(path: str | Path, df: pd.DataFrame) -> None:
     df.to_parquet(path, index=False)
 
 
-def write_stats_details(path: str | Path, df: pd.DataFrame) -> None:
+def write_stats_details(path: str | Path, df: "pd.DataFrame") -> None:
     """Persist detailed statistics to a Parquet file.
 
     Placeholder for future extensions (e.g. time to reversal).

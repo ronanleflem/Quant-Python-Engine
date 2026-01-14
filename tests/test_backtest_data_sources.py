@@ -5,6 +5,7 @@ from pathlib import Path
 import pandas as pd
 
 from quant_engine.backtest import runner as backtest_runner
+from quant_engine.core import dataset as dataset_module
 from quant_engine.strategies import runner as strategies_runner
 
 
@@ -107,3 +108,19 @@ def test_backtest_java_source(monkeypatch) -> None:
     _patch_fetch(monkeypatch, delta=fetch_delta, mysql=fetch_mysql, java=fetch_java)
     result = backtest_runner.run_backtest_from_spec(spec)
     _assert_payload(result)
+
+
+def test_backtest_rows_cache_hit(monkeypatch) -> None:
+    _reset_cache()
+    spec = _load_spec("backtest_csv_basic.json")
+    calls = {"count": 0}
+    original = dataset_module.load_dataset
+
+    def wrapped(spec_data):
+        calls["count"] += 1
+        return original(spec_data)
+
+    monkeypatch.setattr(dataset_module, "load_dataset", wrapped)
+    backtest_runner.run_backtest_from_spec(spec)
+    backtest_runner.run_backtest_from_spec(spec)
+    assert calls["count"] == 1

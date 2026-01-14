@@ -56,3 +56,29 @@ def test_strategy_dca_equity_trades_emitted(monkeypatch) -> None:
     result = strategies_runner.run_backtest_with_payload(spec)
     payload = result.get("payload", {})
     assert payload["trades"]
+
+
+def test_strategy_dca_equity_intracandle_trades(monkeypatch) -> None:
+    monkeypatch.delenv("DB_DSN", raising=False)
+    _reset_cache()
+    spec = _load_spec("strategy_dca_equity_intracandle.json")
+    result = strategies_runner.run_backtest_with_payload(spec)
+    payload = result.get("payload", {})
+    assert payload["trades"]
+
+
+def test_strategy_dca_equity_drawdown_3m(monkeypatch) -> None:
+    monkeypatch.delenv("DB_DSN", raising=False)
+    _reset_cache()
+    spec = _load_spec("strategy_dca_equity_drawdown_3m.json")
+    result = strategies_runner.run_backtest_with_payload(spec)
+    _assert_payload(result)
+
+
+def test_strategy_dca_equity_require_crossing(monkeypatch) -> None:
+    monkeypatch.delenv("DB_DSN", raising=False)
+    _reset_cache()
+    spec = _load_spec("strategy_dca_equity_require_crossing.json")
+    result = strategies_runner.run_backtest_with_payload(spec)
+    _assert_payload(result)
+
