@@ -326,13 +326,15 @@ def run_stats(spec: StatsSpec) -> pd.DataFrame:
             total_n = int(g["n"].sum())
             total_successes = int(g["successes"].sum())
             p0 = total_successes / total_n if total_n else 0.0
-            pvals = []
-            for _, row in g.iterrows():
-                direction = "greater" if row["lift_freq"] >= 0 else "less"
-                pval = p_value_binomial_onesided_normal(
-                    int(row["successes"]), int(row["n"]), p0, direction=direction
+            directions = g["lift_freq"].ge(0).map({True: "greater", False: "less"}).to_numpy()
+            pvals = [
+                p_value_binomial_onesided_normal(
+                    int(successes), int(n), p0, direction=direction
                 )
-                pvals.append(pval)
+                for successes, n, direction in zip(
+                    g["successes"].to_numpy(), g["n"].to_numpy(), directions
+                )
+            ]
             qvals = benjamini_hochberg(pvals)
             out.loc[idx, "p_value"] = pvals
             out.loc[idx, "q_value"] = qvals
