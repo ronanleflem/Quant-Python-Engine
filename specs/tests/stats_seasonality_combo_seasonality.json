@@ -1,0 +1,48 @@
+{
+  "data": {
+    "dataset_path": "tests/data/ohlcv.csv",
+    "symbols": ["EURUSD"],
+    "timeframe": "M1",
+    "start": "2025-01-01",
+    "end": "2025-01-01"
+  },
+  "profile": {
+    "by_hour": true,
+    "by_dow": true,
+    "by_month": false,
+    "measure": "direction",
+    "ret_horizon": 1,
+    "min_samples_bin": 1
+  },
+  "signal": {
+    "method": "threshold",
+    "threshold": -1.0,
+    "dims": ["hour", "dow"],
+    "combine": "or"
+  },
+  "execution": {
+    "slippage_bps": 0.0,
+    "commission_bps": 0.0
+  },
+  "risk": {
+    "max_positions": 1,
+    "max_allocation": 1.0
+  },
+  "tp_sl": {
+    "stop_loss": 1.0,
+    "take_profit": 1.0
+  },
+  "validation": {
+    "min_trades": 0,
+    "train_months": 0,
+    "test_months": 1,
+    "folds": 1,
+    "embargo_days": 0
+  },
+  "artifacts": {
+    "out_dir": "runs/stats_seasonality_combo/seasonality"
+  },
+  "persistence": {
+    "enabled": false
+  }
+}

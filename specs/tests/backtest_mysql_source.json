@@ -1,0 +1,41 @@
+{
+  "strategy": {
+    "strategy_id": "BT_MYSQL_BASIC",
+    "asset_class": "FX"
+  },
+  "data": {
+    "mysql_env": "QE_MARKETDATA_MYSQL_URL",
+    "schema": "marketdata",
+    "table": "ohlcv",
+    "symbol_col": "symbol",
+    "ts_col": "ts",
+    "open_col": "open",
+    "high_col": "high",
+    "low_col": "low",
+    "close_col": "close",
+    "volume_col": "volume",
+    "symbols": ["EURUSD"],
+    "timeframe": "1m",
+    "start": "2025-01-01",
+    "end": "2025-01-01"
+  },
+  "signal": {
+    "type": "ema_cross",
+    "params": {
+      "fast": 2,
+      "slow": 5,
+      "require_crossing": false
+    }
+  },
+  "tpsl": {
+    "atr_window": 3,
+    "atr_k": 1.0,
+    "r_mult": 2.0
+  },
+  "performance": {
+    "initial_capital": 10000
+  },
+  "persistence": {
+    "enabled": false
+  }
+}

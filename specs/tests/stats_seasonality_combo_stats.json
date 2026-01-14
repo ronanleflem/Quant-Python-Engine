@@ -1,0 +1,20 @@
+{
+  "data": {
+    "dataset_path": "tests/data/ohlcv.csv",
+    "symbols": ["EURUSD"],
+    "timeframe": "M1",
+    "start": "2025-01-01",
+    "end": "2025-01-01"
+  },
+  "events": [
+    { "name": "always_true", "params": {} }
+  ],
+  "conditions": [
+    { "name": "day_of_week", "params": {} }
+  ],
+  "targets": [
+    { "name": "up_next_bar", "params": {} }
+  ],
+  "validation": null,
+  "artifacts": { "out_dir": "runs/stats_seasonality_combo/stats" }
+}

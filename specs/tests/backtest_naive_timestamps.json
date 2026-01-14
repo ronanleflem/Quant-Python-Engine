@@ -1,0 +1,32 @@
+{
+  "strategy": {
+    "strategy_id": "BT_NAIVE_TS",
+    "asset_class": "FX"
+  },
+  "data": {
+    "dataset_path": "tests/data/ohlcv_naive.csv",
+    "symbols": ["EURUSD"],
+    "timeframe": "1m",
+    "start": "2025-01-01",
+    "end": "2025-01-01"
+  },
+  "signal": {
+    "type": "ema_cross",
+    "params": {
+      "fast": 1,
+      "slow": 2,
+      "require_crossing": false
+    }
+  },
+  "tpsl": {
+    "atr_window": 2,
+    "atr_k": 1.0,
+    "r_mult": 2.0
+  },
+  "performance": {
+    "initial_capital": 10000
+  },
+  "persistence": {
+    "enabled": false
+  }
+}

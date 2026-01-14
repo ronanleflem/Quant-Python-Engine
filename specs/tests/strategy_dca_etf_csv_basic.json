@@ -1,0 +1,35 @@
+{
+  "strategy": {
+    "strategy_id": "DCA_ETF_CSV_BASIC",
+    "type": "dca_etf",
+    "params": {
+      "asset_class": "ETF",
+      "grid": [
+        {"dd": -5.0, "weight": 1.0},
+        {"dd": -10.0, "weight": 1.0}
+      ],
+      "reset_on_new_high": true
+    }
+  },
+  "data": {
+    "source": "csv",
+    "path": "tests/data/ohlcv_ts.csv",
+    "timeframe": "1D",
+    "start": "2025-01-01",
+    "end": "2025-01-20"
+  },
+  "universe": [
+    {
+      "symbol": "SPY",
+      "asset_class": "ETF"
+    }
+  ],
+  "performance": {
+    "initial_capital": 10000,
+    "capital_per_unit": 100
+  },
+  "output": {
+    "path": "runs/dca_etf_csv_basic.json",
+    "format": "json"
+  }
+}

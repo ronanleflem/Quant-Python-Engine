@@ -129,14 +129,14 @@ def _long_form(dataset: List[Dict[str, Any]], spec: StatsSpec) -> pd.DataFrame:
 
     event_long = (
         pd.concat({name: df[col] for name, col in event_cols}, axis=1)
-        .stack(dropna=False)
+        .stack(future_stack=True)
         .rename("event_on")
         .reset_index()
         .rename(columns={"level_0": "row_id", "level_1": "event"})
     )
     target_long = (
         pd.concat({name: df[col] for name, col in tgt_cols}, axis=1)
-        .stack(dropna=False)
+        .stack(future_stack=True)
         .rename("outcome_value")
         .reset_index()
         .rename(columns={"level_0": "row_id", "level_1": "target"})
@@ -145,7 +145,7 @@ def _long_form(dataset: List[Dict[str, Any]], spec: StatsSpec) -> pd.DataFrame:
     if cond_cols:
         condition_long = (
             pd.concat({name: df[col] for name, col in cond_cols}, axis=1)
-            .stack(dropna=False)
+        .stack(future_stack=True)
             .rename("condition_value")
             .reset_index()
             .rename(columns={"level_0": "row_id", "level_1": "condition_name"})

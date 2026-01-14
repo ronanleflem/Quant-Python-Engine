@@ -1,0 +1,56 @@
+{
+  "strategy": {
+    "strategy_id": "DCA_EQUITY_STATS_GATE_TEST",
+    "type": "dca_equity",
+    "filters": [
+      {
+        "type": "stats_gate",
+        "params": {
+          "event": "always_true",
+          "target": "up_next_bar",
+          "threshold": 0.6,
+          "metric": "p_hat",
+          "comparator": "gte",
+          "symbol": "SPY",
+          "timeframe": "1D",
+          "min_samples": 300,
+          "allow_if_missing": false,
+          "allow_if_insufficient": false
+        }
+      }
+    ],
+    "params": {
+      "asset_class": "EQUITY",
+      "drawdown_reference": "ATH",
+      "grid": [
+        {"dd": -5.0, "weight": 1.0},
+        {"dd": -10.0, "weight": 1.0}
+      ],
+      "tp_sl": {
+        "enabled": false
+      },
+      "require_crossing": false
+    }
+  },
+  "data": {
+    "source": "csv",
+    "path": "tests/data/ohlcv_ts.csv",
+    "timeframe": "1D",
+    "start": "2025-01-01",
+    "end": "2025-01-20"
+  },
+  "universe": [
+    {
+      "symbol": "SPY",
+      "asset_class": "EQUITY"
+    }
+  ],
+  "performance": {
+    "initial_capital": 10000,
+    "capital_per_unit": 100
+  },
+  "output": {
+    "path": "runs/dca_equity_stats_gate_test.json",
+    "format": "json"
+  }
+}

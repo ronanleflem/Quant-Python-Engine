@@ -1,0 +1,43 @@
+{
+  "strategy": {
+    "strategy_id": "OPT_BT_GRID_BASIC",
+    "asset_class": "FX"
+  },
+  "data": {
+    "dataset_path": "tests/data/ohlcv.csv",
+    "symbols": ["EURUSD"],
+    "timeframe": "1m",
+    "start": "2025-01-01",
+    "end": "2025-01-01"
+  },
+  "signal": {
+    "type": "ema_cross",
+    "params": {
+      "fast": 1,
+      "slow": 2,
+      "require_crossing": false
+    }
+  },
+  "tpsl": {
+    "atr_window": 3,
+    "atr_k": 1.0,
+    "r_mult": 2.0,
+    "slippage_bps": 0.0,
+    "fee_bps": 0.0
+  },
+  "performance": {
+    "initial_capital": 10000
+  },
+  "persistence": {
+    "enabled": false
+  },
+  "optimization": {
+    "method": "grid",
+    "objective": "sharpe",
+    "search_space": {
+      "signal.params.fast": [1, 2],
+      "signal.params.slow": [2, 3],
+      "tpsl.atr_k": [0.5, 1.0]
+    }
+  }
+}

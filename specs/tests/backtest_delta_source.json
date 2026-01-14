@@ -1,0 +1,34 @@
+{
+  "strategy": {
+    "strategy_id": "BT_DELTA_BASIC",
+    "asset_class": "FX"
+  },
+  "data": {
+    "delta_base": "s3://quant-delta-dev",
+    "delta_prefix": "delta",
+    "delta_table": "EURUSD",
+    "symbols": ["EURUSD"],
+    "timeframe": "1m",
+    "start": "2025-01-01",
+    "end": "2025-01-01"
+  },
+  "signal": {
+    "type": "ema_cross",
+    "params": {
+      "fast": 2,
+      "slow": 5,
+      "require_crossing": false
+    }
+  },
+  "tpsl": {
+    "atr_window": 3,
+    "atr_k": 1.0,
+    "r_mult": 2.0
+  },
+  "performance": {
+    "initial_capital": 10000
+  },
+  "persistence": {
+    "enabled": false
+  }
+}

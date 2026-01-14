@@ -1,0 +1,41 @@
+{
+  "strategy": {
+    "strategy_id": "OPT_STRAT_GRID_BASIC",
+    "type": "dca_equity",
+    "params": {
+      "asset_class": "EQUITY",
+      "drawdown_reference": "ATH",
+      "grid": [
+        {"dd": -5.0, "weight": 1.0}
+      ],
+      "tp_sl": {
+        "enabled": false
+      },
+      "require_crossing": false
+    }
+  },
+  "data": {
+    "source": "csv",
+    "path": "tests/data/ohlcv_ts.csv",
+    "timeframe": "1D",
+    "start": "2025-01-01",
+    "end": "2025-01-20"
+  },
+  "universe": [
+    {
+      "symbol": "SPY",
+      "asset_class": "EQUITY"
+    }
+  ],
+  "performance": {
+    "initial_capital": 10000,
+    "capital_per_unit": 100
+  },
+  "optimization": {
+    "method": "grid",
+    "objective": "sharpe",
+    "search_space": {
+      "strategy.params.grid[0].dd": [-5.0, -8.0]
+    }
+  }
+}
