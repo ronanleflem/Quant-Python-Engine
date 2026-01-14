@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
-from urllib import error
+
+import requests
 
 import pytest
 
@@ -14,10 +15,10 @@ SPEC_PATH = Path(__file__).parent / "data" / "spec_example.json"
 
 
 def test_submit_connection_error(monkeypatch) -> None:
-    def raise_urlopen(*_args, **_kwargs):
-        raise error.URLError("Service down")
+    def raise_request(*_args, **_kwargs):
+        raise requests.ConnectionError("Service down")
 
-    monkeypatch.setattr(cli_main.request, "urlopen", raise_urlopen)
+    monkeypatch.setattr(cli_main, "request_json", raise_request)
     runner = CliRunner()
 
     result = runner.invoke(cli_main.app, ["submit", "--spec", str(SPEC_PATH)])
@@ -34,10 +35,10 @@ def test_submit_connection_error(monkeypatch) -> None:
     ],
 )
 def test_submit_http_error(monkeypatch, status, reason) -> None:
-    def raise_urlopen(*_args, **_kwargs):
-        raise error.HTTPError("http://127.0.0.1:8000/submit", status, reason, None, None)
+    def raise_request(*_args, **_kwargs):
+        raise requests.HTTPError(f"HTTP {status}: {reason}")
 
-    monkeypatch.setattr(cli_main.request, "urlopen", raise_urlopen)
+    monkeypatch.setattr(cli_main, "request_json", raise_request)
     runner = CliRunner()
 
     result = runner.invoke(cli_main.app, ["submit", "--spec", str(SPEC_PATH)])

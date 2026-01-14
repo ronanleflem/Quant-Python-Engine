@@ -643,7 +643,7 @@ class LiveRunner:
             ts = ts.tz_localize("UTC")
         else:
             ts = ts.tz_convert("UTC")
-        now = pd.Timestamp.utcnow().tz_localize("UTC")
+        now = pd.Timestamp.now(tz="UTC")
         bar_age_sec = max(0.0, (now - ts).total_seconds())
         backlog_bars = None
         if self._timeframe_seconds:

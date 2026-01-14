@@ -27,13 +27,15 @@ def test_session_time_filter_london_window() -> None:
 
     selected_hours = df.index[mask]
     if not selected_hours.empty:
-        hours = selected_hours.to_series().dt.hour
-        assert ((hours >= 7) & (hours < 15)).all()
+        local = selected_hours.tz_convert("Europe/London")
+        minutes = local.hour * 60 + local.minute
+        assert ((minutes >= 8 * 60) & (minutes < 16 * 60 + 30)).all()
 
     outside_hours = df.index[~mask]
     if not outside_hours.empty:
-        hours = outside_hours.to_series().dt.hour
-        assert ((hours < 7) | (hours >= 15)).all()
+        local = outside_hours.tz_convert("Europe/London")
+        minutes = local.hour * 60 + local.minute
+        assert ((minutes < 8 * 60) | (minutes >= 16 * 60 + 30)).all()
 
 
 def test_day_of_week_filter_blocks_weekend() -> None:
