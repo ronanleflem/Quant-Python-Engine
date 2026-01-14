@@ -727,7 +727,8 @@ Tu peux limiter le nombre de runs conserves et purger les artefacts lourds :
         "keep_best_runs": 3,
         "mode": "heavy_only",
         "dry_run": false,
-        "base_dir": "runs"
+        "base_dir": "runs",
+        "scope": "current_dataset"
       }
     }
   }
@@ -738,7 +739,11 @@ Tu peux limiter le nombre de runs conserves et purger les artefacts lourds :
 - `keep_best_runs` : conserve les N meilleurs runs par (strategy_id, dataset_id).
 - `mode`: `heavy_only` (purge `promoted/` + `full_pass/`) ou `full` (supprime le run complet).
 - `dry_run`: log sans suppression.
-- `base_dir`: repertoire racine **obligatoire** a scanner pour la retention. Doit contenir le `out_dir` courant sinon la retention est ignoree. Sans `base_dir`, la retention est desactivee par securite.
+- `base_dir`: repertoire racine **obligatoire** a scanner pour la retention (chemin absolu ou relatif a `cwd`). Doit contenir le `out_dir` courant sinon la retention est ignoree. Sans `base_dir`, la retention est desactivee par securite.
+- `scope`: **obligatoire** pour eviter les suppressions involontaires.
+  - `current_dataset` : uniquement les runs du meme `(strategy_id, dataset_id)`.
+  - `current_config` : uniquement les runs qui partagent `config_hash` (ou `data_hash`).
+  - `base_dir` : autorise la retention sur tous les runs du `base_dir`.
 
 ## Roadmap "niveau pro" (priorites)
 
