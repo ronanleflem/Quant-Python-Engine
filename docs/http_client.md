@@ -17,3 +17,8 @@ Ces variables d'environnement permettent d'ajuster la résilience réseau sans m
 
 - Les statuts `429, 500, 502, 503, 504` déclenchent un retry.
 - Le client est mutualisé pour limiter la création de connexions TCP.
+
+## Intégrations
+
+- La CLI utilise `QE_API_BASE_URL` (défaut `http://127.0.0.1:8000`) avec la session partagée.
+- Le client Java utilise `QE_JAVA_BASE_URL` (défaut `http://localhost:8090`) avec la session partagée.

@@ -1,6 +1,6 @@
 
-
 import json
+import os
 from dataclasses import asdict
 from enum import Enum
 from pathlib import Path
@@ -33,11 +33,40 @@ app.add_typer(live_app, name="live")
 app.add_typer(strategy_app, name="strategy")
 app.add_typer(backtest_app, name="backtest")
 
+API_BASE_URL = os.getenv("QE_API_BASE_URL", "http://127.0.0.1:8000")
+
 
 class RunStatus(str, Enum):
     RUNNING = "running"
     FINISHED = "finished"
     FAILED = "failed"
+
+
+def _api_url(path: str, params: Optional[Dict[str, Any]] = None) -> str:
+    if not path.startswith("/"):
+        path = "/" + path
+    base_url = API_BASE_URL.rstrip("/")
+    url = f"{base_url}{path}"
+    if params:
+        url = f"{url}?{parse.urlencode(params)}"
+    return url
+
+
+def _request_api(
+    method: str,
+    path: str,
+    *,
+    params: Optional[Dict[str, Any]] = None,
+    payload: Optional[Dict[str, Any]] = None,
+) -> Any:
+    url = _api_url(path, params=params)
+    return request_json(
+        method,
+        url,
+        json=payload,
+        timeout=DEFAULT_TIMEOUT,
+        session=get_shared_session(),
+    )
 
 
 @app.command("run-local")
@@ -74,13 +103,7 @@ def submit(
     else:
         payload = asdict(sp)
     try:
-        payload = request_json(
-            "POST",
-            "http://127.0.0.1:8000/submit",
-            json=payload,
-            timeout=DEFAULT_TIMEOUT,
-            session=get_shared_session(),
-        )
+        payload = _request_api("POST", "/submit", payload=payload)
     except Exception as exc:
         typer.echo(f"Connection error: {exc}")
         raise typer.Exit(1)
@@ -137,14 +160,8 @@ def stats_show(
     }
     if timeframe is not None:
         params["timeframe"] = timeframe
-    url = "http://127.0.0.1:8000/stats?" + parse.urlencode(params)
     try:
-        rows = request_json(
-            "GET",
-            url,
-            timeout=DEFAULT_TIMEOUT,
-            session=get_shared_session(),
-        )
+        rows = _request_api("GET", "/stats", params=params)
     except Exception as exc:
         typer.echo(f"Connection error: {exc}")
         raise typer.Exit(1)
@@ -261,14 +278,8 @@ def seasonality_profiles(
         params["measure"] = measure
     if metrics:
         params["metrics"] = metrics
-    url = "http://127.0.0.1:8000/seasonality/profiles?" + parse.urlencode(params)
     try:
-        rows = request_json(
-            "GET",
-            url,
-            timeout=DEFAULT_TIMEOUT,
-            session=get_shared_session(),
-        )
+        rows = _request_api("GET", "/seasonality/profiles", params=params)
     except Exception as exc:
         typer.echo(f"Connection error: {exc}")
         raise typer.Exit(1)
@@ -332,14 +343,8 @@ def seasonality_compare(
         }
         if timeframe is not None:
             params["timeframe"] = timeframe
-        url = "http://127.0.0.1:8000/seasonality/profiles?" + parse.urlencode(params)
         try:
-            rows = request_json(
-                "GET",
-                url,
-                timeout=DEFAULT_TIMEOUT,
-                session=get_shared_session(),
-            )
+            rows = _request_api("GET", "/seasonality/profiles", params=params)
         except Exception as exc:
             typer.echo(f"Connection error: {exc}")
             raise typer.Exit(1)
@@ -381,14 +386,8 @@ def list_runs(
     params = {"page": 1, "page_size": limit}
     if status is not None:
         params["status"] = status.value
-    url = "http://127.0.0.1:8000/runs?" + parse.urlencode(params)
     try:
-        runs = request_json(
-            "GET",
-            url,
-            timeout=DEFAULT_TIMEOUT,
-            session=get_shared_session(),
-        )
+        runs = _request_api("GET", "/runs", params=params)
     except Exception as exc:
         typer.echo(f"Connection error: {exc}")
         raise typer.Exit(1)
@@ -404,14 +403,8 @@ def list_runs(
 def show_run(run_id: str) -> None:
     """Show details about a specific run."""
 
-    url = f"http://127.0.0.1:8000/runs/{run_id}"
     try:
-        detail = request_json(
-            "GET",
-            url,
-            timeout=DEFAULT_TIMEOUT,
-            session=get_shared_session(),
-        )
+        detail = _request_api("GET", f"/runs/{run_id}")
     except Exception as exc:
         typer.echo(f"Connection error: {exc}")
         raise typer.Exit(1)

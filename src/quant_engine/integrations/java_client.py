@@ -126,9 +126,9 @@ def get_positions() -> List[Dict[str, Any]]:
     url = BASE_URL + "/api/portfolio/positions"
     try:
         session = get_shared_session()
-        resp = session.get(url, timeout=DEFAULT_TIMEOUT)
-        if resp.status_code == 200 and resp.content:
-            return resp.json()
+        payload = request_json("GET", url, session=session, timeout=DEFAULT_TIMEOUT)
+        if payload:
+            return payload
     except Exception:
         pass
     return []
