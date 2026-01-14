@@ -39,6 +39,13 @@ JOB_TYPE_SEASONALITY_RUN = "seasonality_run"
 JOB_TYPE_SEASONALITY_OPTIMIZE = "seasonality_optimize"
 
 JOB_STATUSES = {"pending", "running", "completed", "failed"}
+JOB_RESULT_WITH_ID = {
+    JOB_TYPE_STATS,
+    JOB_TYPE_LEVELS_BUILD,
+    JOB_TYPE_LEVELS_FILL,
+    JOB_TYPE_SEASONALITY_RUN,
+    JOB_TYPE_SEASONALITY_OPTIMIZE,
+}
 
 
 def _utc_now() -> str:
@@ -165,26 +172,124 @@ def _latest_job(job_type: str) -> Dict[str, Any] | None:
         return payload
 
 
-def _run_job(job_type: str, payload: Any | None, runner) -> tuple[str, Any]:
+def _enqueue_job(job_type: str, payload: Any | None) -> str:
     job_id = ids.generate_id()
     _init_job(job_id, job_type, payload=payload)
-    _update_job_status(job_id, "running")
+    return job_id
+
+
+def _build_job_result(job_type: str, job_id: str, result: Any) -> Any:
+    if job_type == JOB_TYPE_STATS:
+        payload: Dict[str, Any] = _stats_payload_from_df(result)
+        payload["job_id"] = job_id
+        return payload
+    if job_type in JOB_RESULT_WITH_ID:
+        if isinstance(result, dict):
+            payload = dict(result)
+        else:
+            payload = {"result": result}
+        payload["job_id"] = job_id
+        return payload
+    return result
+
+
+def _run_job_payload(job_type: str, payload: Any | None) -> Any:
+    if job_type == JOB_TYPE_OPTIMIZATION:
+        spec_payload = payload["spec"] if isinstance(payload, dict) and "spec" in payload else payload
+        spec_obj = spec_module.spec_from_dict(spec_payload)
+        return run_optimisation(spec_obj)
+    if job_type == JOB_TYPE_STATS:
+        spec_obj = schemas.StatsSpec.model_validate(payload or {})
+        return stats_runner.run_stats(spec_obj)
+    if job_type == JOB_TYPE_LEVELS_BUILD:
+        spec_obj = LevelsBuildSpec.model_validate(payload or {})
+        return run_levels_build(spec_obj)
+    if job_type == JOB_TYPE_LEVELS_FILL:
+        spec_obj = LevelsBuildSpec.model_validate(payload or {})
+        return run_levels_fill(spec_obj)
+    if job_type == JOB_TYPE_SEASONALITY_RUN:
+        spec_obj = schemas.SeasonalitySpec.model_validate(payload or {})
+        return seasonality_runner.run(spec_obj)
+    if job_type == JOB_TYPE_SEASONALITY_OPTIMIZE:
+        spec_obj = schemas.SeasonalitySpec.model_validate(payload or {})
+        return seasonality_run_optimization(spec_obj)
+    raise ValueError(f"Unknown job type: {job_type}")
+
+
+def _execute_job(
+    job_id: str,
+    job_type: str,
+    payload: Any | None,
+    *,
+    set_running: bool = True,
+) -> Any:
+    if set_running:
+        _update_job_status(job_id, "running")
     try:
-        result = runner()
+        result = _run_job_payload(job_type, payload)
     except Exception as exc:  # pragma: no cover - defensive
         _update_job_status(job_id, "failed", error=str(exc))
         raise
-    _update_job_result(job_id, result)
+    payload_out = _build_job_result(job_type, job_id, result)
+    _update_job_result(job_id, payload_out)
+    return payload_out
+
+
+def _run_job(job_type: str, payload: Any | None) -> tuple[str, Any]:
+    job_id = _enqueue_job(job_type, payload=payload)
+    result = _execute_job(job_id, job_type, payload, set_running=True)
     return job_id, result
 
 
-def submit(spec: Spec) -> schemas.SubmitResponse:
-    job_id, _ = _run_job(
-        JOB_TYPE_OPTIMIZATION,
-        payload={"spec": asdict(spec)},
-        runner=lambda: run_optimisation(spec),
+def _claim_next_job(job_type: str | None = None) -> Dict[str, Any] | None:
+    with db.session() as conn:
+        query = "SELECT job_id FROM api_jobs WHERE status = 'pending'"
+        params: List[Any] = []
+        if job_type:
+            query += " AND job_type = ?"
+            params.append(job_type)
+        query += " ORDER BY created_at ASC LIMIT 1"
+        row = conn.execute(query, params).fetchone()
+        if not row:
+            return None
+        job_id = row["job_id"]
+        now = _utc_now()
+        conn.execute(
+            """
+            UPDATE api_jobs
+            SET status = ?, started_at = ?, updated_at = ?
+            WHERE job_id = ? AND status = 'pending'
+            """,
+            ("running", now, now, job_id),
+        )
+    job = _get_job(job_id)
+    if job is None or job.get("status") != "running":
+        return None
+    return job
+
+
+def run_next_job(job_type: str | None = None) -> Dict[str, Any] | None:
+    """Claim and execute the next queued job (used by async workers)."""
+
+    job = _claim_next_job(job_type)
+    if not job:
+        return None
+    return _execute_job(
+        job_id=job["job_id"],
+        job_type=job["job_type"],
+        payload=job.get("payload"),
+        set_running=False,
     )
+
+
+def submit(spec: Spec) -> schemas.SubmitResponse:
+    job_id, _ = _run_job(JOB_TYPE_OPTIMIZATION, payload={"spec": asdict(spec)})
     return schemas.SubmitResponse(id=job_id)
+
+
+def submit_async(spec: Spec) -> schemas.StatusResponse:
+    job_id = _enqueue_job(JOB_TYPE_OPTIMIZATION, payload={"spec": asdict(spec)})
+    return schemas.StatusResponse(status="pending", id=job_id)
 
 
 def status(job_id: str) -> schemas.StatusResponse:
@@ -208,18 +313,15 @@ def result(job_id: str) -> schemas.ResultResponse:
 def stats_run(spec: schemas.StatsSpec) -> schemas.StatusResponse:
     """Execute a statistics run synchronously and store the result."""
 
-    job_id = ids.generate_id()
-    _init_job(job_id, JOB_TYPE_STATS, payload=spec.model_dump(mode="json"))
-    _update_job_status(job_id, "running")
-    try:
-        result_df = stats_runner.run_stats(spec)
-    except Exception as exc:  # pragma: no cover - defensive
-        _update_job_status(job_id, "failed", error=str(exc))
-        raise
-    payload = _stats_payload_from_df(result_df)
-    payload["job_id"] = job_id
-    _update_job_result(job_id, payload)
+    job_id, _ = _run_job(JOB_TYPE_STATS, payload=spec.model_dump(mode="json"))
     return schemas.StatusResponse(status="completed", id=job_id)
+
+
+def stats_run_async(spec: schemas.StatsSpec) -> schemas.StatusResponse:
+    """Queue a statistics run to be processed by an async worker."""
+
+    job_id = _enqueue_job(JOB_TYPE_STATS, payload=spec.model_dump(mode="json"))
+    return schemas.StatusResponse(status="pending", id=job_id)
 
 
 def _stats_payload_from_df(df: Any) -> Dict[str, Any]:
@@ -398,35 +500,29 @@ def _nearest_levels(
 def levels_build(spec: LevelsBuildSpec) -> Dict[str, Any]:
     """Execute a levels build request synchronously."""
 
-    job_id, result = _run_job(
-        JOB_TYPE_LEVELS_BUILD,
-        payload=spec.model_dump(mode="json"),
-        runner=lambda: run_levels_build(spec),
-    )
-    if isinstance(result, dict):
-        payload = dict(result)
-    else:
-        payload = {"result": result}
-    payload["job_id"] = job_id
-    _update_job_result(job_id, payload)
+    _, payload = _run_job(JOB_TYPE_LEVELS_BUILD, payload=spec.model_dump(mode="json"))
     return payload
 
 
 def levels_fill(spec: LevelsBuildSpec) -> Dict[str, Any]:
     """Refresh fills for GAP and FVG levels."""
 
-    job_id, result = _run_job(
-        JOB_TYPE_LEVELS_FILL,
-        payload=spec.model_dump(mode="json"),
-        runner=lambda: run_levels_fill(spec),
-    )
-    if isinstance(result, dict):
-        payload = dict(result)
-    else:
-        payload = {"result": result}
-    payload["job_id"] = job_id
-    _update_job_result(job_id, payload)
+    _, payload = _run_job(JOB_TYPE_LEVELS_FILL, payload=spec.model_dump(mode="json"))
     return payload
+
+
+def levels_build_async(spec: LevelsBuildSpec) -> schemas.StatusResponse:
+    """Queue a levels build request for async processing."""
+
+    job_id = _enqueue_job(JOB_TYPE_LEVELS_BUILD, payload=spec.model_dump(mode="json"))
+    return schemas.StatusResponse(status="pending", id=job_id)
+
+
+def levels_fill_async(spec: LevelsBuildSpec) -> schemas.StatusResponse:
+    """Queue a levels fill request for async processing."""
+
+    job_id = _enqueue_job(JOB_TYPE_LEVELS_FILL, payload=spec.model_dump(mode="json"))
+    return schemas.StatusResponse(status="pending", id=job_id)
 
 
 def levels_list(
@@ -512,35 +608,29 @@ def levels_nearest(
 def seasonality_run(spec: schemas.SeasonalitySpec) -> schemas.ResultResponse:
     """Execute a seasonality run synchronously and return its summary."""
 
-    job_id, result = _run_job(
-        JOB_TYPE_SEASONALITY_RUN,
-        payload=spec.model_dump(mode="json"),
-        runner=lambda: seasonality_runner.run(spec),
-    )
-    if isinstance(result, dict):
-        payload = dict(result)
-    else:
-        payload = {"result": result}
-    payload["job_id"] = job_id
-    _update_job_result(job_id, payload)
+    _, payload = _run_job(JOB_TYPE_SEASONALITY_RUN, payload=spec.model_dump(mode="json"))
     return schemas.ResultResponse(result=payload)
 
 
 def seasonality_optimize(spec: schemas.SeasonalitySpec) -> schemas.ResultResponse:
     """Launch the seasonality optimisation loop and return its outcome."""
 
-    job_id, result = _run_job(
-        JOB_TYPE_SEASONALITY_OPTIMIZE,
-        payload=spec.model_dump(mode="json"),
-        runner=lambda: seasonality_run_optimization(spec),
-    )
-    if isinstance(result, dict):
-        payload = dict(result)
-    else:
-        payload = {"result": result}
-    payload["job_id"] = job_id
-    _update_job_result(job_id, payload)
+    _, payload = _run_job(JOB_TYPE_SEASONALITY_OPTIMIZE, payload=spec.model_dump(mode="json"))
     return schemas.ResultResponse(result=payload)
+
+
+def seasonality_run_async(spec: schemas.SeasonalitySpec) -> schemas.StatusResponse:
+    """Queue a seasonality run for async processing."""
+
+    job_id = _enqueue_job(JOB_TYPE_SEASONALITY_RUN, payload=spec.model_dump(mode="json"))
+    return schemas.StatusResponse(status="pending", id=job_id)
+
+
+def seasonality_optimize_async(spec: schemas.SeasonalitySpec) -> schemas.StatusResponse:
+    """Queue a seasonality optimisation for async processing."""
+
+    job_id = _enqueue_job(JOB_TYPE_SEASONALITY_OPTIMIZE, payload=spec.model_dump(mode="json"))
+    return schemas.StatusResponse(status="pending", id=job_id)
 
 
 def list_seasonality_profiles(
@@ -998,6 +1088,17 @@ def submit_endpoint(payload: Dict[str, Any]) -> schemas.SubmitResponse:
     return submit(spec_obj)
 
 
+@fastapi_app.post('/submit/async', response_model=schemas.StatusResponse)
+def submit_async_endpoint(payload: Dict[str, Any]) -> schemas.StatusResponse:
+    """Queue an optimisation run and return a pending job id."""
+
+    try:
+        spec_obj = spec_module.spec_from_dict(payload)
+    except (KeyError, TypeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid spec: {exc}") from exc
+    return submit_async(spec_obj)
+
+
 @fastapi_app.get('/status/{job_id}', response_model=schemas.StatusResponse)
 def status_endpoint(job_id: str) -> schemas.StatusResponse:
     """Return the status for a submitted job."""
@@ -1033,6 +1134,13 @@ def stats_run_endpoint(spec: schemas.StatsSpec) -> schemas.StatusResponse:
     return stats_run(spec)
 
 
+@fastapi_app.post('/stats/run/async', response_model=schemas.StatusResponse)
+def stats_run_async_endpoint(spec: schemas.StatsSpec) -> schemas.StatusResponse:
+    """Queue a statistics computation for async processing."""
+
+    return stats_run_async(spec)
+
+
 @fastapi_app.get('/stats/result', response_model=schemas.ResultResponse)
 def stats_result_endpoint() -> schemas.ResultResponse:
     """Return the result of the last statistics computation."""
@@ -1047,11 +1155,25 @@ def levels_build_endpoint(spec: LevelsBuildSpec) -> Dict[str, Any]:
     return levels_build(spec)
 
 
+@fastapi_app.post('/levels/build/async', response_model=schemas.StatusResponse)
+def levels_build_async_endpoint(spec: LevelsBuildSpec) -> schemas.StatusResponse:
+    """Queue a levels build run for async processing."""
+
+    return levels_build_async(spec)
+
+
 @fastapi_app.post('/levels/fill', response_model=Dict[str, Any])
 def levels_fill_endpoint(spec: LevelsBuildSpec) -> Dict[str, Any]:
     """Refresh fills for active FVG/GAP levels."""
 
     return levels_fill(spec)
+
+
+@fastapi_app.post('/levels/fill/async', response_model=schemas.StatusResponse)
+def levels_fill_async_endpoint(spec: LevelsBuildSpec) -> schemas.StatusResponse:
+    """Queue a levels fill run for async processing."""
+
+    return levels_fill_async(spec)
 
 
 @fastapi_app.get('/levels', response_model=List[Dict[str, Any]])
@@ -1186,11 +1308,25 @@ def seasonality_run_endpoint(spec: schemas.SeasonalitySpec) -> schemas.ResultRes
     return seasonality_run(spec)
 
 
+@fastapi_app.post('/seasonality/run/async', response_model=schemas.StatusResponse)
+def seasonality_run_async_endpoint(spec: schemas.SeasonalitySpec) -> schemas.StatusResponse:
+    """Queue a seasonality run for async processing."""
+
+    return seasonality_run_async(spec)
+
+
 @fastapi_app.post('/seasonality/optimize', response_model=schemas.ResultResponse)
 def seasonality_optimize_endpoint(spec: schemas.SeasonalitySpec) -> schemas.ResultResponse:
     """Execute the seasonality optimisation loop."""
 
     return seasonality_optimize(spec)
+
+
+@fastapi_app.post('/seasonality/optimize/async', response_model=schemas.StatusResponse)
+def seasonality_optimize_async_endpoint(spec: schemas.SeasonalitySpec) -> schemas.StatusResponse:
+    """Queue a seasonality optimisation for async processing."""
+
+    return seasonality_optimize_async(spec)
 
 
 @fastapi_app.get('/seasonality/profiles', response_model=List[Dict[str, Any]])
