@@ -1,0 +1,51 @@
+{
+  "strategy": {
+    "strategy_id": "BT_CSV_ICT_POI",
+    "asset_class": "FX"
+  },
+  "data": {
+    "dataset_path": "tests/data/ohlcv.csv",
+    "symbols": ["EURUSD"],
+    "timeframe": "1m",
+    "start": "2025-01-01",
+    "end": "2025-01-01"
+  },
+  "signal": {
+    "type": "ema_cross",
+    "params": {
+      "fast": 2,
+      "slow": 5,
+      "require_crossing": false
+    }
+  },
+  "filters": [
+    {
+      "type": "ict_poi",
+      "params": {
+        "level_types": ["PDH", "PDL", "FVG", "GAP_D", "RN"],
+        "symbol": "EURUSD",
+        "mode": "in_zone",
+        "tolerance": 0.0005,
+        "include_ifvg": false,
+        "include_fib": true,
+        "fib_levels": [0.382, 0.5, 0.618],
+        "fib_tolerance": 0.001,
+        "allow_if_missing": true,
+        "allow_if_empty": true
+      }
+    }
+  ],
+  "tpsl": {
+    "atr_window": 3,
+    "atr_k": 1.0,
+    "r_mult": 2.0,
+    "slippage_bps": 0.0,
+    "fee_bps": 0.0
+  },
+  "performance": {
+    "initial_capital": 10000
+  },
+  "persistence": {
+    "enabled": false
+  }
+}

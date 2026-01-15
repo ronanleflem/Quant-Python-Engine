@@ -55,3 +55,38 @@ class TakeProfit:
         if side > 0:
             return entry_price + r_mult * dist
         return entry_price - r_mult * dist
+
+
+class DynamicStopLoss:
+    @staticmethod
+    def trail_atr(
+        atr_values: List[float],
+        atr_mult: float,
+        side: int,
+        idx: int,
+        price: float,
+        current_stop: float,
+    ) -> Optional[float]:
+        """Return updated trailing stop based on ATR and latest price."""
+        if idx < 0 or idx >= len(atr_values):
+            return None
+        atr = atr_values[idx]
+        if atr is None:
+            return None
+        try:
+            atr_value = float(atr)
+            price_value = float(price)
+            mult = float(atr_mult)
+        except (TypeError, ValueError):
+            return None
+        if not isfinite(atr_value) or atr_value <= 0:
+            return None
+        if not isfinite(price_value):
+            return None
+        if not isfinite(mult) or mult <= 0:
+            return None
+        if side > 0:
+            candidate = price_value - atr_value * mult
+            return max(current_stop, candidate)
+        candidate = price_value + atr_value * mult
+        return min(current_stop, candidate)

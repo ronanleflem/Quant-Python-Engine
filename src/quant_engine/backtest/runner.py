@@ -17,6 +17,7 @@ from ..core import dataset
 from ..core.features import atr
 from ..core.spec import DataSpec, parse_data_spec, uses_strategy_sources
 from ..filters.utils import apply_filter_stack, FilterValidationError
+from ..filters.trade_filter_service import score_filter_rules
 from ..performance.backtest_builder import build_backtest_payload
 from ..signals.ema_cross import EmaCross
 from ..strategies import runner as strategies_runner
@@ -256,7 +257,9 @@ def run_backtest_from_spec(spec: Mapping[str, Any]) -> Dict[str, Any]:
     _perf_log("backtest.build_signal", t_signal)
 
     filters_spec = spec.get("filters") or (spec.get("strategy", {}) or {}).get("filters") or []
-    if filters_spec:
+    filter_rules_spec = spec.get("filter_rules") or (spec.get("strategy", {}) or {}).get("filter_rules") or []
+    filter_rules_cfg = spec.get("filter_rules_config") or (spec.get("strategy", {}) or {}).get("filter_rules_config") or {}
+    if filters_spec or filter_rules_spec:
         t_filters = time.monotonic()
         df_filters = _rows_to_frame(rows)
         df_filters = df_filters.copy()
@@ -277,7 +280,20 @@ def run_backtest_from_spec(spec: Mapping[str, Any]) -> Dict[str, Any]:
             if "max_items" in cache_cfg:
                 df_filters.attrs["qe_cache_max_items"] = cache_cfg.get("max_items")
         try:
-            mask = apply_filter_stack(df_filters, filters_spec, symbol=symbol, logger=LOGGER, strict=True)
+            mask = None
+            if filters_spec:
+                mask = apply_filter_stack(df_filters, filters_spec, symbol=symbol, logger=LOGGER, strict=True)
+            if filter_rules_spec:
+                scoring = score_filter_rules(
+                    df_filters,
+                    filter_rules_spec,
+                    symbol=symbol,
+                    strict=True,
+                    min_score=filter_rules_cfg.get("min_score"),
+                    min_score_pct=filter_rules_cfg.get("min_score_pct"),
+                )
+                score_mask = scoring["final_mask"]
+                mask = score_mask if mask is None else (mask & score_mask)
         except FilterValidationError as exc:
             LOGGER.error("Backtest filters failed: %s", exc)
             raise
@@ -294,6 +310,7 @@ def run_backtest_from_spec(spec: Mapping[str, Any]) -> Dict[str, Any]:
     r_mult = float(tpsl.get("r_mult", 2.0))
     slippage_bps = float(tpsl.get("slippage_bps", 0.0))
     fee_bps = float(tpsl.get("fee_bps", 0.0))
+    dynamic_sl = tpsl.get("dynamic_sl") if isinstance(tpsl, Mapping) else None
 
     t_engine = time.monotonic()
     trades, equity, summary = engine.run(
@@ -307,6 +324,7 @@ def run_backtest_from_spec(spec: Mapping[str, Any]) -> Dict[str, Any]:
         max_trades=max_trades,
         max_seconds=max_seconds,
         pruning=pruning_cfg,
+        dynamic_sl=dynamic_sl,
     )
     _perf_log(f"backtest.engine trades={len(trades)}", t_engine)
 

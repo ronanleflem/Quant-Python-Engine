@@ -1,0 +1,62 @@
+{
+  "strategy": {
+    "strategy_id": "BT_FILTER_RULES_SCORE",
+    "asset_class": "FX"
+  },
+  "data": {
+    "dataset_path": "tests/data/ohlcv.csv",
+    "symbols": ["EURUSD"],
+    "timeframe": "1m",
+    "start": "2025-01-01",
+    "end": "2025-01-01"
+  },
+  "signal": {
+    "type": "ema_cross",
+    "params": {
+      "fast": 2,
+      "slow": 5,
+      "require_crossing": false
+    }
+  },
+  "filters": [
+    {
+      "type": "session_time",
+      "params": {"session": "asia"}
+    }
+  ],
+  "filter_rules": [
+    {
+      "type": "k_consecutive",
+      "params": {"k": 2, "direction": "up"},
+      "weight": 2,
+      "mode": "soft"
+    },
+    {
+      "type": "ema_slope",
+      "params": {"window": 3, "slope_thresh": 0.0},
+      "weight": 1,
+      "mode": "soft"
+    },
+    {
+      "type": "atr_risk_gate",
+      "params": {"atr_window": 3, "max_atr_pct": 0.02},
+      "mode": "hard"
+    }
+  ],
+  "filter_rules_config": {
+    "min_score": 2.0
+  },
+  "tpsl": {
+    "atr_window": 3,
+    "atr_k": 1.0,
+    "r_mult": 2.0,
+    "slippage_bps": 0.0,
+    "fee_bps": 0.0
+  },
+  "performance": {
+    "initial_capital": 10000
+  },
+  "persistence": {
+    "enabled": false
+  }
+}

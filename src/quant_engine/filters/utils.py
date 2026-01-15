@@ -69,6 +69,9 @@ FILTER_SUMMARIES: Dict[str, FilterSummary] = {
     "psychologic_and_news": FilterSummary(
         "Block during news/psychologic blackout windows.", "DatetimeIndex (+news_col optional)"
     ),
+    "ict_poi": FilterSummary(
+        "ICT POI (levels/IFVG/fib) confluence filter.", "close (+levels/high/low optional)"
+    ),
     "statistical_arbitrage": FilterSummary("Omega/Info ratio threshold.", "close"),
     "psychologic_ulcer": FilterSummary("Ulcer index below threshold.", "close"),
     "stationarity": FilterSummary("Low lag-1 autocorrelation.", "close"),
@@ -407,6 +410,29 @@ def _validate_filter_inputs(
         if news_col and news_col not in df.columns:
             if not allow_if_missing:
                 errors.append(f"missing columns: {news_col}")
+    elif flt_type == "ict_poi":
+        allow_if_missing = bool(params.get("allow_if_missing", True))
+        _require_columns(df, [params.get("close_col", "close")], errors)
+        include_ifvg = bool(params.get("include_ifvg", False))
+        include_fib = bool(params.get("include_fib", False))
+        include_ob = bool(params.get("include_ob", False))
+        include_breaker = bool(params.get("include_breaker", False))
+        include_model10 = bool(params.get("include_model10", False))
+        if include_ifvg or include_fib or include_ob or include_breaker or include_model10:
+            _require_columns(
+                df,
+                [
+                    params.get("open_col", "open"),
+                    params.get("high_col", "high"),
+                    params.get("low_col", "low"),
+                ],
+                errors,
+            )
+        lvl_types = params.get("level_types")
+        if lvl_types and not allow_if_missing:
+            _require_levels_repo(errors)
+            if not (params.get("symbol") or symbol):
+                errors.append("requires symbol for levels lookup")
     elif flt_type == "volatility":
         _require_columns(df, ["high", "low", "close"], errors)
     elif flt_type in {"ema_structure", "rsi_entry", "macd_entry", "fractal_analysis"}:

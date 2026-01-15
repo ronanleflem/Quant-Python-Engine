@@ -98,3 +98,9 @@ def test_backtest_volatility_extras_spec_runs() -> None:
     )
     result = backtest_runner.run_backtest_from_spec(spec)
     assert result.get("payload") is not None
+
+
+def test_backtest_ict_poi_spec_runs() -> None:
+    spec = backtest_runner.load_backtest_spec(SPEC_DIR / "backtest_csv_ict_poi.json")
+    result = backtest_runner.run_backtest_from_spec(spec)
+    assert result.get("payload") is not None

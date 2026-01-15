@@ -5,7 +5,7 @@ from typing import List, Dict, Any, Tuple, Mapping
 import time
 import logging
 
-from ..tpsl.rules import StopInitializer, TakeProfit
+from ..tpsl.rules import StopInitializer, TakeProfit, DynamicStopLoss
 from . import metrics
 
 
@@ -20,6 +20,7 @@ def run(
     max_trades: int | None = None,
     max_seconds: float | None = None,
     pruning: Mapping[str, Any] | None = None,
+    dynamic_sl: Mapping[str, Any] | None = None,
 ) -> Tuple[List[Dict[str, Any]], List[float], Dict[str, float]]:
     """Execute a vectorised backtest.
 
@@ -90,6 +91,22 @@ def run(
             tp_price = TakeProfit.r_multiple(entry_price, stop_price, r_mult, 1)
             position = 1
         elif position == 1:
+            if dynamic_sl and dynamic_sl.get("enabled", True) is not False:
+                mode = str(dynamic_sl.get("mode", "trail_atr")).lower()
+                if mode == "trail_atr":
+                    dyn_mult = dynamic_sl.get("atr_mult", atr_mult)
+                    updated = DynamicStopLoss.trail_atr(
+                        atr_values,
+                        dyn_mult,
+                        1,
+                        i,
+                        row["close"],
+                        stop_price,
+                    )
+                    if updated is not None:
+                        stop_price = updated
+                else:
+                    raise ValueError(f"Unsupported dynamic_sl mode: {mode}")
             hit_tp = row["high"] >= tp_price
             hit_sl = row["low"] <= stop_price
             exit_signal = signal == 0

@@ -19,6 +19,7 @@ from . import create_strategy
 from .base import StrategySignal
 from ..integrations import java_client
 from ..filters.utils import apply_filter_stack, FilterValidationError
+from ..filters.trade_filter_service import score_filter_rules
 from ..performance.dca_builder import build_backend_payload_for_java
 from pandas.tseries.holiday import USFederalHolidayCalendar
 from pandas.tseries.offsets import CustomBusinessDay
@@ -153,7 +154,9 @@ def _run_backtest_core(spec: Mapping[str, Any]) -> tuple[Dict[str, Any], Dict[st
                     df = df.tail(max_bars_int).copy()
                     LOGGER.info("Screening enabled: keeping last %d bars for %s", max_bars_int, symbol)
         filters_spec = strategy_cfg.get("filters") or spec.get("filters") or []
-        if filters_spec:
+        filter_rules_spec = strategy_cfg.get("filter_rules") or spec.get("filter_rules") or []
+        filter_rules_cfg = strategy_cfg.get("filter_rules_config") or spec.get("filter_rules_config") or {}
+        if filters_spec or filter_rules_spec:
             t_filters = time.monotonic()
             df = df.copy()
             df_filter = df.copy()
@@ -180,7 +183,21 @@ def _run_backtest_core(spec: Mapping[str, Any]) -> tuple[Dict[str, Any], Dict[st
                         cache_cfg.get("ttl"),
                     )
             try:
-                mask = apply_filter_stack(df_filter, filters_spec, symbol=symbol, logger=LOGGER, strict=True)
+                mask = None
+                if filters_spec:
+                    mask = apply_filter_stack(df_filter, filters_spec, symbol=symbol, logger=LOGGER, strict=True)
+                if filter_rules_spec:
+                    scoring = score_filter_rules(
+                        df_filter,
+                        filter_rules_spec,
+                        symbol=symbol,
+                        strict=True,
+                        min_score=filter_rules_cfg.get("min_score"),
+                        min_score_pct=filter_rules_cfg.get("min_score_pct"),
+                    )
+                    score_mask = scoring["final_mask"]
+                    df["_filter_score"] = scoring["score_pct"].reindex(df_filter.index).fillna(0.0).to_numpy()
+                    mask = score_mask if mask is None else (mask & score_mask)
             except FilterValidationError as exc:
                 LOGGER.error("Filters failed for %s: %s", symbol, exc)
                 raise

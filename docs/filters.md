@@ -61,6 +61,7 @@ d'autres loguent une erreur et stoppent l'execution.
 | macro_cot_oi | Yes (optional columns) | Yes (optional columns) | Macro COT/OI alignment filter. |
 | lower_timeframe_confluence | Yes | Yes | Confluence score across momentum/ADX/VWAP/delta/EMA. |
 | psychologic_and_news | Yes | Yes | News/psychologic blackout windows. |
+| ict_poi | Yes | Yes | ICT POI confluence (levels/IFVG/fib). |
 
 ## Trend & Volatility filters
 
@@ -293,6 +294,14 @@ Ces filtres visent à plafonner les pertes, limiter le nombre d’entrées et ad
 - **Retour** : `True` si la barre est hors fenetre d'impact news.
 - **Notes** : `news_col` peut etre une colonne bool (True=impact). Sinon `news_times` (ISO) est utilise.
   Les signaux de sentiment/comportement ne sont pas encore integres.
+
+
+### `ict_poi`
+- **Parametres** : `level_types`, `symbol`, `mode`, `tolerance`, `max_distance`, `distance_unit`,
+  `include_ifvg`, `ifvg_lookback`, `ifvg_invalidate_on_fill`, `ifvg_fill_threshold`, `ifvg_fill_count`, `include_fib`, `fib_lookback`, `fib_levels`, `fib_tolerance`,
+  `allow_if_missing`, `allow_if_empty`, `close_col`, `high_col`, `low_col`.
+- **Retour** : `True` si le prix interagit avec un POI (levels, IFVG ou fib).
+- **Notes** : IFVG = overlap entre un FVG haussier et un FVG baissier. Les levels utilisent `marketdata.levels`.
 ### `ema_structure`
 - **Parametres** : `ema_fast`, `ema_slow`, `ema_long`, `require_close_above_slow`, `require_fast_rising`.
 - **Retour** : `True` si la structure EMA est haussiere.
@@ -361,12 +370,35 @@ Ces filtres visent à plafonner les pertes, limiter le nombre d’entrées et ad
   `series_type`, `mad_threshold`, `entropy_threshold`, `atr_window`, `require_both`.
 - **Retour** : `True` sauf si l'anomalie est detectee sur la timeframe courante ET la timeframe superieure.
 
+## Filter utilities (non-spec)
+
+Ces helpers ne sont pas exposes directement dans les specs JSON, mais peuvent
+etre utilises par le code pour orchestrer un scoring de filtres.
+
+- `FilterRuleAdapter` : normalise les rules (type/params/weight/mode/enabled).
+- `TradeFilterService` : calcule un score pondere + mask final (hard/soft).
+
+### Exemple d'usage (spec)
+
+```json
+{
+  "filters": [
+    {"type": "session_time", "params": {"session": "london"}}
+  ],
+  "filter_rules": [
+    {"type": "k_consecutive", "params": {"k": 2, "direction": "up"}, "weight": 2, "mode": "soft"},
+    {"type": "ema_slope", "params": {"window": 20, "slope_thresh": 0.0}, "weight": 1, "mode": "soft"},
+    {"type": "atr_risk_gate", "params": {"atr_window": 14, "max_atr_pct": 0.02}, "mode": "hard"}
+  ],
+  "filter_rules_config": {
+    "min_score": 2.0
+  }
+}
+```
+
 ## Pending filters (not implemented)
 
 Les filtres ci-dessous restent a implementer si tu veux la parite complete:
-- ICTPointOfInterestFilter (order blocks, continuation/breakaway gaps, fib retracements, psychological levels, news open gaps)
 - OrderBookLiquidityFilter (absorption, spoofing, stacking)
-- TradeFilterService (weighted scoring orchestration)
-- FilterRuleAdapter (rule glue / tolerance)
-- DynamicStopLossRule (exit logic)
+
 

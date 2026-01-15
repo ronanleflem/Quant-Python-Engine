@@ -41,6 +41,7 @@ from .orderflow import orderflow_delta_filter
 from .macro_cot_oi import macro_cot_oi_filter
 from .lt_confluence import lower_timeframe_confluence_filter
 from .psychologic_news import psychologic_and_news_filter
+from .ict_poi import ict_poi_filter
 from .stat_arbitrage import statistical_arbitrage_filter
 from .psychologic import psychologic_ulcer_filter
 from .stationarity import stationarity_filter
@@ -108,6 +109,7 @@ __all__ = [
     "macro_cot_oi_filter",
     "lower_timeframe_confluence_filter",
     "psychologic_and_news_filter",
+    "ict_poi_filter",
 ]
 
 filters_registry = {
@@ -144,6 +146,7 @@ filters_registry = {
     "macro_cot_oi": macro_cot_oi_filter,
     "lower_timeframe_confluence": lower_timeframe_confluence_filter,
     "psychologic_and_news": psychologic_and_news_filter,
+    "ict_poi": ict_poi_filter,
     "statistical_arbitrage": statistical_arbitrage_filter,
     "psychologic_ulcer": psychologic_ulcer_filter,
     "stationarity": stationarity_filter,

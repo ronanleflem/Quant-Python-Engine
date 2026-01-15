@@ -272,6 +272,9 @@ poetry run pytest tests/test_filters_lower_timeframe_confluence.py
 poetry run pytest tests/test_filters_psychologic_news.py
 poetry run pytest tests/test_filters_stationarity_full.py
 poetry run pytest tests/test_filters_volatility_extras.py
+poetry run pytest tests/test_filters_trade_filter_service.py
+poetry run pytest tests/test_backtest_filter_rules_scoring.py
+poetry run pytest tests/test_filters_ict_poi.py
 
 ## Utile pour des traces de perf plus rigoureuses
 set QE_PERF_TRACE=1
