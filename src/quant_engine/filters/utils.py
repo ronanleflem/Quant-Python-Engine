@@ -51,6 +51,24 @@ FILTER_SUMMARIES: Dict[str, FilterSummary] = {
     "cycles": FilterSummary("Low dominant autocorrelation (cycles).", "close"),
     "donchian_channels": FilterSummary("Donchian breakout filter.", "high, low, close"),
     "liquidity_cmf": FilterSummary("Chaikin Money Flow threshold.", "high, low, close, volume"),
+    "market_manipulation": FilterSummary(
+        "Block when entropy/kurtosis/volatility indicate anomalies.", "open, high, low, close"
+    ),
+    "htf_poi": FilterSummary(
+        "Price interacts with active HTF zones/POI levels.", "close; levels required"
+    ),
+    "orderflow_delta": FilterSummary(
+        "Orderflow delta/ratio filter (buy vs sell volume).", "buy/sell volume or delta column"
+    ),
+    "macro_cot_oi": FilterSummary(
+        "Macro COT/OI alignment filter.", "cot_bias/oi_change columns"
+    ),
+    "lower_timeframe_confluence": FilterSummary(
+        "Confluence score across momentum/ADX/VWAP/delta/EMA.", "open/high/low/close (+volume/buy/sell optional)"
+    ),
+    "psychologic_and_news": FilterSummary(
+        "Block during news/psychologic blackout windows.", "DatetimeIndex (+news_col optional)"
+    ),
     "statistical_arbitrage": FilterSummary("Omega/Info ratio threshold.", "close"),
     "psychologic_ulcer": FilterSummary("Ulcer index below threshold.", "close"),
     "stationarity": FilterSummary("Low lag-1 autocorrelation.", "close"),
@@ -307,6 +325,88 @@ def _validate_filter_inputs(
         _require_columns(df, ["high", "low", "close"], errors)
     elif flt_type == "liquidity_cmf":
         _require_columns(df, ["high", "low", "close", params.get("volume_col", "volume")], errors)
+    elif flt_type == "market_manipulation":
+        _require_columns(
+            df,
+            [
+                params.get("high_col", "high"),
+                params.get("low_col", "low"),
+                params.get("close_col", "close"),
+            ],
+            errors,
+        )
+    elif flt_type == "htf_poi":
+        _require_columns(df, [params.get("close_col", "close")], errors)
+        mode = str(params.get("mode", "in_zone")).lower()
+        if mode == "distance" and params.get("max_distance") is None:
+            errors.append("requires max_distance when mode='distance'")
+        allow_if_missing = bool(params.get("allow_if_missing", True))
+        if not allow_if_missing:
+            _require_levels_repo(errors)
+            if not (params.get("symbol") or symbol):
+                errors.append("requires symbol for levels lookup")
+    elif flt_type == "orderflow_delta":
+        allow_if_missing = bool(params.get("allow_if_missing", True))
+        delta_col = params.get("delta_col")
+        buy_col = params.get("buy_col", "buy_volume")
+        sell_col = params.get("sell_col", "sell_volume")
+        mode = str(params.get("mode", "delta")).lower()
+        if not allow_if_missing:
+            if delta_col:
+                _require_columns(df, [delta_col], errors)
+            else:
+                _require_columns(df, [buy_col, sell_col], errors)
+            if mode == "ratio":
+                _require_columns(df, [params.get("volume_col", "volume")], errors)
+    elif flt_type == "macro_cot_oi":
+        allow_if_missing = bool(params.get("allow_if_missing", True))
+        if not allow_if_missing:
+            _require_columns(
+                df,
+                [
+                    params.get("cot_col", "cot_bias"),
+                    params.get("oi_col", "oi_change"),
+                ],
+                errors,
+            )
+    elif flt_type == "lower_timeframe_confluence":
+        allow_if_missing = bool(params.get("allow_if_missing", True))
+        if not allow_if_missing:
+            _require_columns(df, [params.get("close_col", "close")], errors)
+            _require_columns(
+                df,
+                [
+                    params.get("high_col", "high"),
+                    params.get("low_col", "low"),
+                ],
+                errors,
+            )
+            if params.get("vwap_max_dev") is not None:
+                _require_columns(df, [params.get("vwap_price_col", "close")], errors)
+                if params.get("vwap_volume_col", "volume") not in df.columns:
+                    errors.append("missing columns: volume")
+            if params.get("delta_ratio") is not None:
+                _require_columns(df, [params.get("volume_col", "volume")], errors)
+            if params.get("delta_col"):
+                _require_columns(df, [params.get("delta_col")], errors)
+            elif params.get("delta_min") is not None or params.get("delta_ratio") is not None:
+                _require_columns(
+                    df,
+                    [
+                        params.get("buy_col", "buy_volume"),
+                        params.get("sell_col", "sell_volume"),
+                    ],
+                    errors,
+                )
+    elif flt_type == "psychologic_and_news":
+        allow_if_missing = bool(params.get("allow_if_missing", True))
+        if not isinstance(df.index, pd.DatetimeIndex):
+            if not allow_if_missing:
+                errors.append("requires a DatetimeIndex")
+        news_col = params.get("news_col")
+        if news_col and news_col not in df.columns:
+            if not allow_if_missing:
+                errors.append(f"missing columns: {news_col}")
     elif flt_type == "volatility":
         _require_columns(df, ["high", "low", "close"], errors)
     elif flt_type in {"ema_structure", "rsi_entry", "macd_entry", "fractal_analysis"}:

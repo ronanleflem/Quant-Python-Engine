@@ -1,0 +1,45 @@
+{
+  "strategy": {
+    "strategy_id": "BT_CSV_PSY_NEWS",
+    "asset_class": "FX"
+  },
+  "data": {
+    "dataset_path": "tests/data/ohlcv.csv",
+    "symbols": ["EURUSD"],
+    "timeframe": "1m",
+    "start": "2025-01-01",
+    "end": "2025-01-01"
+  },
+  "signal": {
+    "type": "ema_cross",
+    "params": {
+      "fast": 2,
+      "slow": 5,
+      "require_crossing": false
+    }
+  },
+  "filters": [
+    {
+      "type": "psychologic_and_news",
+      "params": {
+        "news_times": ["2025-01-01T00:03:00Z"],
+        "pre_minutes": 1,
+        "post_minutes": 1,
+        "allow_if_missing": true
+      }
+    }
+  ],
+  "tpsl": {
+    "atr_window": 3,
+    "atr_k": 1.0,
+    "r_mult": 2.0,
+    "slippage_bps": 0.0,
+    "fee_bps": 0.0
+  },
+  "performance": {
+    "initial_capital": 10000
+  },
+  "persistence": {
+    "enabled": false
+  }
+}

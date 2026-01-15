@@ -1,0 +1,47 @@
+{
+  "strategy": {
+    "strategy_id": "BT_CSV_MARKET_MANIP",
+    "asset_class": "FX"
+  },
+  "data": {
+    "dataset_path": "tests/data/ohlcv.csv",
+    "symbols": ["EURUSD"],
+    "timeframe": "1m",
+    "start": "2025-01-01",
+    "end": "2025-01-01"
+  },
+  "signal": {
+    "type": "ema_cross",
+    "params": {
+      "fast": 2,
+      "slow": 5,
+      "require_crossing": false
+    }
+  },
+  "filters": [
+    {
+      "type": "market_manipulation",
+      "params": {
+        "window": 5,
+        "entropy_threshold": 0.99,
+        "kurtosis_threshold": 20.0,
+        "atr_window": 3,
+        "atr_mult": 5.0,
+        "require_all": true
+      }
+    }
+  ],
+  "tpsl": {
+    "atr_window": 3,
+    "atr_k": 1.0,
+    "r_mult": 2.0,
+    "slippage_bps": 0.0,
+    "fee_bps": 0.0
+  },
+  "performance": {
+    "initial_capital": 10000
+  },
+  "persistence": {
+    "enabled": false
+  }
+}

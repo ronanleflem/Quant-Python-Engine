@@ -1,0 +1,48 @@
+{
+  "strategy": {
+    "strategy_id": "BT_CSV_MTF_ANOMALY",
+    "asset_class": "FX"
+  },
+  "data": {
+    "dataset_path": "tests/data/ohlcv.csv",
+    "symbols": ["EURUSD"],
+    "timeframe": "1m",
+    "start": "2025-01-01",
+    "end": "2025-01-01"
+  },
+  "signal": {
+    "type": "ema_cross",
+    "params": {
+      "fast": 2,
+      "slow": 5,
+      "require_crossing": false
+    }
+  },
+  "filters": [
+    {
+      "type": "mtf_anomaly",
+      "params": {
+        "metric": "benford_mad",
+        "series_type": "range",
+        "base_window": 3,
+        "higher_timeframe": "2m",
+        "higher_window": 3,
+        "mad_threshold": 0.01,
+        "require_both": true
+      }
+    }
+  ],
+  "tpsl": {
+    "atr_window": 3,
+    "atr_k": 1.0,
+    "r_mult": 2.0,
+    "slippage_bps": 0.0,
+    "fee_bps": 0.0
+  },
+  "performance": {
+    "initial_capital": 10000
+  },
+  "persistence": {
+    "enabled": false
+  }
+}

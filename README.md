@@ -260,6 +260,19 @@ poetry run pytest tests/test_timeframe_variants.py
 poetry run pytest tests/test_data_edge_cases.py
 poetry run pytest -m slow tests/test_large_dataset_perf.py
 
+## Ajouts de tests filters 
+poetry run pytest tests/test_filters_mtf_anomaly.py
+poetry run pytest tests/test_filters_benford_extended.py
+poetry run pytest tests/test_backtest_filter_specs_extra.py
+poetry run pytest tests/test_filters_market_manipulation.py
+poetry run pytest tests/test_filters_htf_poi.py
+poetry run pytest tests/test_filters_orderflow_delta.py
+poetry run pytest tests/test_filters_macro_cot_oi.py
+poetry run pytest tests/test_filters_lower_timeframe_confluence.py
+poetry run pytest tests/test_filters_psychologic_news.py
+poetry run pytest tests/test_filters_stationarity_full.py
+poetry run pytest tests/test_filters_volatility_extras.py
+
 ## Utile pour des traces de perf plus rigoureuses
 set QE_PERF_TRACE=1
 ## Pour voir avec des logs -s (log de perf générales mais pas détaillées comme avec QE_PERF_TRACE, faut avoir les deux)

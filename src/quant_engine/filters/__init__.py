@@ -27,6 +27,7 @@ from .indicator_rules import (
     atr_rising_filter,
     linear_regression_macd_cross_filter,
 )
+from .mtf_anomaly import mtf_anomaly_filter
 from .market_regime import market_regime_filter
 from .trend import trend_filter
 from .stats_gate import stats_gate_filter, stats_gate_score
@@ -34,6 +35,12 @@ from .benford import benford_law_filter
 from .cycles import cycles_filter
 from .donchian import donchian_channels_filter
 from .liquidity import liquidity_cmf_filter
+from .market_manipulation import market_manipulation_filter
+from .htf_poi import htf_poi_filter
+from .orderflow import orderflow_delta_filter
+from .macro_cot_oi import macro_cot_oi_filter
+from .lt_confluence import lower_timeframe_confluence_filter
+from .psychologic_news import psychologic_and_news_filter
 from .stat_arbitrage import statistical_arbitrage_filter
 from .psychologic import psychologic_ulcer_filter
 from .stationarity import stationarity_filter
@@ -94,6 +101,13 @@ __all__ = [
     "trend_filter",
     "stats_gate_filter",
     "stats_gate_score",
+    "mtf_anomaly_filter",
+    "market_manipulation_filter",
+    "htf_poi_filter",
+    "orderflow_delta_filter",
+    "macro_cot_oi_filter",
+    "lower_timeframe_confluence_filter",
+    "psychologic_and_news_filter",
 ]
 
 filters_registry = {
@@ -124,6 +138,12 @@ filters_registry = {
     "cycles": cycles_filter,
     "donchian_channels": donchian_channels_filter,
     "liquidity_cmf": liquidity_cmf_filter,
+    "market_manipulation": market_manipulation_filter,
+    "htf_poi": htf_poi_filter,
+    "orderflow_delta": orderflow_delta_filter,
+    "macro_cot_oi": macro_cot_oi_filter,
+    "lower_timeframe_confluence": lower_timeframe_confluence_filter,
+    "psychologic_and_news": psychologic_and_news_filter,
     "statistical_arbitrage": statistical_arbitrage_filter,
     "psychologic_ulcer": psychologic_ulcer_filter,
     "stationarity": stationarity_filter,
@@ -141,6 +161,7 @@ filters_registry = {
     "market_regime": market_regime_filter,
     "trend": trend_filter,
     "stats_gate": stats_gate_filter,
+    "mtf_anomaly": mtf_anomaly_filter,
 }
 
 

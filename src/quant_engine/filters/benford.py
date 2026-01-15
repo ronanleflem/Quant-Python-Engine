@@ -77,12 +77,21 @@ def _build_benford_series(
     high_col: str,
     low_col: str,
     volume_col: str,
+    atr_window: int = 14,
 ) -> pd.Series:
     stype = series_type.lower()
     if stype in {"range", "hl"}:
         return (df[high_col].astype(float) - df[low_col].astype(float)).abs()
     if stype in {"body", "oc"}:
         return (df[price_col].astype(float) - df[open_col].astype(float)).abs()
+    if stype in {"wick", "wicks", "wick_total"}:
+        upper = df[high_col].astype(float) - df[[open_col, price_col]].max(axis=1).astype(float)
+        lower = df[[open_col, price_col]].min(axis=1).astype(float) - df[low_col].astype(float)
+        return (upper + lower).abs()
+    if stype in {"upper_wick", "wick_upper"}:
+        return (df[high_col].astype(float) - df[[open_col, price_col]].max(axis=1).astype(float)).abs()
+    if stype in {"lower_wick", "wick_lower"}:
+        return (df[[open_col, price_col]].min(axis=1).astype(float) - df[low_col].astype(float)).abs()
     if stype in {"delta_range", "range_delta"}:
         rng = (df[high_col].astype(float) - df[low_col].astype(float)).abs()
         return rng.diff().abs().fillna(0.0)
@@ -90,6 +99,18 @@ def _build_benford_series(
         return df[volume_col].astype(float).abs()
     if stype in {"returns", "close_diff"}:
         return df[price_col].astype(float).diff().abs().fillna(0.0)
+    if stype in {"atr"}:
+        high = df[high_col].astype(float)
+        low = df[low_col].astype(float)
+        close = df[price_col].astype(float)
+        prev_close = close.shift(1)
+        tr_components = pd.concat(
+            [(high - low).abs(), (high - prev_close).abs(), (low - prev_close).abs()],
+            axis=1,
+        )
+        tr = tr_components.max(axis=1)
+        atr = tr.ewm(alpha=1.0 / float(atr_window), adjust=False).mean()
+        return atr.abs()
     return df[price_col].astype(float).abs()
 
 
@@ -100,6 +121,7 @@ def benford_law_filter(
     metric: str = "mad",
     mad_threshold: float = 0.006,
     chi2_threshold: float = 25.0,
+    atr_window: int = 14,
     price_col: str = "close",
     open_col: str = "open",
     high_col: str = "high",
@@ -109,10 +131,12 @@ def benford_law_filter(
     """Return True when Benford anomaly metrics remain below thresholds."""
     required = {price_col}
     stype = series_type.lower()
-    if stype in {"range", "hl", "delta_range", "range_delta"}:
+    if stype in {"range", "hl", "delta_range", "range_delta", "atr"}:
         required |= {high_col, low_col}
     if stype in {"body", "oc"}:
         required |= {open_col}
+    if stype in {"wick", "wicks", "wick_total", "upper_wick", "wick_upper", "lower_wick", "wick_lower"}:
+        required |= {open_col, high_col, low_col}
     if stype in {"volume", "vol"}:
         required |= {volume_col}
     missing = [col for col in required if col not in df.columns]
@@ -127,6 +151,7 @@ def benford_law_filter(
         high_col=high_col,
         low_col=low_col,
         volume_col=volume_col,
+        atr_window=atr_window,
     )
 
     metric_key = metric.lower()

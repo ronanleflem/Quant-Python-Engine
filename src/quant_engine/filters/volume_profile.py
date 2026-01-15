@@ -78,8 +78,10 @@ def vwap_side_filter(
     if from_levels and lvl_repo is not None and symbol is not None:
         try:
             level_types = ["VWAP_DAY"] if anchor == "day" else ["VWAP_SESSION"]
+            engine = lvl_repo.get_engine() if hasattr(lvl_repo, "get_engine") else None
+            table_fqn = "marketdata.levels"
             lv = lvl_repo.select_levels(
-                engine=None, table_fqn=None,
+                engine=engine, table_fqn=table_fqn,
                 symbol=symbol, level_types=level_types,
                 active_only=False,
                 start=df.index.min().isoformat(),
@@ -124,8 +126,10 @@ def poc_distance_filter(
         return pd.Series(False, index=df.index)
 
     try:
+        engine = lvl_repo.get_engine() if hasattr(lvl_repo, "get_engine") else None
+        table_fqn = "marketdata.levels"
         lv = lvl_repo.select_levels(
-            engine=None, table_fqn=None,
+            engine=engine, table_fqn=table_fqn,
             symbol=symbol, level_types=[level_type],
             active_only=True,
             start=df.index.min().isoformat(),

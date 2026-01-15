@@ -1,0 +1,49 @@
+{
+  "strategy": {
+    "strategy_id": "BT_CSV_VOL_EXTRAS",
+    "asset_class": "FX"
+  },
+  "data": {
+    "dataset_path": "tests/data/ohlcv.csv",
+    "symbols": ["EURUSD"],
+    "timeframe": "1m",
+    "start": "2025-01-01",
+    "end": "2025-01-01"
+  },
+  "signal": {
+    "type": "ema_cross",
+    "params": {
+      "fast": 2,
+      "slow": 5,
+      "require_crossing": false
+    }
+  },
+  "filters": [
+    {
+      "type": "volatility",
+      "params": {
+        "window": 5,
+        "max_entropy": 0.9,
+        "bb_window": 5,
+        "bb_max_width": 0.8,
+        "hv_window": 5,
+        "max_hv": 2.0,
+        "vix_window": 5,
+        "max_vix": 2.0
+      }
+    }
+  ],
+  "tpsl": {
+    "atr_window": 3,
+    "atr_k": 1.0,
+    "r_mult": 2.0,
+    "slippage_bps": 0.0,
+    "fee_bps": 0.0
+  },
+  "performance": {
+    "initial_capital": 10000
+  },
+  "persistence": {
+    "enabled": false
+  }
+}

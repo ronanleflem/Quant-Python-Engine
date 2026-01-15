@@ -96,8 +96,10 @@ def bos_filter(
 
     if use_levels and lvl_repo is not None and lvl_helpers is not None and symbol is not None:
         try:
+            engine = lvl_repo.get_engine() if hasattr(lvl_repo, "get_engine") else None
+            table_fqn = "marketdata.levels"
             lv = lvl_repo.select_levels(
-                engine=None, table_fqn=None,
+                engine=engine, table_fqn=table_fqn,
                 symbol=symbol, level_types=["SWING_H","SWING_L"],
                 active_only=False,
                 start=df.index.min().isoformat(),

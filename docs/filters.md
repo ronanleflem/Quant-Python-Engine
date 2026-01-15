@@ -5,8 +5,8 @@ Ce document fournit une reference concise des pre-trade filters disponibles dans
 ## Backtest and DCA availability
 
 Le tableau ci-dessous resume quels filters peuvent etre utilises en backtest et en DCA lorsqu'ils sont actives dans les specs JSON.
-Si des donnees requises manquent (volume, levels DB, stats DB, equity ou signal columns), le run logue une erreur
-and stops.
+Si des donnees requises manquent, certains filtres deviennent des no-op (retournent True partout), tandis que
+d'autres loguent une erreur et stoppent l'execution.
 
 | Filter | Backtest | DCA | One-line summary |
 | --- | --- | --- | --- |
@@ -28,11 +28,11 @@ and stops.
 | seasonality_bin | Yes (stats optional) | Yes (stats optional) | Allow specific seasonal bins. |
 | hurst_regime | Yes | Yes | Hurst exponent regime filter. |
 | entropy_window | Yes | Yes | Directional entropy window filter. |
-| daily_loss_cap | No (needs pnl/equity/ret cols) | No (needs pnl/equity/ret cols) | Lockout after daily loss cap. |
+| daily_loss_cap | Conditional (needs pnl/equity/ret cols) | Conditional (needs pnl/equity/ret cols) | Lockout after daily loss cap. |
 | daily_trades_cap | Conditional (needs signal col) | Conditional (needs signal col) | Limit number of entries per day. |
 | cooldown_bars | Conditional (needs signal col) | Conditional (needs signal col) | Cooldown after each signal. |
 | atr_risk_gate | Yes | Yes | Block when ATR/close too high. |
-| equity_dd_lockout | No (needs equity col) | No (needs equity col) | Lockout after equity drawdown. |
+| equity_dd_lockout | Conditional (needs equity col) | Conditional (needs equity col) | Lockout after equity drawdown. |
 | benford_law | Yes | Yes | Benford MSE below threshold. |
 | cycles | Yes | Yes | Low dominant autocorrelation (cycles). |
 | donchian_channels | Yes | Yes | Donchian breakout filter. |
@@ -54,6 +54,13 @@ and stops.
 | trend | Yes | Yes | Trend direction via HH/HL or EMA. |
 | biais_institutional | Yes | Yes | EMA/VWAP + optional macro filters. |
 | stats_gate | Yes | Yes | Gate using persisted market stats. |
+| mtf_anomaly | Yes | Yes | Block when anomalies appear on both timeframes. |
+| market_manipulation | Yes | Yes | Block when entropy/kurtosis/volatility indicate anomalies. |
+| htf_poi | Yes | Yes | Price interacts with active HTF zones/POI levels. |
+| orderflow_delta | Yes (requires buy/sell or delta) | Yes (requires buy/sell or delta) | Orderflow delta/ratio filter. |
+| macro_cot_oi | Yes (optional columns) | Yes (optional columns) | Macro COT/OI alignment filter. |
+| lower_timeframe_confluence | Yes | Yes | Confluence score across momentum/ADX/VWAP/delta/EMA. |
+| psychologic_and_news | Yes | Yes | News/psychologic blackout windows. |
 
 ## Trend & Volatility filters
 
@@ -65,9 +72,9 @@ Ces filtres exploitent des indicateurs de tendance ou de volatilité calculés d
 - **Utilité** : confirme qu'une tendance est suffisamment forte pour éviter les phases de range.
 
 ### `atr`
-- **Paramètres** : `window` (int), `min_mult` (float), `max_mult` (float).
-- **Retour** : `True` si `ATR(window) / close` appartient à l'intervalle `[min_mult, max_mult]`.
-- **Utilité** : filtre les marchés trop calmes ou, à l'inverse, trop explosifs.
+- **Parametres** : `window` (int), `min_mult` (float), `max_mult` (float) en pourcentage.
+- **Retour** : `True` si `ATR(window) / close` appartient a l'intervalle `[min_mult, max_mult]` (valeurs en %).
+- **Utilite** : filtre les marches trop calmes ou, a l'inverse, trop explosifs.
 
 ### `ema_slope`
 - **Paramètres** : `window` (int), `slope_thresh` (float).
@@ -202,9 +209,9 @@ Ces filtres visent à plafonner les pertes, limiter le nombre d’entrées et ad
 ## Additional filters
 
 ### `benford_law`
-- **Parametres** : `window`, `series_type`, `metric`, `mad_threshold`, `chi2_threshold`,
+- **Parametres** : `window`, `series_type`, `metric`, `mad_threshold`, `chi2_threshold`, `atr_window`,
   `price_col`, `open_col`, `high_col`, `low_col`, `volume_col`.
-- **Series_type** : `range`, `body`, `volume`, `delta_range`, `returns`.
+- **Series_type** : `range`, `body`, `volume`, `delta_range`, `returns`, `atr`, `wick`.
 - **Metric** : `mad`, `chi2`, `both`.
 - **Retour** : `True` si l'anomalie Benford reste sous les seuils.
 
@@ -229,13 +236,63 @@ Ces filtres visent à plafonner les pertes, limiter le nombre d’entrées et ad
 - **Retour** : `True` si l'Ulcer Index est sous le seuil.
 
 ### `stationarity`
-- **Parametres** : `window`, `max_abs_autocorr`, `price_col`.
-- **Retour** : `True` si l'autocorrelation lag-1 est faible.
+- **Parametres** : `window`, `max_abs_autocorr`, `price_col`, `method`, `adf_pvalue`, `kpss_pvalue`, `allow_if_missing`.
+- **Method** : `acf` (default), `adf`, `kpss`, `both`.
+- **Retour** : `True` si le test de stationnarite passe.
+
 
 ### `volatility`
-- **Parametres** : `window`, `max_entropy`, `atr_window`, `max_atr_pct`.
-- **Retour** : `True` si l'entropie (et optionnellement ATR pct) reste sous les seuils.
+- **Parametres** : `window`, `max_entropy`, `atr_window`, `max_atr_pct`, `bb_window`, `bb_max_width`,
+  `hv_window`, `max_hv`, `vix_window`, `max_vix`.
+- **Retour** : `True` si l'entropie (et les extras de volatilite) restent sous les seuils.
+- **Notes** : VIX approx et HV sont bases sur les rendements log. Pas de volatilite implicite.
 
+
+### `market_manipulation`
+- **Parametres** : `window`, `entropy_threshold`, `kurtosis_threshold`, `atr_window`, `atr_mult`, `require_all`,
+  `high_col`, `low_col`, `close_col`.
+- **Retour** : `True` si les signaux d'entropie/kurtosis/volatilite explosive ne sont pas simultanement (ou cumulativement) declenches.
+- **Notes** : utilise l'entropie directionnelle, la kurtosis des retours, et un spike de true range vs ATR.
+
+
+### `htf_poi`
+- **Parametres** : `level_types`, `symbol`, `mode` ("in_zone"|"distance"), `tolerance`,
+  `max_distance`, `distance_unit`, `require_all`, `allow_if_missing`, `allow_if_empty`, `close_col`.
+- **Retour** : `True` si le prix interagit avec au moins une zone HTF active.
+- **Notes** : s'appuie sur `marketdata.levels` (ex: FVG_HTF, GAP_D, PDH/PDL). Si la DB est indisponible et
+  `allow_if_missing=true`, le filtre devient un no-op.
+
+
+### `orderflow_delta`
+- **Parametres** : `delta_col`, `buy_col`, `sell_col`, `volume_col`, `mode` ("delta"|"ratio"),
+  `window`, `min_delta`, `min_ratio`, `zscore_thresh`, `side`, `allow_if_missing`, `require_positive`.
+- **Retour** : `True` si le delta (ou ratio delta/volume) respecte les seuils.
+- **Notes** : si les colonnes requises sont absentes et `allow_if_missing=true`, le filtre devient un no-op.
+
+
+### `macro_cot_oi`
+- **Parametres** : `cot_col`, `oi_col`, `cot_bias_threshold`, `oi_change_threshold`,
+  `side`, `require_all`, `allow_if_missing`.
+- **Retour** : `True` si les signaux COT/OI sont alignes avec la direction demandee.
+- **Notes** : si les colonnes requises sont absentes et `allow_if_missing=true`, le filtre devient un no-op.
+
+
+### `lower_timeframe_confluence`
+- **Parametres** : `side`, `momentum_period`, `min_momentum`, `adx_window`, `adx_thresh`,
+  `vwap_max_dev`, `vwap_side`, `vwap_price_col`, `vwap_volume_col`,
+  `ema_fast`, `ema_slow`, `ema_long`,
+  `delta_col`, `buy_col`, `sell_col`, `volume_col`, `delta_min`, `delta_ratio`,
+  `min_score`, `min_score_pct`, `require_all`, `allow_if_missing`,
+  `close_col`, `high_col`, `low_col`.
+- **Retour** : `True` si le score de confluence atteint le seuil.
+- **Notes** : les composantes actives sont agregees (score) ou require_all.
+
+
+### `psychologic_and_news`
+- **Parametres** : `news_times`, `news_col`, `pre_minutes`, `post_minutes`, `allow_if_missing`.
+- **Retour** : `True` si la barre est hors fenetre d'impact news.
+- **Notes** : `news_col` peut etre une colonne bool (True=impact). Sinon `news_times` (ISO) est utilise.
+  Les signaux de sentiment/comportement ne sont pas encore integres.
 ### `ema_structure`
 - **Parametres** : `ema_fast`, `ema_slow`, `ema_long`, `require_close_above_slow`, `require_fast_rising`.
 - **Retour** : `True` si la structure EMA est haussiere.
@@ -296,19 +353,20 @@ Ces filtres visent à plafonner les pertes, limiter le nombre d’entrées et ad
   `condition_value`, `min_samples`, `symbol`, `timeframe`, `allow_if_missing`,
   `allow_if_insufficient`, `scale_min`, `scale_max`.
 - **Retour** : Score [0-1] normalise pour pondération (utilisation hors filtre booléen).
+  - **Note** : helper uniquement (pas expose dans `filters_registry`, donc pas utilisable dans une spec JSON).
+
+
+### `mtf_anomaly`
+- **Parametres** : `higher_timeframe`, `base_window`, `higher_window`, `metric="benford_mad"|"entropy"`,
+  `series_type`, `mad_threshold`, `entropy_threshold`, `atr_window`, `require_both`.
+- **Retour** : `True` sauf si l'anomalie est detectee sur la timeframe courante ET la timeframe superieure.
 
 ## Pending filters (not implemented)
 
 Les filtres ci-dessous restent a implementer si tu veux la parite complete:
-- CandleStructureFilter (engulfing, gaps, wicks, streaks stats)
-- HighTimeframeZoneFilter (POI + orderflow)
-- ICTPointOfInterestFilter (multi-TF patterns)
-- LowerTimeframeConfluenceFilter (momentum/ADX/EMA/VWAP confluence)
-- MarketManipulationFilter (entropy + kurtosis scoring)
-- PsychologicAndNewsFilter (news component only)
-- StationarityFilter (full statistical test vs simple ACF)
-- VolatilityFilter (VIX approx / Bollinger extras)
-- OrderFlowAnalyzer (buy/sell volume delta)
+- ICTPointOfInterestFilter (order blocks, continuation/breakaway gaps, fib retracements, psychological levels, news open gaps)
+- OrderBookLiquidityFilter (absorption, spoofing, stacking)
 - TradeFilterService (weighted scoring orchestration)
 - FilterRuleAdapter (rule glue / tolerance)
 - DynamicStopLossRule (exit logic)
+
