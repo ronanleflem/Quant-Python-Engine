@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 import uuid
 import math
 from pathlib import Path
@@ -30,6 +31,17 @@ def load_backtest_spec(path: Path | str) -> Dict[str, Any]:
 
     path_obj = Path(path)
     return json.loads(path_obj.read_text())
+
+
+def _perf_enabled() -> bool:
+    flag = os.getenv("QE_PERF_TRACE", "")
+    return str(flag).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _perf_log(label: str, start: float) -> None:
+    if _perf_enabled():
+        elapsed = time.monotonic() - start
+        print(f"[perf] {label} {elapsed:.2f}s", flush=True)
 
 
 def _single_symbol(symbols: List[str], fallback: Optional[str] = None) -> str:
@@ -194,13 +206,18 @@ def run_backtest_from_spec(spec: Mapping[str, Any]) -> Dict[str, Any]:
     """Execute a classic backtest based on a JSON specification."""
 
     data_raw = spec.get("data", {}) or {}
+    t0 = time.monotonic()
     data_spec = parse_data_spec(data_raw, allow_strategy_sources=True)
     strategy_cfg = spec.get("strategy", {}) or {}
     asset_class = strategy_cfg.get("asset_class") or "EQUITY"
+    t_load = time.monotonic()
     rows, data_source = _load_rows(data_raw, data_spec, asset_class)
+    _perf_log(f"backtest.load_rows rows={len(rows)} source={data_source or 'csv'}", t_load)
     if not rows:
         raise ValueError("No data rows loaded for backtest")
+    t_validate = time.monotonic()
     _validate_ohlc_rows(rows)
+    _perf_log("backtest.validate_ohlc", t_validate)
     optimization_cfg = spec.get("optimization", {}) or {}
     screening_cfg = optimization_cfg.get("screening") or spec.get("screening") or {}
     cache_cfg = optimization_cfg.get("cache_features") or {}
@@ -234,10 +251,13 @@ def run_backtest_from_spec(spec: Mapping[str, Any]) -> Dict[str, Any]:
             pruning_cfg = candidate_pruning
 
     symbol = _detect_symbol(rows)
+    t_signal = time.monotonic()
     signal = _build_signal(spec, rows)
+    _perf_log("backtest.build_signal", t_signal)
 
     filters_spec = spec.get("filters") or (spec.get("strategy", {}) or {}).get("filters") or []
     if filters_spec:
+        t_filters = time.monotonic()
         df_filters = _rows_to_frame(rows)
         df_filters = df_filters.copy()
         df_filters["entry_signal"] = [bool(val) for val in signal]
@@ -263,15 +283,19 @@ def run_backtest_from_spec(spec: Mapping[str, Any]) -> Dict[str, Any]:
             raise
         require_crossing = _resolve_require_crossing(spec)
         signal = _apply_filter_mask(signal, mask, require_crossing)
+        _perf_log("backtest.apply_filters", t_filters)
 
     tpsl = spec.get("tpsl", {}) or {}
     atr_window = int(tpsl.get("atr_window", tpsl.get("atr_period", 14)))
+    t_atr = time.monotonic()
     atr_values = atr.compute(rows, {"period": atr_window})
+    _perf_log("backtest.compute_atr", t_atr)
     atr_mult = float(tpsl.get("atr_k", 1.0))
     r_mult = float(tpsl.get("r_mult", 2.0))
     slippage_bps = float(tpsl.get("slippage_bps", 0.0))
     fee_bps = float(tpsl.get("fee_bps", 0.0))
 
+    t_engine = time.monotonic()
     trades, equity, summary = engine.run(
         rows,
         signal,
@@ -284,6 +308,7 @@ def run_backtest_from_spec(spec: Mapping[str, Any]) -> Dict[str, Any]:
         max_seconds=max_seconds,
         pruning=pruning_cfg,
     )
+    _perf_log(f"backtest.engine trades={len(trades)}", t_engine)
 
     strategy_id = strategy_cfg.get("strategy_id", "backtest")
     run_id = spec.get("run_id") or strategy_cfg.get("run_id") or uuid.uuid4().hex
@@ -292,6 +317,7 @@ def run_backtest_from_spec(spec: Mapping[str, Any]) -> Dict[str, Any]:
     start_ts = rows[0].get("timestamp") if rows else None
     end_ts = rows[-1].get("timestamp") if rows else None
 
+    t_payload = time.monotonic()
     payload = build_backtest_payload(
         strategy_id=strategy_id,
         run_id=run_id,
@@ -304,6 +330,7 @@ def run_backtest_from_spec(spec: Mapping[str, Any]) -> Dict[str, Any]:
         end_ts=end_ts,
         config=spec.get("performance", {}) or {},
     )
+    _perf_log("backtest.build_payload", t_payload)
 
     persistence_cfg = spec.get("persistence", {})
     if not isinstance(persistence_cfg, Mapping) or persistence_cfg.get("enabled", True):
@@ -327,6 +354,7 @@ def run_backtest_from_spec(spec: Mapping[str, Any]) -> Dict[str, Any]:
         else:
             raise ValueError(f"Unsupported output format: {fmt}")
 
+    _perf_log("backtest.total", t0)
     return {
         "strategy_id": strategy_id,
         "run_id": run_id,

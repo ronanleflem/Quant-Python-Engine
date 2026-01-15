@@ -49,6 +49,17 @@ logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger(__name__)
 
 
+def _perf_enabled() -> bool:
+    flag = os.getenv("QE_PERF_TRACE", "")
+    return str(flag).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _perf_log(label: str, start: float) -> None:
+    if _perf_enabled():
+        elapsed = time.monotonic() - start
+        print(f"[perf] {label} {elapsed:.2f}s", flush=True)
+
+
 def load_strategy_spec(path: Path | str) -> Dict[str, Any]:
     """Load a strategy specification from disk."""
 
@@ -92,6 +103,7 @@ def _expand_universe(spec: Mapping[str, Any]) -> Sequence[Mapping[str, Any]]:
 def _run_backtest_core(spec: Mapping[str, Any]) -> tuple[Dict[str, Any], Dict[str, pd.DataFrame]]:
     """Run the strategy backtest and return raw results plus OHLC cache."""
 
+    t0 = time.monotonic()
     strategy_cfg = spec.get("strategy", {})
     strategy_type = strategy_cfg.get("type")
     strategy_id = strategy_cfg.get("strategy_id", "strategy")
@@ -119,7 +131,9 @@ def _run_backtest_core(spec: Mapping[str, Any]) -> tuple[Dict[str, Any], Dict[st
             "asset_class",
             getattr(strategy, "asset_class", None) or strategy_cfg.get("asset_class"),
         )
+        t_fetch = time.monotonic()
         df = _fetch_ohlc_for_symbol(symbol, asset_class, data_spec, instrument)
+        _perf_log(f"strategy.fetch_ohlc {symbol} rows={len(df)}", t_fetch)
         if isinstance(screening_cfg, Mapping) and screening_cfg.get("enabled"):
             window_start = screening_cfg.get("window_start")
             window_end = screening_cfg.get("window_end")
@@ -140,6 +154,7 @@ def _run_backtest_core(spec: Mapping[str, Any]) -> tuple[Dict[str, Any], Dict[st
                     LOGGER.info("Screening enabled: keeping last %d bars for %s", max_bars_int, symbol)
         filters_spec = strategy_cfg.get("filters") or spec.get("filters") or []
         if filters_spec:
+            t_filters = time.monotonic()
             df = df.copy()
             df_filter = df.copy()
             if "ts" in df_filter.columns:
@@ -181,12 +196,15 @@ def _run_backtest_core(spec: Mapping[str, Any]) -> tuple[Dict[str, Any], Dict[st
                 df["_filter_ok"] = mask.reindex(ts_index, fill_value=False).to_numpy()
             else:
                 df["_filter_ok"] = mask.reindex(df.index, fill_value=False)
+            _perf_log(f"strategy.apply_filters {symbol}", t_filters)
         ohlc_by_symbol[symbol] = df.copy()
+        t_signals = time.monotonic()
         context = {"symbol": symbol, "asset_class": asset_class, "screening": screening_cfg}
         signals = strategy.backtest(df, context)
         serialized = [_serialize_signal(sig) for sig in signals]
         signals_by_symbol[symbol] = serialized
         counts[symbol] = len(serialized)
+        _perf_log(f"strategy.backtest_signals {symbol} signals={len(serialized)}", t_signals)
     _log_ohlc_cache_stats_delta(cache_stats_start)
     result = {
         "strategy_id": strategy_id,
@@ -194,6 +212,7 @@ def _run_backtest_core(spec: Mapping[str, Any]) -> tuple[Dict[str, Any], Dict[st
         "counts": counts,
         "signals": signals_by_symbol,
     }
+    _perf_log("strategy.total", t0)
     return result, ohlc_by_symbol
 
 

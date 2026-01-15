@@ -260,6 +260,11 @@ poetry run pytest tests/test_timeframe_variants.py
 poetry run pytest tests/test_data_edge_cases.py
 poetry run pytest -m slow tests/test_large_dataset_perf.py
 
+## Utile pour des traces de perf plus rigoureuses
+set QE_PERF_TRACE=1
+## Pour voir avec des logs -s (log de perf générales mais pas détaillées comme avec QE_PERF_TRACE, faut avoir les deux)
+poetry run pytest -m slow -s tests/test_large_dataset_perf.py
+poetry run pytest -m slow -s tests/test_large_dataset_optimize_perf.py
 
 
 poetry run pytest tests/test_strategy_dca_variants.py tests/test_backtest_trade_expectations.py tests/test_backtest_data_sources.py tests/test_optimize_variants_baseline.py

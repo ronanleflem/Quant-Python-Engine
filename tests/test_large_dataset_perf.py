@@ -4,6 +4,7 @@ from pathlib import Path
 import os
 import time
 import tracemalloc
+from contextlib import contextmanager
 
 import pandas as pd
 import pytest
@@ -16,6 +17,9 @@ LARGE_SOURCE = Path(
     "specs/examples/data/forex/EURUSD_20250101_20250601_1min.csv"
 )
 
+if not os.getenv("QE_PERF_TRACE"):
+    os.environ["QE_PERF_TRACE"] = "1"
+
 
 @pytest.fixture(scope="session")
 def large_csv_path(tmp_path_factory: pytest.TempPathFactory) -> Path:
@@ -26,24 +30,36 @@ def large_csv_path(tmp_path_factory: pytest.TempPathFactory) -> Path:
     if out_path.exists():
         return out_path
 
-    df = pd.read_csv(
-        LARGE_SOURCE,
-        usecols=["Timestamp", "Open", "High", "Low", "Close", "Volume"],
-    )
-    df = df.rename(
-        columns={
-            "Timestamp": "timestamp",
-            "Open": "open",
-            "High": "high",
-            "Low": "low",
-            "Close": "close",
-            "Volume": "volume",
-        }
-    )
-    df["symbol"] = "EURUSD"
-    df["ts"] = df["timestamp"]
-    df.to_csv(out_path, index=False)
+    with _time_block("large_csv_convert"):
+        df = pd.read_csv(
+            LARGE_SOURCE,
+            usecols=["Timestamp", "Open", "High", "Low", "Close", "Volume"],
+        )
+        df = df.rename(
+            columns={
+                "Timestamp": "timestamp",
+                "Open": "open",
+                "High": "high",
+                "Low": "low",
+                "Close": "close",
+                "Volume": "volume",
+            }
+        )
+        df["symbol"] = "EURUSD"
+        df["ts"] = df["timestamp"]
+        df.to_csv(out_path, index=False)
     return out_path
+
+
+@contextmanager
+def _time_block(label: str):
+    start = time.monotonic()
+    print(f"[perf] {label} start", flush=True)
+    try:
+        yield
+    finally:
+        elapsed = time.monotonic() - start
+        print(f"[perf] {label} done in {elapsed:.2f}s", flush=True)
 
 
 def _maybe_check_memory(peak_bytes: int) -> None:
@@ -96,7 +112,8 @@ def test_backtest_large_csv_trades(large_csv_path: Path) -> None:
         "performance": {"initial_capital": 10000},
         "persistence": {"enabled": False},
     }
-    result = backtest_runner.run_backtest_from_spec(spec)
+    with _time_block(f"backtest_large_csv_trades rows={n_rows}"):
+        result = backtest_runner.run_backtest_from_spec(spec)
     current, peak = tracemalloc.get_traced_memory()
     tracemalloc.stop()
     trades = result.get("payload", {}).get("trades", [])
@@ -142,7 +159,8 @@ def test_strategy_large_csv_signals(large_csv_path: Path, monkeypatch) -> None:
         "universe": [{"symbol": "EURUSD", "asset_class": "EQUITY"}],
         "performance": {"initial_capital": 10000, "capital_per_unit": 100},
     }
-    result = strategies_runner.run_backtest_with_payload(spec)
+    with _time_block(f"strategy_large_csv_signals rows={n_rows}"):
+        result = strategies_runner.run_backtest_with_payload(spec)
     current, peak = tracemalloc.get_traced_memory()
     tracemalloc.stop()
     counts = result.get("result", {}).get("counts", {})
@@ -179,7 +197,8 @@ def test_backtest_large_csv_filters(large_csv_path: Path) -> None:
         "performance": {"initial_capital": 10000},
         "persistence": {"enabled": False},
     }
-    result = backtest_runner.run_backtest_from_spec(spec)
+    with _time_block("backtest_large_csv_filters"):
+        result = backtest_runner.run_backtest_from_spec(spec)
     trades = result.get("payload", {}).get("trades", [])
     assert trades
     elapsed = time.monotonic() - start

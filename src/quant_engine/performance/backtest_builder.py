@@ -7,7 +7,9 @@ from __future__ import annotations
 
 from datetime import datetime
 import math
+import os
 import re
+import time
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
 
 import pandas as pd
@@ -18,6 +20,14 @@ from .models import CompletedTrade, StrategyRunResult, to_backend_payload
 def _maybe_dt(value: Any) -> Optional[datetime]:
     if isinstance(value, datetime):
         return value
+    if isinstance(value, str):
+        text = value.strip()
+        if text.endswith("Z"):
+            text = text[:-1] + "+00:00"
+        try:
+            return datetime.fromisoformat(text)
+        except Exception:
+            pass
     try:
         return pd.to_datetime(value, utc=True).to_pydatetime()
     except Exception:
@@ -116,6 +126,17 @@ def _periods_per_year(
     return None
 
 
+def _perf_enabled() -> bool:
+    flag = os.getenv("QE_PERF_TRACE", "")
+    return str(flag).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _perf_log(label: str, start: float) -> None:
+    if _perf_enabled():
+        elapsed = time.monotonic() - start
+        print(f"[perf] {label} {elapsed:.2f}s", flush=True)
+
+
 def build_backtest_performance(
     *,
     strategy_id: str,
@@ -134,8 +155,10 @@ def build_backtest_performance(
     start_dt = _maybe_dt(start_ts)
     end_dt = _maybe_dt(end_ts)
 
+    t0 = time.monotonic()
     completed: List[CompletedTrade] = []
     returns_pct: List[float] = []
+    t_trades = time.monotonic()
     for tr in trades:
         entry_time = _maybe_dt(tr.get("ts_entry"))
         exit_time = _maybe_dt(tr.get("ts_exit"))
@@ -167,7 +190,9 @@ def build_backtest_performance(
                 meta=meta,
             )
         )
+    _perf_log(f"payload.trades_build count={len(completed)}", t_trades)
 
+    t_summary = time.monotonic()
     win_count = sum(1 for r in returns_pct if r > 0)
     loss_count = sum(1 for r in returns_pct if r <= 0)
     total_return = sum(returns_pct)
@@ -250,6 +275,7 @@ def build_backtest_performance(
     loss_vals = [abs(r) for r in returns_pct if r < 0]
     if win_vals and loss_vals:
         rr_moyen = (sum(win_vals) / len(win_vals)) / (sum(loss_vals) / len(loss_vals))
+    _perf_log("payload.metrics_compute", t_summary)
 
     run = StrategyRunResult(
         strategy_id=strategy_id,
@@ -288,6 +314,7 @@ def build_backtest_performance(
             "cagr_pct": cagr_pct,
         },
     )
+    _perf_log("payload.build_backtest_performance", t0)
     return run, completed
 
 
@@ -304,6 +331,7 @@ def build_backtest_payload(
     end_ts: Optional[Any],
     config: Optional[Mapping[str, Any]] = None,
 ) -> Dict[str, Any]:
+    t0 = time.monotonic()
     run, completed = build_backtest_performance(
         strategy_id=strategy_id,
         run_id=run_id,
@@ -316,4 +344,6 @@ def build_backtest_payload(
         end_ts=end_ts,
         config=config,
     )
-    return to_backend_payload(run, completed)
+    payload = to_backend_payload(run, completed)
+    _perf_log("payload.to_backend_payload", t0)
+    return payload

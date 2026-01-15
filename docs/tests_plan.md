@@ -126,7 +126,7 @@ No hard duplication found. Some intentional overlaps:
    - Status: implemented.
 
 14) Large dataset perf / trades (manual or slow)
-   - Uses: specs/examples/data/forex/EURUSD_20250101_20250601_1min.csv
-   - Tests: tests/test_large_dataset_perf.py
-   - Notes: optional memory cap + throughput check + filters-on variant
-   - Status: implemented (marked slow).
+    - Uses: specs/examples/data/forex/EURUSD_20250101_20250601_1min.csv
+    - Tests: tests/test_large_dataset_perf.py
+   - Notes: optional memory cap + throughput check + filters-on variant + optimize perf (grid/random, screening on/off)
+    - Status: implemented (marked slow).

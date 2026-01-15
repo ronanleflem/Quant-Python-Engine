@@ -12,6 +12,8 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
+import os
+import time
 from typing import Any, Dict, List, Optional
 
 
@@ -77,6 +79,7 @@ class CompletedTrade:
 
 
 def to_backend_payload(run: StrategyRunResult, trades: List[CompletedTrade]) -> Dict[str, Any]:
+    t0 = time.monotonic()
     def _iso(dt: Optional[datetime]) -> Optional[str]:
         return dt.isoformat() if dt is not None else None
 
@@ -114,6 +117,7 @@ def to_backend_payload(run: StrategyRunResult, trades: List[CompletedTrade]) -> 
     }
 
     trade_dicts: List[Dict[str, Any]] = []
+    t_trades = time.monotonic()
     for t in trades:
         trade_dicts.append(
             {
@@ -134,5 +138,8 @@ def to_backend_payload(run: StrategyRunResult, trades: List[CompletedTrade]) -> 
                 "meta": t.meta,
             }
         )
+    if str(os.getenv("QE_PERF_TRACE", "")).strip().lower() in {"1", "true", "yes", "on"}:
+        print(f"[perf] payload.serialize_trades count={len(trades)} {time.monotonic() - t_trades:.2f}s", flush=True)
+        print(f"[perf] payload.serialize_total {time.monotonic() - t0:.2f}s", flush=True)
 
     return {"run": run_dict, "trades": trade_dicts}
