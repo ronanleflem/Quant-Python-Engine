@@ -457,8 +457,14 @@ def _fetch_from_delta(symbol: str, asset_class: Optional[str], spec: Mapping[str
     asset_dir = spec.get("delta_asset_dir") or _delta_asset_dir(asset_class_value)
     delta_prefix = spec.get("delta_prefix") or os.getenv("DELTA_PREFIX") or "delta"
     delta_prefix = str(delta_prefix).strip().strip("/")
-    exchange = spec.get("delta_exchange") or spec.get("exchange") or os.getenv("DELTA_EXCHANGE") or "GENERIC"
-    exchange = str(exchange).strip().upper() or "GENERIC"
+    if "delta_exchange" in spec:
+        exchanges = [e.strip() for e in str(spec.get("delta_exchange", "")).split(",") if e.strip()]
+    elif spec.get("exchange"):
+        exchanges = [str(spec.get("exchange")).strip()]
+    else:
+        env_exchange = os.getenv("DELTA_EXCHANGE") or "GENERIC"
+        exchanges = [env_exchange]
+    exchanges = [str(ex).strip().upper() or "GENERIC" for ex in exchanges] or ["GENERIC"]
     market_type = spec.get("delta_market_type") or spec.get("market_type") or os.getenv("DELTA_MARKET_TYPE") or "SPOT"
     market_type = str(market_type).strip().upper() or "SPOT"
     quotes: List[str] = []
@@ -484,87 +490,89 @@ def _fetch_from_delta(symbol: str, asset_class: Optional[str], spec: Mapping[str
     table_name = spec.get("delta_table") or spec.get("delta_symbol") or symbol
     brokers = _delta_brokers(asset_class, spec)
     asset_upper = (asset_class_value or "").upper()
-    use_exchange_dir = asset_upper != "CRYPTO" and exchange != "GENERIC"
+    use_exchange_dir = asset_upper != "CRYPTO"
     for broker in (brokers or [""]):
         for quote in quotes:
-            parts = [base_uri.rstrip("/")]
-            if delta_prefix:
-                parts.append(delta_prefix)
-            parts.append(asset_dir.strip("/"))
-            if broker:
-                parts.append(str(broker).strip().upper())
-            if market_type:
-                parts.append(market_type.strip("/"))
-            if use_exchange_dir:
-                parts.append(exchange.strip("/"))
-            parts.extend([quote.strip("/"), table_name])
-            table_path = "/".join(parts)
-            LOGGER.info("Trying Delta path: %s", table_path)
-            try:
-                dt = DeltaTable(table_path, storage_options=storage_options)
-                df = dt.to_pyarrow_table().to_pandas()
-            except Exception as exc:  # pragma: no cover - remote dependency
-                LOGGER.info("Delta load failed for %s: %s", table_path, exc)
-                continue
-
-            if df.empty:
-                LOGGER.info("Delta path %s returned no rows", table_path)
-                continue
-            if "ts" not in df.columns:
-                if "time" in df.columns:
-                    df = df.rename(columns={"time": "ts"})
-                elif "timestamp" in df.columns:
-                    df = df.rename(columns={"timestamp": "ts"})
-                else:
-                    LOGGER.warning("Delta path %s missing time column", table_path)
+            for exchange in exchanges:
+                use_exchange = use_exchange_dir and exchange != "GENERIC"
+                parts = [base_uri.rstrip("/")]
+                if delta_prefix:
+                    parts.append(delta_prefix)
+                parts.append(asset_dir.strip("/"))
+                if broker:
+                    parts.append(str(broker).strip().upper())
+                if market_type:
+                    parts.append(market_type.strip("/"))
+                if use_exchange:
+                    parts.append(exchange.strip("/"))
+                parts.extend([quote.strip("/"), table_name])
+                table_path = "/".join(parts)
+                LOGGER.info("Trying Delta path: %s", table_path)
+                try:
+                    dt = DeltaTable(table_path, storage_options=storage_options)
+                    df = dt.to_pyarrow_table().to_pandas()
+                except Exception as exc:  # pragma: no cover - remote dependency
+                    LOGGER.info("Delta load failed for %s: %s", table_path, exc)
                     continue
 
-            if pd.api.types.is_numeric_dtype(df["ts"]):
-                df["ts"] = pd.to_datetime(df["ts"], unit="ms", utc=True, errors="coerce")
-            else:
-                df["ts"] = pd.to_datetime(df["ts"], utc=True, errors="coerce")
-            df = df.dropna(subset=["ts"])
-            start_filter = start_dt if start_dt is not None else df["ts"].min()
-            end_filter = end_dt if end_dt is not None else df["ts"].max()
-            df_filtered = df[(df["ts"] >= start_filter) & (df["ts"] <= end_filter)]
+                if df.empty:
+                    LOGGER.info("Delta path %s returned no rows", table_path)
+                    continue
+                if "ts" not in df.columns:
+                    if "time" in df.columns:
+                        df = df.rename(columns={"time": "ts"})
+                    elif "timestamp" in df.columns:
+                        df = df.rename(columns={"timestamp": "ts"})
+                    else:
+                        LOGGER.warning("Delta path %s missing time column", table_path)
+                        continue
 
-            coverage, expected_len, observed_len, obs_start, obs_end, missing_sample = _coverage_stats(
-                df_filtered,
-                start_dt,
-                end_dt,
-                timeframe,
-                asset_class or spec.get("asset_class"),
-                spec.get("delta_calendar") or os.getenv("DELTA_CALENDAR"),
-                exchange,
-            )
-            if coverage >= min_coverage:
-                LOGGER.info(
-                    "Delta path %s covers requested range (%.1f%%>=%.1f%%)",
+                if pd.api.types.is_numeric_dtype(df["ts"]):
+                    df["ts"] = pd.to_datetime(df["ts"], unit="ms", utc=True, errors="coerce")
+                else:
+                    df["ts"] = pd.to_datetime(df["ts"], utc=True, errors="coerce")
+                df = df.dropna(subset=["ts"])
+                start_filter = start_dt if start_dt is not None else df["ts"].min()
+                end_filter = end_dt if end_dt is not None else df["ts"].max()
+                df_filtered = df[(df["ts"] >= start_filter) & (df["ts"] <= end_filter)]
+
+                coverage, expected_len, observed_len, obs_start, obs_end, missing_sample = _coverage_stats(
+                    df_filtered,
+                    start_dt,
+                    end_dt,
+                    timeframe,
+                    asset_class or spec.get("asset_class"),
+                    spec.get("delta_calendar") or os.getenv("DELTA_CALENDAR"),
+                    exchange,
+                )
+                if coverage >= min_coverage:
+                    LOGGER.info(
+                        "Delta path %s covers requested range (%.1f%%>=%.1f%%)",
+                        table_path,
+                        coverage * 100,
+                        min_coverage * 100,
+                    )
+                    if coverage < 1.0 and missing_sample:
+                        LOGGER.info(
+                            "Delta path %s missing dates (first %d): %s",
+                            table_path,
+                            len(missing_sample),
+                            missing_sample[:20],
+                        )
+                    return df_filtered
+
+                LOGGER.warning(
+                    "Delta path %s has partial coverage: %.1f%% < %.1f%% (rows=%s, expected=%s, ts_min=%s, ts_max=%s)",
                     table_path,
                     coverage * 100,
                     min_coverage * 100,
+                    observed_len,
+                    expected_len,
+                    obs_start,
+                    obs_end,
                 )
-                if coverage < 1.0 and missing_sample:
-                    LOGGER.info(
-                        "Delta path %s missing dates (first %d): %s",
-                        table_path,
-                        len(missing_sample),
-                        missing_sample[:20],
-                    )
-                return df_filtered
-
-            LOGGER.warning(
-                "Delta path %s has partial coverage: %.1f%% < %.1f%% (rows=%s, expected=%s, ts_min=%s, ts_max=%s)",
-                table_path,
-                coverage * 100,
-                min_coverage * 100,
-                observed_len,
-                expected_len,
-                obs_start,
-                obs_end,
-            )
-            if missing_sample:
-                LOGGER.info("Sample missing dates for %s: %s", table_path, missing_sample[:20])
+                if missing_sample:
+                    LOGGER.info("Sample missing dates for %s: %s", table_path, missing_sample[:20])
 
     LOGGER.warning(
         "No Delta data for %s (asset_class=%s, asset_dir=%s); fallback to other sources",
@@ -1236,6 +1244,8 @@ def persist_payload_to_db(
         meta_payload = dict(t.get("meta", {}) or {})
         if "be_pct" not in meta_payload:
             meta_payload["be_pct"] = meta_payload.get("break_even_pct")
+        trade_asset = str(t.get("assetClass") or trade_ctx.get("asset_class") or "").upper()
+        exchange_value = None if trade_asset == "ETF" else trade_ctx.get("exchange")
         trade_rows.append(
             {
                 "strategy_name": t.get("strategyId"),
@@ -1243,7 +1253,7 @@ def persist_payload_to_db(
                 "symbol": t.get("symbol"),
                 "asset_class": t.get("assetClass"),
                 "broker": trade_ctx.get("broker"),
-                "exchange": trade_ctx.get("exchange"),
+                "exchange": exchange_value,
                 "currency": trade_ctx.get("currency"),
                 "market_type": trade_ctx.get("market_type"),
                 "cycle_id": t.get("cycleId"),

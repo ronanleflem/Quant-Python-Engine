@@ -51,7 +51,7 @@
     "initial_capital": 10000
   },
   "persistence": {
-    "enabled": false
+    "enabled": true
   },
   "output": {
     "path": "runs/backtest_eurusd_m1_with_filters_csv.json",

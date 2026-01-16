@@ -242,6 +242,8 @@ poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_delta_mysql.
 poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_delta_mysql_with_filters.json
 poetry run qe backtest optimize --spec specs/examples/backtest_eurusd_m1_optimize.json
 poetry run qe strategy optimize --spec specs/strategy_dca_equity_example_minimal_optimize.json
+poetry run qe strategy backtest --spec specs/examples/strategy_dca_etf_delta_2024_2026.json
+
 
 
 poetry run pytest tests/test_backtest_data_sources.py

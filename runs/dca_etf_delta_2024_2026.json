@@ -1,0 +1,2649 @@
+{
+  "strategy_id": "DCA_ETF_DELTA_2024_2026",
+  "strategy_type": "dca_etf",
+  "counts": {
+    "INFR": 3,
+    "TRET": 3,
+    "WENS": 7,
+    "IWQU": 4,
+    "CEBL": 6,
+    "IUSN": 4,
+    "XAXJ": 6,
+    "XRS2": 8,
+    "DGTL": 6,
+    "AEEM": 3,
+    "ESE": 4,
+    "ETZ": 3,
+    "INRE": 10,
+    "TPXE": 5,
+    "UNIC": 7,
+    "UST": 7
+  },
+  "signals": {
+    "INFR": [
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "INFR",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2025-04-07T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -12.976406533575325,
+          "drawdown_pct": -12.976406533575325,
+          "grid_level": -10.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 1,
+          "activation_count": 1
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "INFR",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2025-04-09T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -15.245009074410165,
+          "drawdown_pct": -15.245009074410165,
+          "grid_level": -15.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 1,
+          "activation_count": 2
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "INFR",
+        "asset_class": "ETF",
+        "side": "SELL",
+        "ts_open_utc": "2025-12-31T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "action": "forced_exit_end",
+          "cycle_id": 1,
+          "forced_exit_reason": "end_of_backtest"
+        }
+      }
+    ],
+    "TRET": [
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "TRET",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2025-04-03T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -10.287623821458414,
+          "drawdown_pct": -10.287623821458414,
+          "grid_level": -10.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 1,
+          "activation_count": 1
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "TRET",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2025-04-07T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -16.65831244778615,
+          "drawdown_pct": -16.65831244778615,
+          "grid_level": -15.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 1,
+          "activation_count": 2
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "TRET",
+        "asset_class": "ETF",
+        "side": "SELL",
+        "ts_open_utc": "2025-12-31T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "action": "forced_exit_end",
+          "cycle_id": 1,
+          "forced_exit_reason": "end_of_backtest"
+        }
+      }
+    ],
+    "WENS": [
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "WENS",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2024-06-14T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -10.646785690929306,
+          "drawdown_pct": -10.646785690929306,
+          "grid_level": -10.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 1,
+          "activation_count": 1
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "WENS",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2024-12-17T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -11.565081192519312,
+          "drawdown_pct": -11.565081192519312,
+          "grid_level": -10.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 2,
+          "activation_count": 2
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "WENS",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2025-04-04T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -12.693498452012387,
+          "drawdown_pct": -12.693498452012387,
+          "grid_level": -10.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 3,
+          "activation_count": 3
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "WENS",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2025-04-07T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -17.053663570691423,
+          "drawdown_pct": -17.053663570691423,
+          "grid_level": -15.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 3,
+          "activation_count": 4
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "WENS",
+        "asset_class": "ETF",
+        "side": "SELL",
+        "ts_open_utc": "2025-12-31T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "action": "forced_exit_end",
+          "cycle_id": 1,
+          "forced_exit_reason": "end_of_backtest"
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "WENS",
+        "asset_class": "ETF",
+        "side": "SELL",
+        "ts_open_utc": "2025-12-31T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "action": "forced_exit_end",
+          "cycle_id": 2,
+          "forced_exit_reason": "end_of_backtest"
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "WENS",
+        "asset_class": "ETF",
+        "side": "SELL",
+        "ts_open_utc": "2025-12-31T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "action": "forced_exit_end",
+          "cycle_id": 3,
+          "forced_exit_reason": "end_of_backtest"
+        }
+      }
+    ],
+    "IWQU": [
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "IWQU",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2025-03-11T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -10.285631852279275,
+          "drawdown_pct": -10.285631852279275,
+          "grid_level": -10.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 1,
+          "activation_count": 1
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "IWQU",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2025-04-04T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -16.76283900750143,
+          "drawdown_pct": -16.76283900750143,
+          "grid_level": -15.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 1,
+          "activation_count": 2
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "IWQU",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2025-04-09T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -20.628967109059428,
+          "drawdown_pct": -20.628967109059428,
+          "grid_level": -20.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 1,
+          "activation_count": 3
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "IWQU",
+        "asset_class": "ETF",
+        "side": "SELL",
+        "ts_open_utc": "2025-12-30T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "action": "forced_exit_end",
+          "cycle_id": 1,
+          "forced_exit_reason": "end_of_backtest"
+        }
+      }
+    ],
+    "CEBL": [
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "CEBL",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2024-08-05T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -10.56412672241196,
+          "drawdown_pct": -10.56412672241196,
+          "grid_level": -10.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 1,
+          "activation_count": 1
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "CEBL",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2025-04-03T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -10.716232421236239,
+          "drawdown_pct": -10.716232421236239,
+          "grid_level": -10.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 3,
+          "activation_count": 2
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "CEBL",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2025-04-04T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -15.643737054398787,
+          "drawdown_pct": -15.643737054398787,
+          "grid_level": -15.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 3,
+          "activation_count": 3
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "CEBL",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2025-04-09T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -20.52763545186962,
+          "drawdown_pct": -20.52763545186962,
+          "grid_level": -20.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 3,
+          "activation_count": 4
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "CEBL",
+        "asset_class": "ETF",
+        "side": "SELL",
+        "ts_open_utc": "2025-12-30T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "action": "forced_exit_end",
+          "cycle_id": 1,
+          "forced_exit_reason": "end_of_backtest"
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "CEBL",
+        "asset_class": "ETF",
+        "side": "SELL",
+        "ts_open_utc": "2025-12-30T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "action": "forced_exit_end",
+          "cycle_id": 3,
+          "forced_exit_reason": "end_of_backtest"
+        }
+      }
+    ],
+    "IUSN": [
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "IUSN",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2025-03-05T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -10.46936114732725,
+          "drawdown_pct": -10.46936114732725,
+          "grid_level": -10.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 1,
+          "activation_count": 1
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "IUSN",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2025-04-03T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -16.844850065189043,
+          "drawdown_pct": -16.844850065189043,
+          "grid_level": -15.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 1,
+          "activation_count": 2
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "IUSN",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2025-04-04T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -21.043024771838326,
+          "drawdown_pct": -21.043024771838326,
+          "grid_level": -20.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 1,
+          "activation_count": 3
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "IUSN",
+        "asset_class": "ETF",
+        "side": "SELL",
+        "ts_open_utc": "2025-12-30T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "action": "forced_exit_end",
+          "cycle_id": 1,
+          "forced_exit_reason": "end_of_backtest"
+        }
+      }
+    ],
+    "XAXJ": [
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "XAXJ",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2025-01-13T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -10.15257731958763,
+          "drawdown_pct": -10.15257731958763,
+          "grid_level": -10.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 1,
+          "activation_count": 1
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "XAXJ",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2025-04-04T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -14.270895671254745,
+          "drawdown_pct": -14.270895671254745,
+          "grid_level": -10.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 3,
+          "activation_count": 2
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "XAXJ",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2025-04-07T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -17.66606822262119,
+          "drawdown_pct": -17.66606822262119,
+          "grid_level": -15.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 3,
+          "activation_count": 3
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "XAXJ",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2025-04-09T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -20.546578894873335,
+          "drawdown_pct": -20.546578894873335,
+          "grid_level": -20.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 3,
+          "activation_count": 4
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "XAXJ",
+        "asset_class": "ETF",
+        "side": "SELL",
+        "ts_open_utc": "2025-12-30T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "action": "forced_exit_end",
+          "cycle_id": 1,
+          "forced_exit_reason": "end_of_backtest"
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "XAXJ",
+        "asset_class": "ETF",
+        "side": "SELL",
+        "ts_open_utc": "2025-12-30T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "action": "forced_exit_end",
+          "cycle_id": 3,
+          "forced_exit_reason": "end_of_backtest"
+        }
+      }
+    ],
+    "XRS2": [
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "XRS2",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2024-08-05T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -10.844561288202437,
+          "drawdown_pct": -10.844561288202437,
+          "grid_level": -10.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 1,
+          "activation_count": 1
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "XRS2",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2025-02-24T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -10.682215743440226,
+          "drawdown_pct": -10.682215743440226,
+          "grid_level": -10.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 3,
+          "activation_count": 2
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "XRS2",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2025-03-04T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -16.71720116618075,
+          "drawdown_pct": -16.71720116618075,
+          "grid_level": -15.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 3,
+          "activation_count": 3
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "XRS2",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2025-03-11T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -21.119533527696788,
+          "drawdown_pct": -21.119533527696788,
+          "grid_level": -20.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 3,
+          "activation_count": 4
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "XRS2",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2025-04-03T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -25.63848396501458,
+          "drawdown_pct": -25.63848396501458,
+          "grid_level": -25.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 3,
+          "activation_count": 5
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "XRS2",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2025-04-09T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -32.76967930029154,
+          "drawdown_pct": -32.76967930029154,
+          "grid_level": -30.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 3,
+          "activation_count": 6
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "XRS2",
+        "asset_class": "ETF",
+        "side": "SELL",
+        "ts_open_utc": "2025-12-30T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "action": "forced_exit_end",
+          "cycle_id": 1,
+          "forced_exit_reason": "end_of_backtest"
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "XRS2",
+        "asset_class": "ETF",
+        "side": "SELL",
+        "ts_open_utc": "2025-12-30T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "action": "forced_exit_end",
+          "cycle_id": 3,
+          "forced_exit_reason": "end_of_backtest"
+        }
+      }
+    ],
+    "DGTL": [
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "DGTL",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2025-03-07T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -10.881965774462488,
+          "drawdown_pct": -10.881965774462488,
+          "grid_level": -10.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 1,
+          "activation_count": 1
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "DGTL",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2025-04-04T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -18.824045634050023,
+          "drawdown_pct": -18.824045634050023,
+          "grid_level": -15.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 1,
+          "activation_count": 2
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "DGTL",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2025-04-07T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -21.851689337428702,
+          "drawdown_pct": -21.851689337428702,
+          "grid_level": -20.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 1,
+          "activation_count": 3
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "DGTL",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2025-11-18T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -10.213478442863133,
+          "drawdown_pct": -10.213478442863133,
+          "grid_level": -10.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 3,
+          "activation_count": 4
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "DGTL",
+        "asset_class": "ETF",
+        "side": "SELL",
+        "ts_open_utc": "2025-12-31T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "action": "forced_exit_end",
+          "cycle_id": 1,
+          "forced_exit_reason": "end_of_backtest"
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "DGTL",
+        "asset_class": "ETF",
+        "side": "SELL",
+        "ts_open_utc": "2025-12-31T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "action": "forced_exit_end",
+          "cycle_id": 3,
+          "forced_exit_reason": "end_of_backtest"
+        }
+      }
+    ],
+    "AEEM": [
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "AEEM",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2025-04-04T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -13.930357272266104,
+          "drawdown_pct": -13.930357272266104,
+          "grid_level": -10.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 1,
+          "activation_count": 1
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "AEEM",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2025-04-07T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -17.41249365896078,
+          "drawdown_pct": -17.41249365896078,
+          "grid_level": -15.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 1,
+          "activation_count": 2
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "AEEM",
+        "asset_class": "ETF",
+        "side": "SELL",
+        "ts_open_utc": "2025-12-31T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "action": "forced_exit_end",
+          "cycle_id": 1,
+          "forced_exit_reason": "end_of_backtest"
+        }
+      }
+    ],
+    "ESE": [
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "ESE",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2025-03-07T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -10.943829510506564,
+          "drawdown_pct": -10.943829510506564,
+          "grid_level": -10.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 1,
+          "activation_count": 1
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "ESE",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2025-04-03T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -16.454187045291356,
+          "drawdown_pct": -16.454187045291356,
+          "grid_level": -15.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 1,
+          "activation_count": 2
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "ESE",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2025-04-07T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -22.83162401268104,
+          "drawdown_pct": -22.83162401268104,
+          "grid_level": -20.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 1,
+          "activation_count": 3
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "ESE",
+        "asset_class": "ETF",
+        "side": "SELL",
+        "ts_open_utc": "2025-12-31T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "action": "forced_exit_end",
+          "cycle_id": 1,
+          "forced_exit_reason": "end_of_backtest"
+        }
+      }
+    ],
+    "ETZ": [
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "ETZ",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2025-04-04T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -11.380281690140848,
+          "drawdown_pct": -11.380281690140848,
+          "grid_level": -10.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 1,
+          "activation_count": 1
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "ETZ",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2025-04-07T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -15.616901408450701,
+          "drawdown_pct": -15.616901408450701,
+          "grid_level": -15.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 1,
+          "activation_count": 2
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "ETZ",
+        "asset_class": "ETF",
+        "side": "SELL",
+        "ts_open_utc": "2025-12-31T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "action": "forced_exit_end",
+          "cycle_id": 1,
+          "forced_exit_reason": "end_of_backtest"
+        }
+      }
+    ],
+    "INRE": [
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "INRE",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2024-04-19T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -10.244305741975989,
+          "drawdown_pct": -10.244305741975989,
+          "grid_level": -10.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 1,
+          "activation_count": 1
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "INRE",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2024-07-01T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -10.042984955265677,
+          "drawdown_pct": -10.042984955265677,
+          "grid_level": -10.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 3,
+          "activation_count": 2
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "INRE",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2024-11-06T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -16.779127305443108,
+          "drawdown_pct": -16.779127305443108,
+          "grid_level": -15.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 3,
+          "activation_count": 3
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "INRE",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2024-12-30T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -20.427850252411663,
+          "drawdown_pct": -20.427850252411663,
+          "grid_level": -20.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 3,
+          "activation_count": 4
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "INRE",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2025-04-04T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -25.775978407557364,
+          "drawdown_pct": -25.775978407557364,
+          "grid_level": -25.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 3,
+          "activation_count": 5
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "INRE",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2025-04-09T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -30.399360223921633,
+          "drawdown_pct": -30.399360223921633,
+          "grid_level": -30.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 3,
+          "activation_count": 6
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "INRE",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2025-11-21T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -11.962453612748314,
+          "drawdown_pct": -11.962453612748314,
+          "grid_level": -10.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 5,
+          "activation_count": 7
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "INRE",
+        "asset_class": "ETF",
+        "side": "SELL",
+        "ts_open_utc": "2025-12-31T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "action": "forced_exit_end",
+          "cycle_id": 1,
+          "forced_exit_reason": "end_of_backtest"
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "INRE",
+        "asset_class": "ETF",
+        "side": "SELL",
+        "ts_open_utc": "2025-12-31T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "action": "forced_exit_end",
+          "cycle_id": 3,
+          "forced_exit_reason": "end_of_backtest"
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "INRE",
+        "asset_class": "ETF",
+        "side": "SELL",
+        "ts_open_utc": "2025-12-31T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "action": "forced_exit_end",
+          "cycle_id": 5,
+          "forced_exit_reason": "end_of_backtest"
+        }
+      }
+    ],
+    "TPXE": [
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "TPXE",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2024-08-02T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -10.473588342440799,
+          "drawdown_pct": -10.473588342440799,
+          "grid_level": -10.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 1,
+          "activation_count": 1
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "TPXE",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2025-04-03T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -10.326373047903148,
+          "drawdown_pct": -10.326373047903148,
+          "grid_level": -10.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 3,
+          "activation_count": 2
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "TPXE",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2025-04-09T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -15.26583611159853,
+          "drawdown_pct": -15.26583611159853,
+          "grid_level": -15.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 3,
+          "activation_count": 3
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "TPXE",
+        "asset_class": "ETF",
+        "side": "SELL",
+        "ts_open_utc": "2025-12-31T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "action": "forced_exit_end",
+          "cycle_id": 1,
+          "forced_exit_reason": "end_of_backtest"
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "TPXE",
+        "asset_class": "ETF",
+        "side": "SELL",
+        "ts_open_utc": "2025-12-31T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "action": "forced_exit_end",
+          "cycle_id": 3,
+          "forced_exit_reason": "end_of_backtest"
+        }
+      }
+    ],
+    "UNIC": [
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "UNIC",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2024-08-05T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -10.806036069193958,
+          "drawdown_pct": -10.806036069193958,
+          "grid_level": -10.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 1,
+          "activation_count": 1
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "UNIC",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2025-03-07T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -11.27694859038143,
+          "drawdown_pct": -11.27694859038143,
+          "grid_level": -10.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 3,
+          "activation_count": 2
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "UNIC",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2025-04-03T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -18.497257303227453,
+          "drawdown_pct": -18.497257303227453,
+          "grid_level": -15.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 3,
+          "activation_count": 3
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "UNIC",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2025-04-04T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -21.47595356550581,
+          "drawdown_pct": -21.47595356550581,
+          "grid_level": -20.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 3,
+          "activation_count": 4
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "UNIC",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2025-04-09T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -26.04924097461412,
+          "drawdown_pct": -26.04924097461412,
+          "grid_level": -25.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 3,
+          "activation_count": 5
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "UNIC",
+        "asset_class": "ETF",
+        "side": "SELL",
+        "ts_open_utc": "2025-12-31T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "action": "forced_exit_end",
+          "cycle_id": 1,
+          "forced_exit_reason": "end_of_backtest"
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "UNIC",
+        "asset_class": "ETF",
+        "side": "SELL",
+        "ts_open_utc": "2025-12-31T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "action": "forced_exit_end",
+          "cycle_id": 3,
+          "forced_exit_reason": "end_of_backtest"
+        }
+      }
+    ],
+    "UST": [
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "UST",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2024-08-02T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -11.336297071129708,
+          "drawdown_pct": -11.336297071129708,
+          "grid_level": -10.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 1,
+          "activation_count": 1
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "UST",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2025-03-04T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -10.279939598095023,
+          "drawdown_pct": -10.279939598095023,
+          "grid_level": -10.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 3,
+          "activation_count": 2
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "UST",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2025-03-10T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -15.222441630851435,
+          "drawdown_pct": -15.222441630851435,
+          "grid_level": -15.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 3,
+          "activation_count": 3
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "UST",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2025-04-03T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -20.641189452898146,
+          "drawdown_pct": -20.641189452898146,
+          "grid_level": -20.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 3,
+          "activation_count": 4
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "UST",
+        "asset_class": "ETF",
+        "side": "BUY",
+        "ts_open_utc": "2025-04-07T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "dd_pct": -26.43744918108957,
+          "drawdown_pct": -26.43744918108957,
+          "grid_level": -25.0,
+          "palier_used": 0.2,
+          "grid_config": [
+            {
+              "dd": -30.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -25.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -20.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -15.0,
+              "weight": 0.2
+            },
+            {
+              "dd": -10.0,
+              "weight": 0.2
+            }
+          ],
+          "cycle_id": 3,
+          "activation_count": 5
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "UST",
+        "asset_class": "ETF",
+        "side": "SELL",
+        "ts_open_utc": "2025-12-31T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "action": "forced_exit_end",
+          "cycle_id": 1,
+          "forced_exit_reason": "end_of_backtest"
+        }
+      },
+      {
+        "strategy_id": "DCA_ETF_DELTA_2024_2026",
+        "symbol": "UST",
+        "asset_class": "ETF",
+        "side": "SELL",
+        "ts_open_utc": "2025-12-31T00:00:00+00:00",
+        "qty": 0.0,
+        "meta": {
+          "action": "forced_exit_end",
+          "cycle_id": 3,
+          "forced_exit_reason": "end_of_backtest"
+        }
+      }
+    ]
+  }
+}

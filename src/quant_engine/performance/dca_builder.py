@@ -127,7 +127,7 @@ def build_dca_performance_from_signals(
                 for s in cycle_signals
                 if getattr(s, "side", "").upper() == "SELL"
                 and getattr(getattr(s, "meta", {}), "get", lambda *_: None)("action")
-                in {"take_profit", "break_even", "stop_loss"}
+                in {"take_profit", "break_even", "stop_loss", "forced_exit_end"}
             ]
             if not sells_tp or not buys:
                 LOGGER.warning(

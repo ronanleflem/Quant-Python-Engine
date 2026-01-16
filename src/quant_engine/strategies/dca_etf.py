@@ -26,6 +26,9 @@ class _EtfState:
     last_rolling_max: Optional[float] = None
     activation_history: List[pd.Timestamp] = field(default_factory=list)
     cycle_high_ref: Optional[float] = None
+    cycle_low: Optional[float] = None
+    open_cycle_ids: List[int] = field(default_factory=list)
+    cycle_buy_counts: Dict[int, int] = field(default_factory=dict)
 
     def reset(self, level_count: int) -> None:
         self.cycle_active = False
@@ -33,6 +36,7 @@ class _EtfState:
         self.prev_dd = None
         self.cycle_high_ref = None
         self.last_rolling_max = None
+        self.cycle_low = None
 
 
 class DcaEtfStrategy(Strategy):
@@ -48,6 +52,19 @@ class DcaEtfStrategy(Strategy):
         self.asset_class = self.params.get("asset_class", "ETF").upper()
         self.activation_limit: Dict[str, Any] = self.params.get("activation_limit", {})
         self.reset_on_new_high: bool = bool(self.params.get("reset_on_new_high", True))
+        self.rearm_on_rebound_pct: Optional[float] = self._coerce_optional_float(
+            self.params.get("rearm_on_rebound_pct")
+        )
+        self.force_close_end: bool = bool(self.params.get("force_close_end", False))
+
+    @staticmethod
+    def _coerce_optional_float(value: Any) -> Optional[float]:
+        if value is None or value == "":
+            return None
+        try:
+            return float(value)
+        except Exception:
+            return None
 
     @staticmethod
     def compute_drawdown(close: pd.Series) -> pd.Series:
@@ -148,18 +165,30 @@ class DcaEtfStrategy(Strategy):
                 continue
             allow_entries = self._allow_entries(df, ts)
             self._ensure_state_initialized(state)
+            rearmed = False
             if allow_entries and not state.cycle_active:
-                self._maybe_start_cycle(state, float(dd), float(ref_high))
+                self._maybe_start_cycle(state, float(dd), float(ref_high), float(price))
             if state.cycle_active:
-                buys = self._check_buy_levels(state, float(dd), ts, symbol, asset_class) if allow_entries else []
+                self._update_cycle_low(state, float(price))
+                rearmed = self._maybe_rearm_cycle(state, float(price), float(ref_high))
+                if not rearmed:
+                    self._update_cycle_high_ref(state, float(price))
+                eff_dd = self._effective_drawdown(state, float(price), float(dd))
+                buys = (
+                    self._check_buy_levels(state, float(eff_dd), ts, symbol, asset_class)
+                    if allow_entries and not rearmed
+                    else []
+                )
                 signals_seen += len(buys)
                 for sig in buys:
                     if only_last_ts is None or sig.ts_open_utc == only_last_ts:
                         results.append(sig)
+            else:
+                self._update_cycle_high_ref(state, float(ref_high))
             if self.reset_on_new_high and float(price) >= float(ref_high):
                 self._reset_cycle(state)
-            state.prev_dd = float(dd)
-            state.cycle_high_ref = float(ref_high)
+            eff_dd = self._effective_drawdown(state, float(price), float(dd))
+            state.prev_dd = float(eff_dd)
             state.last_processed_ts = ts
             state.last_rolling_max = float(ref_high)
             bars_seen += 1
@@ -193,6 +222,10 @@ class DcaEtfStrategy(Strategy):
                         min_signals,
                     )
                     break
+        if self.force_close_end and only_last_ts is None:
+            end_ts = df.index.max()
+            if end_ts is not None:
+                results.extend(self._emit_forced_exits(state, end_ts, symbol, asset_class))
         return results
 
     def _hydrate_incremental_state(self, df: pd.DataFrame, state: _EtfState) -> None:
@@ -232,7 +265,7 @@ class DcaEtfStrategy(Strategy):
         if not state.consumed_levels:
             state.reset(len(self.grid))
 
-    def _maybe_start_cycle(self, state: _EtfState, dd: float, ref_high: float) -> None:
+    def _maybe_start_cycle(self, state: _EtfState, dd: float, ref_high: float, price: float) -> None:
         if state.cycle_active:
             return
         eligible = [idx for idx, level in enumerate(self.grid) if dd <= float(level["dd"])]
@@ -242,6 +275,7 @@ class DcaEtfStrategy(Strategy):
         state.cycle_id += 1
         state.consumed_levels = [False] * len(self.grid)
         state.cycle_high_ref = ref_high
+        state.cycle_low = price
         state.prev_dd = state.prev_dd if state.prev_dd is not None else 0.0
 
     def _check_buy_levels(
@@ -263,6 +297,9 @@ class DcaEtfStrategy(Strategy):
                     continue
                 state.consumed_levels[idx] = True
                 state.activation_history.append(ts)
+                state.cycle_buy_counts[state.cycle_id] = state.cycle_buy_counts.get(state.cycle_id, 0) + 1
+                if state.cycle_id not in state.open_cycle_ids:
+                    state.open_cycle_ids.append(state.cycle_id)
                 meta = {
                     "dd_pct": dd,
                     "drawdown_pct": dd,
@@ -283,6 +320,82 @@ class DcaEtfStrategy(Strategy):
                         meta=meta,
                     )
                 )
+        return signals
+
+    def _update_cycle_low(self, state: _EtfState, price: float) -> None:
+        if state.cycle_low is None:
+            state.cycle_low = price
+        else:
+            state.cycle_low = min(state.cycle_low, price)
+
+    def _update_cycle_high_ref(self, state: _EtfState, price: float) -> None:
+        if state.cycle_active:
+            if state.cycle_buy_counts.get(state.cycle_id, 0) <= 0:
+                if state.cycle_high_ref is None:
+                    state.cycle_high_ref = price
+                else:
+                    state.cycle_high_ref = max(state.cycle_high_ref, price)
+        else:
+            state.cycle_high_ref = price
+
+    def _effective_drawdown(self, state: _EtfState, price: float, fallback_dd: float) -> float:
+        if state.cycle_active and state.cycle_high_ref:
+            return (price / state.cycle_high_ref - 1.0) * 100.0
+        return fallback_dd
+
+    def _maybe_rearm_cycle(
+        self,
+        state: _EtfState,
+        price: float,
+        ref_high: float,
+    ) -> bool:
+        if not state.cycle_active:
+            return False
+        if self.rearm_on_rebound_pct is None:
+            return False
+        if state.cycle_low is None:
+            return False
+        if state.cycle_buy_counts.get(state.cycle_id, 0) <= 0:
+            return False
+        target = state.cycle_low * (1.0 + float(self.rearm_on_rebound_pct) / 100.0)
+        if price < target:
+            return False
+        state.cycle_active = False
+        state.consumed_levels = [False] * len(self.grid)
+        state.cycle_id += 1
+        state.cycle_high_ref = price
+        state.cycle_low = price
+        state.prev_dd = 0.0
+        state.cycle_active = True
+        return True
+
+    def _emit_forced_exits(
+        self,
+        state: _EtfState,
+        ts: pd.Timestamp,
+        symbol: str,
+        asset_class: str,
+    ) -> List[StrategySignal]:
+        signals: List[StrategySignal] = []
+        for cycle_id in state.open_cycle_ids:
+            if state.cycle_buy_counts.get(cycle_id, 0) <= 0:
+                continue
+            meta = {
+                "action": "forced_exit_end",
+                "cycle_id": cycle_id,
+                "forced_exit_reason": "end_of_backtest",
+            }
+            signals.append(
+                StrategySignal(
+                    strategy_id=self.strategy_id,
+                    symbol=symbol,
+                    asset_class=asset_class,
+                    side="SELL",
+                    ts_open_utc=ts,
+                    qty=0.0,
+                    meta=meta,
+                )
+            )
         return signals
 
     def _allow_activation(self, state: _EtfState, ts: pd.Timestamp) -> bool:
@@ -335,6 +448,10 @@ class DcaEtfStrategy(Strategy):
         state.activation_history = [pd.Timestamp(ts).tz_convert("UTC") for ts in history_raw]
         ref = data.get("cycle_high_ref")
         state.cycle_high_ref = float(ref) if ref is not None else None
+        state.cycle_low = float(data.get("cycle_low")) if data.get("cycle_low") is not None else None
+        state.open_cycle_ids = [int(cid) for cid in data.get("open_cycle_ids", [])]
+        cycle_buy_counts = data.get("cycle_buy_counts", {}) or {}
+        state.cycle_buy_counts = {int(k): int(v) for k, v in cycle_buy_counts.items()}
         self._ensure_state_initialized(state)
         return state
 
@@ -351,6 +468,9 @@ class DcaEtfStrategy(Strategy):
                 "last_rolling_max": state.last_rolling_max,
                 "activation_history": [ts.isoformat() for ts in state.activation_history],
                 "cycle_high_ref": state.cycle_high_ref,
+                "cycle_low": state.cycle_low,
+                "open_cycle_ids": list(state.open_cycle_ids),
+                "cycle_buy_counts": dict(state.cycle_buy_counts),
             }
         )
 

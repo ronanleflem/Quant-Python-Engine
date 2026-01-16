@@ -504,7 +504,11 @@ def backtest_run(
 
     spec_dict = load_backtest_spec(spec)
     result = run_backtest_from_spec(spec_dict)
-    typer.echo(json.dumps(result, separators=(",", ":")))
+    out_dir = Path("runs")
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / f"{spec.stem}_cli.json"
+    out_path.write_text(json.dumps(result, indent=2))
+    typer.echo(f"Backtest result written to {out_path}")
 
 
 @backtest_app.command("optimize")

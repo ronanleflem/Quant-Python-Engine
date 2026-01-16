@@ -1,0 +1,57 @@
+{
+  "strategy": {
+    "strategy_id": "DCA_ETF_DELTA_2024_2026",
+    "type": "dca_etf",
+    "params": {
+      "asset_class": "ETF",
+      "grid": [
+        { "dd": -10.0, "weight": 0.2 },
+        { "dd": -15.0, "weight": 0.2 },
+        { "dd": -20.0, "weight": 0.2 },
+        { "dd": -25.0, "weight": 0.2 },
+        { "dd": -30.0, "weight": 0.2 }
+      ],
+      "reset_on_new_high": true,
+      "rearm_on_rebound_pct": 10.0,
+      "force_close_end": true
+    }
+  },
+  "data": {
+    "start": "2024-01-01",
+    "end": "2026-01-01",
+    "timeframe": "1D",
+    "mysql_env": "QE_MARKETDATA_MYSQL_URL",
+    "schema": "marketdata",
+    "table": "ohlcv",
+    "timeframe_col": "timeframe",
+    "delta_base": "s3://quant-delta-dev",
+    "delta_prefix": "delta",
+    "delta_asset_dir": "ETF",
+    "delta_broker": "IBKR",
+    "delta_market_type": "SPOT",
+    "delta_exchange": "AEB,BVME.ETF,IBIS2,LSEETF,SBF",
+    "delta_quotes": "EUR,USD"
+  },
+  "universe": [
+    { "symbol": "INFR", "asset_class": "ETF" },
+    { "symbol": "TRET", "asset_class": "ETF" },
+    { "symbol": "WENS", "asset_class": "ETF" },
+    { "symbol": "IWQU", "asset_class": "ETF" },
+    { "symbol": "CEBL", "asset_class": "ETF" },
+    { "symbol": "IUSN", "asset_class": "ETF" },
+    { "symbol": "XAXJ", "asset_class": "ETF" },
+    { "symbol": "XRS2", "asset_class": "ETF" },
+    { "symbol": "DGTL", "asset_class": "ETF" },
+    { "symbol": "AEEM", "asset_class": "ETF" },
+    { "symbol": "ESE", "asset_class": "ETF" },
+    { "symbol": "ETZ", "asset_class": "ETF" },
+    { "symbol": "INRE", "asset_class": "ETF" },
+    { "symbol": "TPXE", "asset_class": "ETF" },
+    { "symbol": "UNIC", "asset_class": "ETF" },
+    { "symbol": "UST", "asset_class": "ETF" }
+  ],
+  "output": {
+    "path": "runs/dca_etf_delta_2024_2026.json",
+    "format": "json"
+  }
+}
