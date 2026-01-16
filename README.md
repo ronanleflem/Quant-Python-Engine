@@ -236,6 +236,7 @@ poetry run qe strategy backtest --spec specs/strategy_dca_crypto_example_minimal
 poetry run qe strategy backtest --spec specs/strategy_dca_crypto_example_minimal_with_filters.json
 poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1.json
 poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_with_filters.json
+poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_with_filters_csv.json
 poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_stats_gate.json
 poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_delta_mysql.json
 poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_delta_mysql_with_filters.json

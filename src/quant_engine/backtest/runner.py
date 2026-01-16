@@ -297,6 +297,20 @@ def run_backtest_from_spec(spec: Mapping[str, Any]) -> Dict[str, Any]:
         except FilterValidationError as exc:
             LOGGER.error("Backtest filters failed: %s", exc)
             raise
+        try:
+            mask_series = pd.Series(mask)
+            allowed = int(mask_series.fillna(False).sum())
+            total = int(mask_series.size)
+            pct = (allowed / total * 100.0) if total else 0.0
+            LOGGER.info(
+                "Backtest filters summary for %s: %d/%d bars allowed (%.1f%%)",
+                symbol,
+                allowed,
+                total,
+                pct,
+            )
+        except Exception:
+            LOGGER.info("Backtest filters summary for %s: unable to compute coverage", symbol)
         require_crossing = _resolve_require_crossing(spec)
         signal = _apply_filter_mask(signal, mask, require_crossing)
         _perf_log("backtest.apply_filters", t_filters)

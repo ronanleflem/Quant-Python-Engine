@@ -1,0 +1,60 @@
+{
+  "strategy": {
+    "strategy_id": "BT_EURUSD_M1_EMA_FILTERS",
+    "asset_class": "FX"
+  },
+  "data": {
+    "dataset_path": "C:\\Users\\ronan\\Desktop\\Quant-Engine-Python\\Quant-Python-Engine\\specs\\examples\\data\\forex\\EURUSD_20250101_20250601_1min.csv",
+    "symbols": [
+      "EURUSD"
+    ],
+    "timeframe": "1m",
+    "start": "2025-01-01",
+    "end": "2025-06-01"
+  },
+  "signal": {
+    "type": "ema_cross",
+    "params": {
+      "fast": 5,
+      "slow": 20,
+      "require_crossing": false
+    }
+  },
+  "filters": [
+    {
+      "type": "ema_structure",
+      "params": {
+        "ema_fast": 10,
+        "ema_slow": 20,
+        "ema_long": 0,
+        "require_close_above_slow": false,
+        "require_fast_rising": false
+      }
+    },
+    {
+      "type": "rsi_entry",
+      "params": {
+        "window": 14,
+        "threshold": 55,
+        "direction": "below"
+      }
+    }
+  ],
+  "tpsl": {
+    "atr_window": 14,
+    "atr_k": 1.0,
+    "r_mult": 2.0,
+    "slippage_bps": 0.0,
+    "fee_bps": 0.0
+  },
+  "performance": {
+    "initial_capital": 10000
+  },
+  "persistence": {
+    "enabled": false
+  },
+  "output": {
+    "path": "runs/backtest_eurusd_m1_with_filters_csv.json",
+    "format": "json"
+  }
+}

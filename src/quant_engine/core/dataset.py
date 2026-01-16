@@ -22,6 +22,41 @@ from .spec import DataSpec
 from ..time_sessions import assign_session_label
 
 
+_CANONICAL_COLUMNS = {
+    "timestamp": "timestamp",
+    "ts": "ts",
+    "symbol": "symbol",
+    "open": "open",
+    "high": "high",
+    "low": "low",
+    "close": "close",
+    "volume": "volume",
+    "session": "session",
+    "session_id": "session_id",
+}
+
+
+def _normalize_row_keys(row: Dict[str, Any]) -> Dict[str, Any]:
+    normalized: Dict[str, Any] = {}
+    for key, value in row.items():
+        lower = str(key).strip().lower()
+        canonical = _CANONICAL_COLUMNS.get(lower, key)
+        if canonical in normalized:
+            continue
+        normalized[canonical] = value
+    return normalized
+
+
+def _normalize_dataframe_columns(df: pd.DataFrame) -> pd.DataFrame:
+    rename: Dict[str, str] = {}
+    for col in df.columns:
+        lower = str(col).strip().lower()
+        canonical = _CANONICAL_COLUMNS.get(lower)
+        if canonical and canonical != col:
+            rename[col] = canonical
+    return df.rename(columns=rename)
+
+
 def _parse_timestamp(value: str) -> datetime:
     value = value.strip()
     if value.endswith("Z"):
@@ -74,7 +109,7 @@ def _parse_row_types(row: Dict[str, str]) -> Dict[str, Any]:
         if value == "":
             parsed[key] = None
             continue
-        if key in {"timestamp", "ts", "symbol"}:
+        if key in {"timestamp", "ts", "symbol", "session", "session_id"}:
             parsed[key] = value
             continue
         # Attempt integer then float conversion, falling back to the raw string
@@ -99,8 +134,14 @@ def _read_dataset_rows(path: Path) -> List[Dict[str, Any]]:
     if suffix == ".csv":
         with path.open(newline="") as handle:
             reader = csv.DictReader(handle)
-            return [_parse_row_types(row) for row in reader]
-    return json.loads(path.read_text())
+            return [_parse_row_types(_normalize_row_keys(row)) for row in reader]
+    raw = json.loads(path.read_text())
+    if isinstance(raw, list):
+        return [
+            _normalize_row_keys(row) if isinstance(row, dict) else row
+            for row in raw
+        ]
+    return raw
 
 
 def _normalize_row_timestamp(row: Dict[str, Any]) -> datetime:
@@ -172,6 +213,8 @@ def load_dataset(spec: DataSpec) -> List[Dict]:
     end_date = _coerce_date(spec.end)
     out: List[Dict[str, Any]] = []
     for row in rows:
+        if isinstance(row, dict):
+            row = _normalize_row_keys(row)
         ts_dt = _normalize_row_timestamp(row)
         ts = ts_dt.date()
         symbol = row.get("symbol")
@@ -199,6 +242,7 @@ def load_ohlcv(spec_data) -> pd.DataFrame:
             df = pd.DataFrame(raw)
         else:
             df = pd.read_csv(str(path))
+        df = _normalize_dataframe_columns(df)
         df = _normalize_dataframe_timestamps(df)
         df = _ensure_session_column(df)
         return df.sort_values(["symbol", "ts"]).reset_index(drop=True)

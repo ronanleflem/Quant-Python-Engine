@@ -1,0 +1,12 @@
+{
+  "strategy_id": "DCA_EQUITY_DEMO_FILTERS",
+  "strategy_type": "dca_equity",
+  "counts": {
+    "AAPL": 0,
+    "MSFT": 0
+  },
+  "signals": {
+    "AAPL": [],
+    "MSFT": []
+  }
+}
