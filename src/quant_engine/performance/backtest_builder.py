@@ -15,6 +15,7 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
 import pandas as pd
 
 from .models import CompletedTrade, StrategyRunResult, to_backend_payload
+from .stress_tests import run_monte_carlo_on_equity_curve, run_scenarios_on_equity_curve
 
 
 def _maybe_dt(value: Any) -> Optional[datetime]:
@@ -345,5 +346,45 @@ def build_backtest_payload(
         config=config,
     )
     payload = to_backend_payload(run, completed)
+
+    stress_cfg = config or {}
+    if _stress_tests_enabled(stress_cfg):
+        initial_capital = float(stress_cfg.get("initial_capital", 10_000.0))
+        equity_values = _equity_value_curve(equity, initial_capital)
+        stress_tests = _build_stress_tests_payload(equity_values, stress_cfg)
+        if stress_tests:
+            payload["stress_tests"] = stress_tests
     _perf_log("payload.to_backend_payload", t0)
     return payload
+
+
+def _stress_tests_enabled(config: Mapping[str, Any]) -> bool:
+    stress_config = config.get("stress_tests", {}) if isinstance(config.get("stress_tests"), Mapping) else {}
+    if "enabled" in stress_config:
+        return bool(stress_config.get("enabled"))
+    return bool(config.get("stress_tests_enabled", False))
+
+
+def _build_stress_tests_payload(equity_curve: List[float], config: Mapping[str, Any]) -> Dict[str, Any]:
+    stress_config = config.get("stress_tests", {}) if isinstance(config.get("stress_tests"), Mapping) else {}
+    if not equity_curve:
+        return {}
+
+    monte_cfg = stress_config.get("monte_carlo", {}) if isinstance(stress_config.get("monte_carlo"), Mapping) else {}
+    scen_cfg = stress_config.get("scenarios", None)
+
+    monte_result = run_monte_carlo_on_equity_curve(equity_curve, parameters=monte_cfg)
+
+    scenarios_params: Dict[str, Any] = {}
+    if isinstance(scen_cfg, list):
+        scenarios_params["scenarios"] = scen_cfg
+    elif isinstance(stress_config.get("scenarios"), Mapping):
+        scenarios_params.update(stress_config.get("scenarios", {}))
+    else:
+        scenarios_params = stress_config.get("scenario_params", {}) if isinstance(stress_config.get("scenario_params"), Mapping) else {}
+    scen_result = run_scenarios_on_equity_curve(equity_curve, parameters=scenarios_params)
+
+    return {
+        "monte_carlo": monte_result,
+        "scenarios": scen_result,
+    }

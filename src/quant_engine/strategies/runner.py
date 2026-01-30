@@ -1279,11 +1279,50 @@ def persist_payload_to_db(
     except Exception as exc:
         LOGGER.warning("Failed to persist trades for run %s: %s", run_id, exc)
 
+    _persist_stress_tests_payload(engine, payload, run_id=run_id)
+
 
 def _persist_results_to_db(result: Dict[str, Any], spec: Mapping[str, Any], ohlc_by_symbol: Optional[Dict[str, pd.DataFrame]] = None) -> None:
     payload = _build_payload_for_result(result, spec, ohlc_by_symbol)
     strategy_type = str((spec.get("strategy", {}) or {}).get("type") or "").strip().lower()
     persist_payload_to_db(payload, spec, strategy_type=strategy_type)
+
+
+def _persist_stress_tests_payload(engine, payload: Mapping[str, Any], *, run_id: str) -> None:
+    stress_tests = payload.get("stress_tests")
+    if not isinstance(stress_tests, Mapping):
+        return
+
+    run = payload.get("run", {}) if isinstance(payload, Mapping) else {}
+    base_row = {
+        "strategy_id": run.get("strategyId"),
+        "run_id": run_id,
+        "asset_class": run.get("assetClass"),
+        "symbol": run.get("symbol"),
+        "timeframe": run.get("timeframe"),
+    }
+
+    rows: List[Dict[str, Any]] = []
+    for mode in ("monte_carlo", "scenarios"):
+        result = stress_tests.get(mode)
+        if not isinstance(result, Mapping):
+            continue
+        row = {
+            **base_row,
+            "mode": mode,
+            "payload_json": json.dumps(result, ensure_ascii=False),
+        }
+        rows.append(row)
+
+    if not rows:
+        return
+
+    try:
+        filtered_rows = [_filter_row_for_table(engine, "StressTestResult", row) for row in rows]
+        pd.DataFrame(filtered_rows).to_sql("StressTestResult", engine, if_exists="append", index=False)
+        LOGGER.info("Persisted %d stress test payloads for run %s", len(rows), run_id)
+    except Exception as exc:
+        LOGGER.warning("Failed to persist stress tests for run %s: %s", run_id, exc)
 
 
 def _build_payload_for_result(

@@ -29,6 +29,11 @@
 - **Optimisation (recommandée)** : `optimize.variants` orchestre grid/random search, screening, promotion et artefacts détaillés pour backtest/strategy.【F:src/quant_engine/optimize/variants.py†L1-L120】【F:src/quant_engine/optimize/variants.py†L1805-L2391】
 - **Optimisation (runner simple)** : `optimize.runner` reste un runner minimal (EMA/ATR/R) pour le fallback local (`qe run-local`).【F:src/quant_engine/optimize/runner.py†L1-L120】【F:src/quant_engine/cli/main.py†L31-L62】
 
+## Stress Tests & Monte Carlo
+- **Monte Carlo** : bootstrap/IID/blocking sur trades/returns/equity avec distributions de mÃ©triques + courbes dâ€™equity.ã€F:src/quant_engine/performance/stress_tests.pyâ€ L904-L1258ã€‘
+- **ScÃ©narios** : chocs dÃ©terministes (crash/gap/vol/drawdown) appliquÃ©s aux returns/equity.ã€F:src/quant_engine/performance/stress_tests.pyâ€ L493-L750ã€‘
+- **Output "light"** : rÃ©duction des `equity_curves` pour limiter la taille des payloads.ã€F:src/quant_engine/performance/stress_tests.pyâ€ L1160-L1235ã€‘
+
 ## Persistance & Artefacts
 - **Base SQL (quant)** : tables `experiment_runs`, `run_metrics`, `trials`, `market_stats`, `seasonality_profiles`, `seasonality_runs` (clé unique, timestamps).【F:src/quant_engine/persistence/db.py†L48-L215】
 - **Modèles dataclass** : `MarketStat`, `SeasonalityProfile`, `SeasonalityRun` pour manipuler les entités persistées.【F:src/quant_engine/persistence/models.py†L1-L58】

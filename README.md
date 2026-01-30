@@ -160,6 +160,55 @@ Voir aussi `docs/optimization.md` pour le workflow complet.
 - **Payload Java** : un seul endpoint d’import est appelé avec `{ "run": {..}, "trades": [...] }`. Le backend Spring ne recalcule pas les perfs ; il persiste simplement le run et les trades reçus.
 - **Conventions récentes** : `runId` est obligatoire et présent dans tous les objets envoyés. Les signaux sont des événements bas niveau ; les trades reflètent les cycles stratégiques ; le run agrège la performance globale. Certains champs prix/qty peuvent encore être complétés par la suite (TODO connus), mais la structure de payload est stable.
 
+## Stress Tests & Monte Carlo
+Les stress tests et Monte Carlo sont calculÃ©s cÃ´tÃ© Python et exposÃ©s dans le payload (puis persistÃ©s en DB).
+
+- **Backtest** : Monte Carlo + scÃ©narios sont calculÃ©s sur lâ€™equity curve du backtest (PnL cumulÃ©).
+- **DCA** : Monte Carlo niveau 1 est attachÃ© dans `run.extra["stress_tests"]` cÃ´tÃ© DCA.
+- **Sortie** : le payload inclut `stress_tests` avec `monte_carlo` et `scenarios` (donnÃ©es brutes + paramÃ¨tres).
+
+### Mode "light" (rÃ©duction taille)
+Pour rÃ©duire la taille des rÃ©sultats, active un mode light sur Monte Carlo :
+```json
+{
+  "performance": {
+    "stress_tests": {
+      "enabled": true,
+      "monte_carlo": {
+        "n_sims": 300,
+        "output": {
+          "mode": "light",
+          "max_curves": 30,
+          "curve_stride": 10
+        }
+      }
+    }
+  }
+}
+```
+- `max_curves` limite le nombre de trajectoires conservÃ©es.
+- `curve_stride` downsample les points des courbes.
+
+### Optimisation Monte Carlo (NumPy)
+Le Monte Carlo utilise une implÃ©mentation NumPy optimisÃ©e si NumPy est disponible. Le fallback Python reste actif si besoin.
+
+### Persistance MySQL (Option A)
+Les stress tests sont persistÃ©s dans une table `StressTestResult` (JSON brut).
+Exemple de schÃ©ma recommandÃ© :
+```sql
+CREATE TABLE StressTestResult (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  strategy_id VARCHAR(128),
+  run_id VARCHAR(64) NOT NULL,
+  asset_class VARCHAR(32),
+  symbol VARCHAR(64),
+  timeframe VARCHAR(32),
+  mode VARCHAR(32) NOT NULL,
+  payload_json JSON NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
 ### High-level Strategies
 
 - **Backtest**
@@ -243,6 +292,10 @@ poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_delta_mysql_
 poetry run qe backtest optimize --spec specs/examples/backtest_eurusd_m1_optimize.json
 poetry run qe strategy optimize --spec specs/strategy_dca_equity_example_minimal_optimize.json
 poetry run qe strategy backtest --spec specs/examples/strategy_dca_etf_delta_2024_2026.json
+poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_delta_mysql_stress.json
+poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress.json
+poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_10k.json
+poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_10k_light.json
 
 
 
@@ -262,6 +315,11 @@ poetry run pytest tests/test_combo_backtest_dca_seasonality.py
 poetry run pytest tests/test_timeframe_variants.py
 poetry run pytest tests/test_data_edge_cases.py
 poetry run pytest -m slow tests/test_large_dataset_perf.py
+
+## STRESS TESTS & MONTE CARLO
+poetry run pytest tests\test_stress_tests.py
+poetry run pytest tests\test_dca_stress_tests.py 
+poetry run pytest tests\test_stress_tests_large_dataset.py
 
 ## Ajouts de tests filters 
 poetry run pytest tests/test_filters_mtf_anomaly.py
@@ -284,7 +342,6 @@ set QE_PERF_TRACE=1
 ## Pour voir avec des logs -s (log de perf générales mais pas détaillées comme avec QE_PERF_TRACE, faut avoir les deux)
 poetry run pytest -m slow -s tests/test_large_dataset_perf.py
 poetry run pytest -m slow -s tests/test_large_dataset_optimize_perf.py
-
 
 poetry run pytest tests/test_strategy_dca_variants.py tests/test_backtest_trade_expectations.py tests/test_backtest_data_sources.py tests/test_optimize_variants_baseline.py
 

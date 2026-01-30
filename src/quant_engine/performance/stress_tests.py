@@ -18,6 +18,10 @@ from typing import Any, Dict, List, Mapping, Optional, Sequence, TypedDict, Unio
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
 from .models import CompletedTrade
+try:  # optional: numpy for faster Monte Carlo
+    import numpy as np  # type: ignore
+except Exception:  # pragma: no cover - optional dependency
+    np = None  # type: ignore[assignment]
 
 
 TimeSeries = Union[Sequence[float], Mapping[datetime, float]]
@@ -929,6 +933,13 @@ def _monte_carlo_bootstrap(
             "warnings": ["No trades available for bootstrap."],
         }
 
+    if np is not None and method in {"bootstrap", "iid", "shuffle", "block", "block_bootstrap"} and not multi_asset:
+        result = _monte_carlo_bootstrap_numpy(
+            trades,
+            config=config,
+        )
+        return _apply_monte_carlo_output_mode(result, parameters)
+
     base_timestamps = _build_timestamps(trades)
     base_start = base_timestamps[0] if base_timestamps else datetime.utcnow()
     deltas: List[timedelta] = []
@@ -1035,7 +1046,7 @@ def _monte_carlo_bootstrap(
         "level1": normalized_level1,
     }
 
-    return {
+    result = {
         "metrics": metrics,
         "distributions": distributions,
         "parameters": {
@@ -1049,6 +1060,259 @@ def _monte_carlo_bootstrap(
             "multi_asset": multi_asset,
         },
     }
+    return _apply_monte_carlo_output_mode(result, parameters)
+
+
+def _monte_carlo_bootstrap_numpy(
+    trades: Sequence[StandardTrade],
+    *,
+    config: MonteCarloConfig,
+) -> StressTestResult:
+    n_simulations = config.n_sims
+    seed = config.seed
+    initial_capital = float(config.initial_capital)
+    ruin_threshold = float(config.ruin_threshold)
+    method = config.method
+    sample_size = len(trades)
+
+    ordered_trades = sorted(
+        trades, key=lambda t: t.exit_time_utc if t.exit_time_utc is not None else datetime.min
+    )
+    pnl_values = np.array([t.pnl for t in ordered_trades], dtype=float)
+
+    rng = np.random.default_rng(seed)
+    if method in {"iid", "shuffle"}:
+        random_matrix = rng.random((n_simulations, sample_size))
+        indices = np.argsort(random_matrix, axis=1)
+    elif method in {"block", "block_bootstrap"}:
+        starts = _block_start_indices(sample_size, config.block_size, config.overlapping)
+        if not starts:
+            indices = rng.integers(0, sample_size, size=(n_simulations, sample_size))
+        else:
+            num_blocks = int(ceil(sample_size / max(config.block_size, 1)))
+            starts_arr = rng.choice(np.array(starts, dtype=int), size=(n_simulations, num_blocks))
+            offsets = np.arange(config.block_size, dtype=int)
+            block_indices = starts_arr[:, :, None] + offsets[None, None, :]
+            block_indices = np.clip(block_indices, 0, sample_size - 1)
+            indices = block_indices.reshape(n_simulations, -1)[:, :sample_size]
+    else:
+        indices = rng.integers(0, sample_size, size=(n_simulations, sample_size))
+
+    sampled_pnl = pnl_values[indices]
+    equity = initial_capital + np.cumsum(sampled_pnl, axis=1)
+    equity_curves = np.concatenate(
+        [np.full((n_simulations, 1), initial_capital, dtype=float), equity], axis=1
+    )
+
+    running_max = np.maximum.accumulate(equity_curves, axis=1)
+    max_drawdowns = (running_max - equity_curves).max(axis=1)
+    ruin_flags = (equity_curves.min(axis=1) <= ruin_threshold).tolist()
+
+    returns_pct = sampled_pnl / initial_capital * 100.0 if initial_capital else sampled_pnl
+    win_count = (returns_pct > 0).sum(axis=1).astype(float)
+    loss_count = (returns_pct <= 0).sum(axis=1).astype(float)
+    total_return = returns_pct.sum(axis=1)
+    average_trade = total_return / sample_size if sample_size else np.zeros(n_simulations)
+
+    final_capital = equity_curves[:, -1]
+    return_pct = (
+        (final_capital - initial_capital) / initial_capital * 100.0 if initial_capital else np.zeros(n_simulations)
+    )
+
+    peak = running_max.max(axis=1)
+    max_drawdown_pct = np.where(
+        peak != 0,
+        (max_drawdowns / peak) * 100.0,
+        np.nan,
+    )
+
+    volatility_pct = np.std(returns_pct, axis=1, ddof=0) if sample_size > 1 else np.full(n_simulations, np.nan)
+    mean_ret = returns_pct.mean(axis=1) if sample_size else np.zeros(n_simulations)
+    sharpe = np.full(n_simulations, np.nan)
+    valid = (volatility_pct != 0) & ~np.isnan(volatility_pct)
+    if valid.any():
+        sharpe[valid] = np.divide(
+            mean_ret[valid],
+            volatility_pct[valid],
+            out=np.full_like(mean_ret[valid], np.nan),
+            where=volatility_pct[valid] != 0,
+        ) * (sample_size ** 0.5)
+
+    sortino = np.full(n_simulations, np.nan)
+    for i in range(n_simulations):
+        downside = returns_pct[i][returns_pct[i] < 0]
+        if downside.size > 1:
+            downside_std = np.std(downside, ddof=0)
+            if downside_std:
+                sortino[i] = mean_ret[i] / downside_std * (sample_size ** 0.5)
+
+    base_timestamps = _build_timestamps(ordered_trades)
+    base_start = base_timestamps[0] if base_timestamps else datetime.utcnow()
+    deltas: List[timedelta] = []
+    if base_timestamps:
+        for prev, nxt in zip(base_timestamps[:-1], base_timestamps[1:]):
+            deltas.append(nxt - prev)
+
+    base_period_days: Optional[float] = None
+    if base_timestamps:
+        base_period_days = (base_timestamps[-1] - base_timestamps[0]).total_seconds() / 86400.0
+
+    time_to_recovery: List[float] = []
+    cagrs: List[float] = []
+    equity_curves_list = equity_curves.tolist()
+
+    exit_times = [t.exit_time_utc for t in ordered_trades if t.exit_time_utc is not None]
+    has_exit_times = len(exit_times) == sample_size
+
+    for i in range(n_simulations):
+        timestamps = None
+        if has_exit_times:
+            sampled_exit = [exit_times[idx] for idx in indices[i]]
+            if sampled_exit and sampled_exit[0] is not None:
+                timestamps = [sampled_exit[0]] + sampled_exit
+        elif base_timestamps:
+            timestamps = _build_sampled_timestamps(base_start, deltas, sample_size + 1, random.Random(int(seed or 0) + i))
+
+        ttr = _time_to_recovery(equity_curves_list[i], timestamps)
+        if ttr is not None:
+            time_to_recovery.append(float(ttr))
+
+        years = None
+        if base_period_days is not None and base_period_days > 0:
+            years = base_period_days / 365.25
+        else:
+            years = sample_size / 252.0 if sample_size else None
+        if years and initial_capital > 0 and final_capital[i] > 0:
+            cagr = (final_capital[i] / initial_capital) ** (1 / years) - 1
+            cagrs.append(float(cagr))
+
+    level1_metrics: Dict[str, List[float]] = {
+        "final_capital": final_capital.tolist(),
+        "return_pct": return_pct.tolist(),
+        "max_drawdown": max_drawdowns.tolist(),
+        "max_drawdown_pct": max_drawdown_pct.tolist(),
+        "volatility_pct": volatility_pct.tolist(),
+        "sharpe": sharpe.tolist(),
+        "sortino": sortino.tolist(),
+        "winrate_pct": (win_count / sample_size * 100.0).tolist() if sample_size else [],
+        "total_return": total_return.tolist(),
+        "average_trade": average_trade.tolist(),
+        "win_count": win_count.tolist(),
+        "loss_count": loss_count.tolist(),
+    }
+
+    ruin_probability = sum(ruin_flags) / len(ruin_flags) if ruin_flags else None
+
+    def _filter_nan(values: Sequence[float]) -> List[float]:
+        cleaned: List[float] = []
+        for value in values:
+            if value is None:
+                continue
+            if isinstance(value, float) and value != value:
+                continue
+            cleaned.append(float(value))
+        return cleaned
+
+    metrics = {
+        "max_drawdown": _summary_stats(_filter_nan(level1_metrics["max_drawdown"])),
+        "cagr": _summary_stats(_filter_nan(cagrs)),
+        "time_to_recovery_days": _summary_stats(_filter_nan(time_to_recovery)),
+        "ruin_probability": ruin_probability,
+    }
+    for key, values in level1_metrics.items():
+        metrics[key] = _summary_stats(_filter_nan(values))
+
+    metrics = _normalize_metric_names(metrics)
+    normalized_level1 = _normalize_metric_names(level1_metrics)
+
+    distributions = {
+        "max_drawdown": level1_metrics["max_drawdown"],
+        "cagr": cagrs,
+        "time_to_recovery_days": time_to_recovery,
+        "equity_curves": equity_curves_list,
+        "ruin": ruin_flags,
+        "level1": normalized_level1,
+    }
+
+    return {
+        "metrics": metrics,
+        "distributions": distributions,
+        "parameters": {
+            "n_simulations": n_simulations,
+            "seed": seed,
+            "initial_capital": initial_capital,
+            "ruin_threshold": ruin_threshold,
+            "method": method,
+            "block_size": config.block_size,
+            "overlapping": config.overlapping,
+            "multi_asset": config.multi_asset,
+        },
+    }
+
+
+def _apply_monte_carlo_output_mode(
+    result: StressTestResult,
+    parameters: Optional[Mapping[str, Any]],
+) -> StressTestResult:
+    if not isinstance(parameters, Mapping):
+        return result
+
+    output_cfg = parameters.get("output")
+    mode = None
+    max_curves = None
+    curve_stride = None
+
+    if isinstance(output_cfg, Mapping):
+        mode = output_cfg.get("mode")
+        max_curves = output_cfg.get("max_curves")
+        curve_stride = output_cfg.get("curve_stride")
+    else:
+        mode = parameters.get("output_mode")
+        max_curves = parameters.get("max_curves")
+        curve_stride = parameters.get("curve_stride")
+
+    if not mode or str(mode).lower() != "light":
+        return result
+
+    distributions = result.get("distributions")
+    if not isinstance(distributions, Mapping):
+        return result
+
+    equity_curves = distributions.get("equity_curves")
+    if isinstance(equity_curves, list):
+        try:
+            max_curves_val = int(max_curves) if max_curves is not None else 50
+        except Exception:
+            max_curves_val = 50
+        if max_curves_val < 0:
+            max_curves_val = 0
+        curves = equity_curves[:max_curves_val] if max_curves_val else []
+
+        stride = 1
+        try:
+            stride = int(curve_stride) if curve_stride is not None else 1
+        except Exception:
+            stride = 1
+        if stride < 1:
+            stride = 1
+
+        if stride > 1:
+            reduced: List[List[float]] = []
+            for curve in curves:
+                if not isinstance(curve, list):
+                    continue
+                sliced = curve[::stride]
+                if curve and (not sliced or sliced[-1] != curve[-1]):
+                    sliced.append(curve[-1])
+                reduced.append(sliced)
+            curves = reduced
+
+        distributions = dict(distributions)
+        distributions["equity_curves"] = curves
+        result = dict(result)
+        result["distributions"] = distributions
+
+    return result
 
 
 def run_monte_carlo_on_trades(

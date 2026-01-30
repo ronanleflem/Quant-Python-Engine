@@ -19,6 +19,12 @@ Ce document résume l’état **actuel** du moteur lourd Python (après intégra
   - *Trades* : 1 cycle DCA = 1 `CompletedTrade` consolidé (BUY multiples → SELL take-profit qui clôture),
   - *Run* : `StrategyRunResult` décrivant la performance globale d’une stratégie sur une période (backtest ou live).
 
+### Stress Tests & Monte Carlo
+- **Backtest** : Monte Carlo + scénarios sont calculés sur l’equity curve (PnL cumulé) et ajoutés au payload.
+- **DCA** : un Monte Carlo niveau 1 est attaché dans `run.extra["stress_tests"]`.
+- **Sortie** : bloc `stress_tests` avec `monte_carlo` et `scenarios` (métriques + distributions + paramètres).
+- **Mode "light"** : réduit `equity_curves` (nombre + downsample) pour limiter la taille des résultats.
+
 Arborescence (simplifiée) :
 
 src/quant_engine/ api/ (FastAPI, schémas Pydantic) cli/ (Typer CLI) core/ (spec, dataset, features) backtest/ (engine, metrics) tpsl/ (règles TP/SL) validate/ (splitter WFA) optimize/ (Optuna runner) stats/ (events, conditions, targets, estimators, runner) persistence/ (db, models, repo, migrations) io/ (artifacts, ids)

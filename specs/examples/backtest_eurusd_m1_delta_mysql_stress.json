@@ -1,0 +1,114 @@
+{
+  "strategy": {
+    "strategy_id": "BT_EURUSD_M1_EMA_STRESS",
+    "asset_class": "FX"
+  },
+  "data": {
+    "symbols": [
+      "EURUSD"
+    ],
+    "timeframe": "1h",
+    "start": "2023-01-01",
+    "end": "2023-06-01",
+    "delta_base": "s3://quant-delta-dev",
+    "delta_prefix": "delta",
+    "delta_exchange": "",
+    "delta_calendar": "FX",
+    "delta_market_type": "SPOT",
+    "delta_quotes": "USD,USDT",
+    "delta_table": "EURUSD",
+    "delta_broker": "DUKASCOPY",
+    "delta_min_coverage": 0.9,
+    "mysql_env": "QE_MARKETDATA_MYSQL_URL",
+    "schema": "marketdata",
+    "table": "ohlcv",
+    "symbol_col": "symbol",
+    "ts_col": "ts",
+    "open_col": "open",
+    "high_col": "high",
+    "low_col": "low",
+    "close_col": "close",
+    "volume_col": "volume",
+    "timeframe_col": "timeframe"
+  },
+  "signal": {
+    "type": "ema_cross",
+    "params": {
+      "fast": 5,
+      "slow": 20,
+      "require_crossing": false
+    }
+  },
+  "filters": [
+    {
+      "type": "adx",
+      "params": {
+        "window": 14,
+        "thresh": 20
+      }
+    },
+    {
+      "type": "atr",
+      "params": {
+        "window": 14,
+        "min_mult": 0.0005,
+        "max_mult": 0.02
+      }
+    },
+    {
+      "type": "ema_slope",
+      "params": {
+        "window": 50,
+        "slope_thresh": 0.0
+      }
+    },
+    {
+      "type": "day_of_week",
+      "params": {
+        "blocked_days": [
+          0
+        ]
+      }
+    }
+  ],
+  "tpsl": {
+    "atr_window": 14,
+    "atr_k": 1.0,
+    "r_mult": 2.0,
+    "slippage_bps": 0.0,
+    "fee_bps": 0.0
+  },
+  "performance": {
+    "initial_capital": 10000,
+    "stress_tests": {
+      "enabled": true,
+      "monte_carlo": {
+        "n_sims": 500,
+        "seed": 123,
+        "method": "bootstrap",
+        "block_size": 5,
+        "overlapping": true
+      },
+      "scenarios": [
+        {
+          "name": "crash_mid",
+          "type": "crash",
+          "shock_pct": -0.15,
+          "index": "mid"
+        },
+        {
+          "name": "vol_x2",
+          "type": "volatility",
+          "vol_multiplier": 2.0
+        }
+      ]
+    }
+  },
+  "persistence": {
+    "enabled": true
+  },
+  "output": {
+    "path": "runs/backtest_eurusd_m1_delta_mysql_stress.json",
+    "format": "json"
+  }
+}
