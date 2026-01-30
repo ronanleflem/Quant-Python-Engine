@@ -1271,7 +1271,10 @@ def _apply_monte_carlo_output_mode(
         max_curves = parameters.get("max_curves")
         curve_stride = parameters.get("curve_stride")
 
-    if not mode or str(mode).lower() != "light":
+    if not mode:
+        return result
+    mode_value = str(mode).lower()
+    if mode_value not in {"light", "light_strict"}:
         return result
 
     distributions = result.get("distributions")
@@ -1311,6 +1314,49 @@ def _apply_monte_carlo_output_mode(
         distributions["equity_curves"] = curves
         result = dict(result)
         result["distributions"] = distributions
+
+    if mode_value == "light_strict":
+        percentiles = [0.10, 0.25, 0.75, 0.90, 0.95, 0.99]
+
+        def _filter_nan(values: Sequence[float]) -> List[float]:
+            cleaned: List[float] = []
+            for value in values:
+                if value is None:
+                    continue
+                if isinstance(value, float) and value != value:
+                    continue
+                cleaned.append(float(value))
+            return cleaned
+
+        def _summary_stats_custom(values: Sequence[float]) -> Dict[str, Optional[float]]:
+            cleaned = _filter_nan(values)
+            stats: Dict[str, Optional[float]] = {}
+            for pct in percentiles:
+                stats[f"p{int(pct * 100)}"] = _percentile(cleaned, pct)
+            stats["mean"] = mean(cleaned) if cleaned else None
+            stats["std"] = pstdev(cleaned) if len(cleaned) > 1 else None
+            return stats
+
+        metrics = result.get("metrics")
+        distributions = result.get("distributions")
+        if isinstance(metrics, Mapping) and isinstance(distributions, Mapping):
+            new_metrics = dict(metrics)
+            for key in ("max_drawdown", "cagr", "time_to_recovery_days"):
+                values = distributions.get(key)
+                if isinstance(values, list):
+                    new_metrics[key] = _summary_stats_custom(values)
+
+            level1 = distributions.get("level1")
+            if isinstance(level1, Mapping):
+                for key, values in level1.items():
+                    if isinstance(values, list):
+                        new_metrics[key] = _summary_stats_custom(values)
+            result = dict(result)
+            result["metrics"] = new_metrics
+
+            equity_curves = distributions.get("equity_curves") if isinstance(distributions, Mapping) else None
+            if isinstance(equity_curves, list):
+                result["distributions"] = {"equity_curves": equity_curves}
 
     return result
 

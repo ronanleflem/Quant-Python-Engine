@@ -107,6 +107,34 @@ def test_run_monte_carlo_light_mode_reduces_equity_curves() -> None:
     assert len(equity_curves[0]) < len(trades) + 1
 
 
+def test_run_monte_carlo_light_strict_percentiles_and_curves() -> None:
+    trades = [
+        _make_trade(pnl=10.0, exit_offset_days=1),
+        _make_trade(pnl=-5.0, exit_offset_days=2),
+        _make_trade(pnl=7.0, exit_offset_days=3),
+        _make_trade(pnl=-3.0, exit_offset_days=4),
+        _make_trade(pnl=2.0, exit_offset_days=5),
+        _make_trade(pnl=1.0, exit_offset_days=6),
+    ]
+    params = {
+        "n_sims": 40,
+        "seed": 13,
+        "method": "bootstrap",
+        "initial_capital": 1_000.0,
+        "output": {"mode": "light_strict", "max_curves": 6, "curve_stride": 3},
+    }
+    result = run_monte_carlo_on_trades(trades, parameters=params)
+
+    metrics = result["metrics"]
+    assert "p10" in metrics["final_capital"]
+    assert "p99" in metrics["final_capital"]
+    assert "p5" not in metrics["final_capital"]
+
+    distributions = result["distributions"]
+    assert set(distributions.keys()) == {"equity_curves"}
+    assert len(distributions["equity_curves"]) == 6
+
+
 def test_apply_scenarios_to_returns_outputs_scenarios() -> None:
     returns = [10.0, -5.0, 8.0, -2.0]
     params = {

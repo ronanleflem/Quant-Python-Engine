@@ -1,6 +1,6 @@
 {
   "strategy": {
-    "strategy_id": "BT_EURUSD_M1_EMA_CSV_STRESS_10K_LIGHT",
+    "strategy_id": "BT_EURUSD_M1_EMA_CSV_STRESS_10K_LIGHT_STRICT",
     "asset_class": "FX"
   },
   "data": {
@@ -38,7 +38,7 @@
         "block_size": 5,
         "overlapping": true,
         "output": {
-          "mode": "light",
+          "mode": "light_strict",
           "max_curves": 50,
           "curve_stride": 10
         }
@@ -62,7 +62,7 @@
     "enabled": true
   },
   "output": {
-    "path": "runs/backtest_eurusd_m1_csv_stress_10k_light.json",
+    "path": "runs/backtest_eurusd_m1_csv_stress_10k_light_strict.json",
     "format": "json"
   }
 }

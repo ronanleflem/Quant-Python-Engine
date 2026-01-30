@@ -167,7 +167,7 @@ Les stress tests et Monte Carlo sont calculÃ©s cÃ´tÃ© Python et exposÃ©s
 - **DCA** : Monte Carlo niveau 1 est attachÃ© dans `run.extra["stress_tests"]` cÃ´tÃ© DCA.
 - **Sortie** : le payload inclut `stress_tests` avec `monte_carlo` et `scenarios` (donnÃ©es brutes + paramÃ¨tres).
 
-### Mode "light" (rÃ©duction taille)
+### Mode "light" / "light_strict" (rÃ©duction taille)
 Pour rÃ©duire la taille des rÃ©sultats, active un mode light sur Monte Carlo :
 ```json
 {
@@ -188,6 +188,26 @@ Pour rÃ©duire la taille des rÃ©sultats, active un mode light sur Monte Carlo
 ```
 - `max_curves` limite le nombre de trajectoires conservÃ©es.
 - `curve_stride` downsample les points des courbes.
+
+Mode `light_strict` (percentiles enrichis + distributions minimales) :
+```json
+{
+  "performance": {
+    "stress_tests": {
+      "enabled": true,
+      "monte_carlo": {
+        "n_sims": 300,
+        "output": {
+          "mode": "light_strict",
+          "max_curves": 50,
+          "curve_stride": 10
+        }
+      }
+    }
+  }
+}
+```
+- `light_strict` conserve surtout les percentiles (p10/p25/p75/p90/p95/p99 + mean/std) et un Ã©chantillon de courbes.
 
 ### Optimisation Monte Carlo (NumPy)
 Le Monte Carlo utilise une implÃ©mentation NumPy optimisÃ©e si NumPy est disponible. Le fallback Python reste actif si besoin.
@@ -296,6 +316,9 @@ poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_delta_mysql_
 poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress.json
 poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_10k.json
 poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_10k_light.json
+poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_light.json
+poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_10k_light_strict.json
+poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_light_strict.json
 
 
 
