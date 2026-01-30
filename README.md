@@ -213,10 +213,10 @@ Mode `light_strict` (percentiles enrichis + distributions minimales) :
 Le Monte Carlo utilise une implÃ©mentation NumPy optimisÃ©e si NumPy est disponible. Le fallback Python reste actif si besoin.
 
 ### Persistance MySQL (Option A)
-Les stress tests sont persistÃ©s dans une table `StressTestResult` (JSON brut).
-Exemple de schÃ©ma recommandÃ© :
+Les stress tests sont persistÃ©s dans la table `stress_test_result` (JSON brut).
+SchÃ©ma alignÃ© sur le backend Java :
 ```sql
-CREATE TABLE StressTestResult (
+CREATE TABLE IF NOT EXISTS stress_test_result (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   strategy_id VARCHAR(128),
   run_id VARCHAR(64) NOT NULL,
@@ -227,6 +227,12 @@ CREATE TABLE StressTestResult (
   payload_json JSON NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+```
+
+Si la colonne `payload_json` est trop petite (erreur MySQL 1406), Python tente automatiquement une version compacte.
+Tu peux forcer une taille max avec :
+```
+QE_STRESS_TEST_MAX_JSON_CHARS=60000
 ```
 
 ### High-level Strategies
@@ -312,6 +318,9 @@ poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_delta_mysql_
 poetry run qe backtest optimize --spec specs/examples/backtest_eurusd_m1_optimize.json
 poetry run qe strategy optimize --spec specs/strategy_dca_equity_example_minimal_optimize.json
 poetry run qe strategy backtest --spec specs/examples/strategy_dca_etf_delta_2024_2026.json
+
+
+## Ici limité temporairement à QE_STRESS_TEST_MAX_JSON_CHARS =60000 dans le code si on veut changer on peut set la variable 
 poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_delta_mysql_stress.json
 poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress.json
 poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_10k.json
@@ -319,7 +328,7 @@ poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_1
 poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_light.json
 poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_10k_light_strict.json
 poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_light_strict.json
-
+poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_10k_light.json
 
 
 poetry run pytest tests/test_backtest_data_sources.py
@@ -343,6 +352,8 @@ poetry run pytest -m slow tests/test_large_dataset_perf.py
 poetry run pytest tests\test_stress_tests.py
 poetry run pytest tests\test_dca_stress_tests.py 
 poetry run pytest tests\test_stress_tests_large_dataset.py
+
+## 
 
 ## Ajouts de tests filters 
 poetry run pytest tests/test_filters_mtf_anomaly.py

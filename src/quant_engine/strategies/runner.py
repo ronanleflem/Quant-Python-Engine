@@ -1315,14 +1315,105 @@ def _persist_stress_tests_payload(engine, payload: Mapping[str, Any], *, run_id:
         rows.append(row)
 
     if not rows:
+        LOGGER.warning("Stress tests payload present but no rows to persist for run %s", run_id)
         return
 
     try:
-        filtered_rows = [_filter_row_for_table(engine, "StressTestResult", row) for row in rows]
-        pd.DataFrame(filtered_rows).to_sql("StressTestResult", engine, if_exists="append", index=False)
+        filtered_rows = [_filter_row_for_table(engine, "stress_test_result", row) for row in rows]
+        pd.DataFrame(filtered_rows).to_sql("stress_test_result", engine, if_exists="append", index=False)
         LOGGER.info("Persisted %d stress test payloads for run %s", len(rows), run_id)
+        return
     except Exception as exc:
-        LOGGER.warning("Failed to persist stress tests for run %s: %s", run_id, exc)
+        message = str(exc)
+        if "payload_json" not in message and "Data too long" not in message and "1406" not in message:
+            LOGGER.warning("Failed to persist stress tests for run %s: %s", run_id, exc)
+            return
+        LOGGER.warning("Stress tests payload too large; attempting compact insert for run %s", run_id)
+
+    max_chars = _resolve_stress_test_max_chars()
+    compact_rows: List[Dict[str, Any]] = []
+    for row in rows:
+        try:
+            raw_payload = json.loads(row.get("payload_json", "{}"))
+        except Exception:
+            raw_payload = {}
+        mode = row.get("mode")
+        compact_payload = _compact_stress_test_payload(raw_payload, mode=mode, max_chars=max_chars)
+        compact_rows.append({**row, "payload_json": json.dumps(compact_payload, ensure_ascii=False)})
+
+    try:
+        filtered_rows = [_filter_row_for_table(engine, "stress_test_result", row) for row in compact_rows]
+        pd.DataFrame(filtered_rows).to_sql("stress_test_result", engine, if_exists="append", index=False)
+        LOGGER.info("Persisted compact stress test payloads for run %s", run_id)
+    except Exception as exc:
+        LOGGER.warning("Failed to persist compact stress tests for run %s: %s", run_id, exc)
+
+
+def _resolve_stress_test_max_chars() -> int:
+    raw = os.getenv("QE_STRESS_TEST_MAX_JSON_CHARS")
+    if raw:
+        try:
+            value = int(raw)
+            if value > 0:
+                return value
+        except Exception:
+            return 60000
+    return 60000
+
+
+def _compact_stress_test_payload(
+    payload: Mapping[str, Any],
+    *,
+    mode: Optional[str],
+    max_chars: int,
+) -> Dict[str, Any]:
+    def _json_len(obj: Any) -> int:
+        try:
+            return len(json.dumps(obj, ensure_ascii=False))
+        except Exception:
+            return max_chars + 1
+
+    def _reduce_equity_curves(curves: Any, *, max_curves: int, stride: int) -> List[List[float]]:
+        if not isinstance(curves, list):
+            return []
+        max_curves = max(0, int(max_curves))
+        stride = max(1, int(stride))
+        trimmed = curves[:max_curves] if max_curves else []
+        reduced: List[List[float]] = []
+        for curve in trimmed:
+            if not isinstance(curve, list):
+                continue
+            sliced = curve[::stride]
+            if curve and (not sliced or sliced[-1] != curve[-1]):
+                sliced.append(curve[-1])
+            reduced.append(sliced)
+        return reduced
+
+    compact: Dict[str, Any] = {
+        "metrics": payload.get("metrics"),
+        "parameters": payload.get("parameters"),
+        "warnings": payload.get("warnings"),
+    }
+
+    distributions = payload.get("distributions") if isinstance(payload, Mapping) else None
+    if mode == "monte_carlo":
+        curves = None
+        if isinstance(distributions, Mapping):
+            curves = distributions.get("equity_curves")
+        compact["distributions"] = {
+            "equity_curves": _reduce_equity_curves(curves, max_curves=20, stride=10)
+        }
+    elif mode == "scenarios":
+        # Scenarios distributions can be large; drop by default
+        pass
+
+    if _json_len(compact) > max_chars:
+        compact.pop("distributions", None)
+
+    if _json_len(compact) > max_chars:
+        compact = {"note": "payload truncated", "metrics": payload.get("metrics")}
+
+    return compact
 
 
 def _build_payload_for_result(
