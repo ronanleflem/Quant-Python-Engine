@@ -352,6 +352,140 @@ def _summary_stats(values: Sequence[float]) -> Dict[str, Optional[float]]:
     }
 
 
+def _parse_time_distribution(parameters: Optional[Mapping[str, Any]]) -> Optional[Dict[str, Any]]:
+    if not isinstance(parameters, Mapping):
+        return None
+    cfg = parameters.get("time_distribution") or parameters.get("time_dist")
+    if not isinstance(cfg, Mapping):
+        return None
+    if cfg.get("enabled") is False:
+        return None
+    mode = str(cfg.get("mode", "exit_deltas")).strip().lower()
+    aliases = {
+        "deltas": "exit_deltas",
+        "exit_delta": "exit_deltas",
+        "durations": "trade_durations",
+        "trade_duration": "trade_durations",
+        "sessions": "exit_times",
+        "session": "exit_times",
+    }
+    mode = aliases.get(mode, mode)
+    allowed = {"exit_deltas", "exit_times", "trade_durations"}
+    if mode not in allowed:
+        raise ValueError(f"time_distribution.mode must be one of {sorted(allowed)}.")
+    seed = cfg.get("seed")
+    return {"mode": mode, "seed": seed}
+
+
+def _parse_param_drift_config(parameters: Optional[Mapping[str, Any]]) -> Optional[Dict[str, Any]]:
+    if not isinstance(parameters, Mapping):
+        return None
+    cfg = parameters.get("param_drift")
+    if not isinstance(cfg, Mapping):
+        return None
+    if cfg.get("enabled") is False:
+        return None
+    dist = str(cfg.get("dist", "normal")).strip().lower()
+    if dist not in {"uniform", "normal"}:
+        raise ValueError(f"param_drift.dist must be one of {sorted(['normal', 'uniform'])}.")
+    mode = str(cfg.get("mode", "per_sim")).strip().lower()
+    allowed = {"per_sim", "per_trade", "random_walk"}
+    if mode not in allowed:
+        raise ValueError(f"param_drift.mode must be one of {sorted(allowed)}.")
+    return {
+        "dist": dist,
+        "mode": mode,
+        "mu": cfg.get("mu", 1.0),
+        "sigma": cfg.get("sigma", 0.05),
+        "low": cfg.get("low", 0.9),
+        "high": cfg.get("high", 1.1),
+        "min": cfg.get("min"),
+        "max": cfg.get("max"),
+        "seed": cfg.get("seed"),
+    }
+
+
+def _draw_param_drift_multiplier(rng: random.Random, cfg: Mapping[str, Any]) -> float:
+    dist = cfg["dist"]
+    if dist == "uniform":
+        value = rng.uniform(float(cfg.get("low", 0.9)), float(cfg.get("high", 1.1)))
+    else:
+        value = rng.gauss(float(cfg.get("mu", 1.0)), float(cfg.get("sigma", 0.05)))
+    min_val = cfg.get("min")
+    max_val = cfg.get("max")
+    if min_val is not None:
+        value = max(float(min_val), value)
+    if max_val is not None:
+        value = min(float(max_val), value)
+    return float(value)
+
+
+def _apply_param_drift(
+    sampled_pnl: Sequence[float],
+    rng: random.Random,
+    cfg: Mapping[str, Any],
+) -> List[float]:
+    mode = cfg["mode"]
+    if mode == "per_sim":
+        mult = _draw_param_drift_multiplier(rng, cfg)
+        return [float(pnl) * mult for pnl in sampled_pnl]
+    if mode == "per_trade":
+        return [float(pnl) * _draw_param_drift_multiplier(rng, cfg) for pnl in sampled_pnl]
+    cumulative = 1.0
+    adjusted: List[float] = []
+    for pnl in sampled_pnl:
+        step = _draw_param_drift_multiplier(rng, cfg)
+        cumulative *= step
+        min_val = cfg.get("min")
+        max_val = cfg.get("max")
+        if min_val is not None:
+            cumulative = max(float(min_val), cumulative)
+        if max_val is not None:
+            cumulative = min(float(max_val), cumulative)
+        adjusted.append(float(pnl) * cumulative)
+    return adjusted
+
+
+def _build_trade_durations(trades: Sequence[StandardTrade]) -> List[timedelta]:
+    durations: List[timedelta] = []
+    for trade in trades:
+        if trade.entry_time_utc is None or trade.exit_time_utc is None:
+            return []
+        durations.append(trade.exit_time_utc - trade.entry_time_utc)
+    return durations
+
+
+def _build_time_distribution_timestamps(
+    mode: str,
+    *,
+    base_start: datetime,
+    base_timestamps: Sequence[datetime],
+    base_deltas: Sequence[timedelta],
+    trade_durations: Sequence[timedelta],
+    sample_size: int,
+    rng: random.Random,
+) -> Optional[List[datetime]]:
+    if mode == "exit_times":
+        if not base_timestamps:
+            return None
+        sampled_exit = [rng.choice(list(base_timestamps)) for _ in range(sample_size)]
+        sampled_exit.sort()
+        if not sampled_exit:
+            return None
+        return [sampled_exit[0]] + sampled_exit
+    if mode == "trade_durations":
+        if not trade_durations:
+            return None
+        timestamps = [base_start]
+        for _ in range(sample_size):
+            delta = rng.choice(list(trade_durations))
+            timestamps.append(timestamps[-1] + delta)
+        return timestamps
+    if not base_deltas:
+        return None
+    return _build_sampled_timestamps(base_start, base_deltas, sample_size + 1, rng)
+
+
 def _block_start_indices(sample_size: int, block_size: int, overlapping: bool) -> List[int]:
     if block_size <= 0 or sample_size <= 0 or block_size > sample_size:
         return []
@@ -919,7 +1053,15 @@ def _monte_carlo_bootstrap(
     block_size = config.block_size
     overlapping = config.overlapping
     multi_asset = config.multi_asset
-    rng = random.Random(seed)
+    rng_sampling = random.Random(seed)
+    rng_sizing = random.Random((seed or 0) + 999_983)
+    time_cfg = _parse_time_distribution(parameters)
+    time_seed = None if time_cfg is None else time_cfg.get("seed")
+    rng_time = random.Random(time_seed if time_seed is not None else (seed or 0) + 424_242)
+    param_cfg = _parse_param_drift_config(parameters)
+    param_seed = None if param_cfg is None else param_cfg.get("seed")
+    rng_param = random.Random(param_seed if param_seed is not None else (seed or 0) + 777_777)
+    sizing_cfg = _parse_sizing_config(parameters)
 
     if not trades:
         return {
@@ -933,7 +1075,14 @@ def _monte_carlo_bootstrap(
             "warnings": ["No trades available for bootstrap."],
         }
 
-    if np is not None and method in {"bootstrap", "iid", "shuffle", "block", "block_bootstrap"} and not multi_asset:
+    if (
+        np is not None
+        and method in {"bootstrap", "iid", "shuffle", "block", "block_bootstrap"}
+        and not multi_asset
+        and sizing_cfg is None
+        and time_cfg is None
+        and param_cfg is None
+    ):
         result = _monte_carlo_bootstrap_numpy(
             trades,
             config=config,
@@ -942,10 +1091,24 @@ def _monte_carlo_bootstrap(
 
     base_timestamps = _build_timestamps(trades)
     base_start = base_timestamps[0] if base_timestamps else datetime.utcnow()
+    trade_durations = _build_trade_durations(trades)
     deltas: List[timedelta] = []
     if base_timestamps:
         for prev, nxt in zip(base_timestamps[:-1], base_timestamps[1:]):
             deltas.append(nxt - prev)
+    time_warnings: List[str] = []
+    if time_cfg is not None:
+        mode = time_cfg["mode"]
+        if mode in {"exit_deltas", "exit_times"} and not base_timestamps:
+            time_warnings.append(
+                "time_distribution requested but exit timestamps are missing; falling back to index-based timing."
+            )
+            time_cfg = None
+        elif mode == "trade_durations" and not trade_durations:
+            time_warnings.append(
+                "time_distribution requested but trade durations are missing; falling back to index-based timing."
+            )
+            time_cfg = None
 
     sample_size = len(trades)
     pnl_values = [t.pnl for t in trades]
@@ -980,18 +1143,24 @@ def _monte_carlo_bootstrap(
 
     for _ in range(n_simulations):
         if method in {"iid", "shuffle"}:
-            sampled_trades = _sample_iid(ordered_trades, rng)
+            sampled_trades = _sample_iid(ordered_trades, rng_sampling)
         elif method in {"block", "block_bootstrap"}:
             if multi_asset:
                 sampled_trades = _sample_block_multi_asset(
-                    ordered_trades, rng, block_size=block_size, overlapping=overlapping
+                    ordered_trades, rng_sampling, block_size=block_size, overlapping=overlapping
                 )
             else:
-                sampled_trades = _sample_block(ordered_trades, rng, block_size=block_size, overlapping=overlapping)
+                sampled_trades = _sample_block(
+                    ordered_trades, rng_sampling, block_size=block_size, overlapping=overlapping
+                )
         else:
-            sampled_trades = _sample_bootstrap(ordered_trades, rng)
+            sampled_trades = _sample_bootstrap(ordered_trades, rng_sampling)
 
         sampled_pnl = [t.pnl for t in sampled_trades]
+        if param_cfg is not None:
+            sampled_pnl = _apply_param_drift(sampled_pnl, rng_param, param_cfg)
+        if sizing_cfg is not None:
+            sampled_pnl = [pnl * _draw_size_multiplier(rng_sizing, sizing_cfg) for pnl in sampled_pnl]
         equity = [initial_capital]
         for pnl in sampled_pnl:
             equity.append(equity[-1] + pnl)
@@ -999,9 +1168,24 @@ def _monte_carlo_bootstrap(
 
         max_drawdowns.append(_max_drawdown(equity))
 
-        timestamps = _equity_timestamps_from_trades(sampled_trades)
+        timestamps = None
+        period_days = base_period_days
+        if time_cfg is not None:
+            timestamps = _build_time_distribution_timestamps(
+                time_cfg["mode"],
+                base_start=base_start,
+                base_timestamps=base_timestamps or [],
+                base_deltas=deltas,
+                trade_durations=trade_durations,
+                sample_size=len(sampled_trades),
+                rng=rng_time,
+            )
+        if timestamps is None:
+            timestamps = _equity_timestamps_from_trades(sampled_trades)
         if timestamps is None and base_timestamps:
-            timestamps = _build_sampled_timestamps(base_start, deltas, len(equity), rng)
+            timestamps = _build_sampled_timestamps(base_start, deltas, len(equity), rng_time)
+        if timestamps:
+            period_days = (timestamps[-1] - timestamps[0]).total_seconds() / 86400.0
         ttr = _time_to_recovery(equity, timestamps)
         if ttr is not None:
             time_to_recovery.append(float(ttr))
@@ -1009,8 +1193,8 @@ def _monte_carlo_bootstrap(
         ruin_flags.append(min(equity) <= ruin_threshold)
 
         years = None
-        if base_period_days is not None and base_period_days > 0:
-            years = base_period_days / 365.25
+        if period_days is not None and period_days > 0:
+            years = period_days / 365.25
         else:
             years = sample_size / 252.0 if sample_size else None
         if years and equity[0] > 0 and equity[-1] > 0:
@@ -1060,6 +1244,12 @@ def _monte_carlo_bootstrap(
             "multi_asset": multi_asset,
         },
     }
+    if time_cfg is not None:
+        result["parameters"]["time_distribution"] = dict(time_cfg)
+    if param_cfg is not None:
+        result["parameters"]["param_drift"] = dict(param_cfg)
+    if time_warnings:
+        result["warnings"] = list(time_warnings)
     return _apply_monte_carlo_output_mode(result, parameters)
 
 
@@ -1099,6 +1289,9 @@ def _monte_carlo_bootstrap_numpy(
         indices = rng.integers(0, sample_size, size=(n_simulations, sample_size))
 
     sampled_pnl = pnl_values[indices]
+    sizing_cfg = _parse_sizing_config(config.model_dump())
+    if sizing_cfg is not None:
+        sampled_pnl = _apply_numpy_sizing(sampled_pnl, sizing_cfg, seed)
     equity = initial_capital + np.cumsum(sampled_pnl, axis=1)
     equity_curves = np.concatenate(
         [np.full((n_simulations, 1), initial_capital, dtype=float), equity], axis=1
@@ -1359,6 +1552,66 @@ def _apply_monte_carlo_output_mode(
                 result["distributions"] = {"equity_curves": equity_curves}
 
     return result
+
+
+def _parse_sizing_config(parameters: Optional[Mapping[str, Any]]) -> Optional[Dict[str, Any]]:
+    if not isinstance(parameters, Mapping):
+        return None
+    sizing = parameters.get("sizing")
+    if not isinstance(sizing, Mapping):
+        return None
+    if sizing.get("enabled") is False:
+        return None
+    return dict(sizing)
+
+
+def _draw_size_multiplier(rng: random.Random, sizing_cfg: Mapping[str, Any]) -> float:
+    dist = str(sizing_cfg.get("dist") or "uniform").lower()
+    mu = float(sizing_cfg.get("mu", 1.0))
+    sigma = float(sizing_cfg.get("sigma", 0.1))
+    low = float(sizing_cfg.get("low", 0.8))
+    high = float(sizing_cfg.get("high", 1.2))
+    if dist == "normal":
+        value = rng.gauss(mu, sigma)
+    elif dist == "lognormal":
+        value = rng.lognormvariate(mu, sigma)
+    else:
+        value = rng.uniform(low, high)
+
+    min_val = sizing_cfg.get("min")
+    max_val = sizing_cfg.get("max")
+    if min_val is not None:
+        value = max(float(min_val), value)
+    if max_val is not None:
+        value = min(float(max_val), value)
+    return float(value)
+
+
+def _apply_numpy_sizing(sampled_pnl: "np.ndarray", sizing_cfg: Mapping[str, Any], seed: Optional[int]) -> "np.ndarray":
+    dist = str(sizing_cfg.get("dist") or "uniform").lower()
+    mu = float(sizing_cfg.get("mu", 1.0))
+    sigma = float(sizing_cfg.get("sigma", 0.1))
+    low = float(sizing_cfg.get("low", 0.8))
+    high = float(sizing_cfg.get("high", 1.2))
+    rng = np.random.default_rng(seed)
+
+    if dist == "normal":
+        multipliers = rng.normal(mu, sigma, size=sampled_pnl.shape)
+    elif dist == "lognormal":
+        multipliers = rng.lognormal(mu, sigma, size=sampled_pnl.shape)
+    else:
+        multipliers = rng.uniform(low, high, size=sampled_pnl.shape)
+
+    min_val = sizing_cfg.get("min")
+    max_val = sizing_cfg.get("max")
+    if min_val is not None or max_val is not None:
+        min_bound = float(min_val) if min_val is not None else None
+        max_bound = float(max_val) if max_val is not None else None
+        if min_bound is not None:
+            multipliers = np.maximum(multipliers, min_bound)
+        if max_bound is not None:
+            multipliers = np.minimum(multipliers, max_bound)
+    return sampled_pnl * multipliers
 
 
 def run_monte_carlo_on_trades(

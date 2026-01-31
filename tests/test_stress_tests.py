@@ -8,6 +8,7 @@ import pytest
 from quant_engine.performance.models import CompletedTrade
 from quant_engine.performance.stress_tests import (
     apply_scenarios_to_returns,
+    run_monte_carlo_on_returns,
     run_monte_carlo_on_trades,
 )
 
@@ -82,6 +83,56 @@ def test_run_monte_carlo_block_method_supported() -> None:
     metrics = result["metrics"]
     assert "final_capital" in metrics
     assert metrics["final_capital"]["p50"] is not None
+
+
+def test_run_monte_carlo_on_returns_outputs_metrics() -> None:
+    returns = [12.0, -5.0, 7.0, -3.0, 4.0]
+    params = {"n_sims": 25, "seed": 9, "method": "bootstrap", "initial_capital": 1_000.0}
+    result = run_monte_carlo_on_returns(returns, parameters=params)
+
+    metrics = result["metrics"]
+    assert "final_capital" in metrics
+    assert metrics["final_capital"]["p50"] is not None
+
+    distributions = result["distributions"]
+    assert len(distributions["equity_curves"]) == params["n_sims"]
+    assert len(distributions["equity_curves"][0]) == len(returns) + 1
+
+
+def test_run_monte_carlo_on_returns_light_mode_reduces_curves() -> None:
+    returns = [10.0, -4.0, 6.0, -2.0, 3.0, 1.0]
+    params = {
+        "n_sims": 20,
+        "seed": 3,
+        "method": "bootstrap",
+        "initial_capital": 1_000.0,
+        "output": {"mode": "light", "max_curves": 4, "curve_stride": 2},
+    }
+    result = run_monte_carlo_on_returns(returns, parameters=params)
+
+    equity_curves = result["distributions"]["equity_curves"]
+    assert len(equity_curves) == 4
+    assert len(equity_curves[0]) < len(returns) + 1
+
+
+def test_run_monte_carlo_on_returns_applies_sizing_multiplier() -> None:
+    returns = [10.0, -4.0, 6.0, -2.0, 3.0, 1.0]
+    base_params = {
+        "n_sims": 30,
+        "seed": 21,
+        "method": "bootstrap",
+        "initial_capital": 1_000.0,
+        "multi_asset": True,
+    }
+    base_result = run_monte_carlo_on_returns(returns, parameters=base_params)
+
+    sizing_params = dict(base_params)
+    sizing_params["sizing"] = {"dist": "uniform", "low": 0.5, "high": 0.5}
+    sized_result = run_monte_carlo_on_returns(returns, parameters=sizing_params)
+
+    base_p50 = base_result["metrics"]["total_return"]["p50"]
+    sized_p50 = sized_result["metrics"]["total_return"]["p50"]
+    assert sized_p50 == pytest.approx(base_p50 * 0.5, rel=1e-6)
 
 
 def test_run_monte_carlo_light_mode_reduces_equity_curves() -> None:

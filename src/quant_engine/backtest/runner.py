@@ -325,6 +325,7 @@ def run_backtest_from_spec(spec: Mapping[str, Any]) -> Dict[str, Any]:
     slippage_bps = float(tpsl.get("slippage_bps", 0.0))
     fee_bps = float(tpsl.get("fee_bps", 0.0))
     dynamic_sl = tpsl.get("dynamic_sl") if isinstance(tpsl, Mapping) else None
+    tpsl_jitter = tpsl.get("jitter") if isinstance(tpsl, Mapping) else None
 
     t_engine = time.monotonic()
     trades, equity, summary = engine.run(
@@ -339,6 +340,7 @@ def run_backtest_from_spec(spec: Mapping[str, Any]) -> Dict[str, Any]:
         max_seconds=max_seconds,
         pruning=pruning_cfg,
         dynamic_sl=dynamic_sl,
+        tpsl_jitter=tpsl_jitter,
     )
     _perf_log(f"backtest.engine trades={len(trades)}", t_engine)
 

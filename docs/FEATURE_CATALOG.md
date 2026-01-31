@@ -25,13 +25,18 @@
 ## Backtest & TP-SL
 - **Backtest** : moteur bar-based appliquant signaux EMA/VWAP, exécution trade-by-trade, agrège les métriques Sharpe/Sortino/MaxDD/CAGR/Hit rate/Avg-R.【F:docs/architecture_overview.md†L19-L43】【F:src/quant_engine/backtest/metrics.py†L1-L56】
 - **TP/SL** : stops ATR multiples (`StopInitializer.fixed_atr`), take-profit en R multiples (`TakeProfit.r_multiple`). + trailing stop (`DynamicStopLoss.trail_atr`).【F:docs/architecture_overview.md†L24-L33】【F:src/quant_engine/tpsl/rules.py†L1-L32】
+- **TP/SL execution jitter** : `tpsl.jitter` applique un jitter (bps) sur le prix de sortie quand TP/SL est touche.【F:docs/architecture_overview.md†L38-L41】【F:src/quant_engine/backtest/engine.py†L13-L165】
 - **Walk-Forward Analysis** : génération de folds train/test avec embargo via `splitter.generate_folds`.【F:docs/architecture_overview.md†L21-L29】【F:src/quant_engine/validate/splitter.py†L1-L38】
 - **Optimisation (recommandée)** : `optimize.variants` orchestre grid/random search, screening, promotion et artefacts détaillés pour backtest/strategy.【F:src/quant_engine/optimize/variants.py†L1-L120】【F:src/quant_engine/optimize/variants.py†L1805-L2391】
 - **Optimisation (runner simple)** : `optimize.runner` reste un runner minimal (EMA/ATR/R) pour le fallback local (`qe run-local`).【F:src/quant_engine/optimize/runner.py†L1-L120】【F:src/quant_engine/cli/main.py†L31-L62】
 
 ## Stress Tests & Monte Carlo
 - **Monte Carlo** : bootstrap/IID/blocking sur trades/returns/equity avec distributions de mÃ©triques + courbes dâ€™equity.ã€F:src/quant_engine/performance/stress_tests.pyâ€ L904-L1258ã€‘
+- **Source MC** : `stress_tests.monte_carlo.source` permet `equity` (defaut), `returns` (PnL par trade), `trades` (trades + timestamps).
 - **ScÃ©narios** : chocs dÃ©terministes (crash/gap/vol/drawdown) appliquÃ©s aux returns/equity.ã€F:src/quant_engine/performance/stress_tests.pyâ€ L493-L750ã€‘
+- **Sizing jitter** : `stress_tests.monte_carlo.sizing` applique un multiplicateur aleatoire aux PnL (uniform/normal/lognormal).
+- **Time distribution** : `stress_tests.monte_carlo.time_distribution` perturbe la distribution temporelle (durations/sessions).
+- **Param drift** : `stress_tests.monte_carlo.param_drift` simule un drift de parametres (multiplicateur PnL).
 - **Output "light"** : rÃ©duction des `equity_curves` pour limiter la taille des payloads.ã€F:src/quant_engine/performance/stress_tests.pyâ€ L1160-L1235ã€‘
 
 ## Persistance & Artefacts

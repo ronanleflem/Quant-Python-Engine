@@ -167,6 +167,184 @@ Les stress tests et Monte Carlo sont calculÃ©s cÃ´tÃ© Python et exposÃ©s
 - **DCA** : Monte Carlo niveau 1 est attachÃ© dans `run.extra["stress_tests"]` cÃ´tÃ© DCA.
 - **Sortie** : le payload inclut `stress_tests` avec `monte_carlo` et `scenarios` (donnÃ©es brutes + paramÃ¨tres).
 
+### Source Monte Carlo (equity / returns / trades)
+Par defaut, le backtest calcule le Monte Carlo sur l'equity curve. Vous pouvez forcer la source :
+- `source: "equity"` (par defaut)
+- `source: "returns"` (PnL par trade)
+- `source: "trades"` (trades + timestamps pour block bootstrap)
+
+Exemple :
+```json
+{
+  "performance": {
+    "stress_tests": {
+      "enabled": true,
+      "monte_carlo": {
+        "source": "trades",
+        "n_sims": 300,
+        "method": "bootstrap"
+      }
+    }
+  }
+}
+```
+
+
+#### Quand utiliser quelle source ?
+- `equity` : par defaut. Recommande si tu veux refleter la dynamique globale de l'equity curve.
+- `returns` : resample direct des PnL par trade. Recommande pour tester la robustesse au sequence de trades.
+- `trades` : resample des trades avec timestamps (utile avec method=block/block_bootstrap).
+
+
+### Sizing jitter (Monte Carlo)
+Permet de simuler une incertitude de sizing (multiplicateur applique aux PnL par trade).
+
+Champs supportes :
+- `sizing.dist`: `uniform` (defaut), `normal`, `lognormal`
+- `sizing.low` / `sizing.high` (uniform)
+- `sizing.mu` / `sizing.sigma` (normal/lognormal)
+- `sizing.min` / `sizing.max` (clamp optionnel)
+
+Exemple :
+```json
+{
+  "performance": {
+    "stress_tests": {
+      "enabled": true,
+      "monte_carlo": {
+        "n_sims": 300,
+        "method": "bootstrap",
+        "sizing": {
+          "dist": "uniform",
+          "low": 0.8,
+          "high": 1.2
+        }
+      }
+    }
+  }
+}
+```
+
+### TP/SL jitter (execution)
+Permet de simuler une execution plus/moins favorable quand TP/SL est touche.
+Le jitter est applique uniquement si un TP/SL est declenche (pas sur les exits par signal).
+
+Champs supportes :
+- `tpsl.jitter.dist`: `uniform` (defaut), `normal`
+- `tpsl.jitter.tp_bps`: amplitude (bps) pour les sorties TP
+- `tpsl.jitter.sl_bps`: amplitude (bps) pour les sorties SL
+- `tpsl.jitter.seed`: seed optionnelle pour des runs deterministes
+
+Exemple :
+```json
+{
+  "tpsl": {
+    "atr_window": 14,
+    "atr_k": 1.0,
+    "r_mult": 2.0,
+    "jitter": {
+      "dist": "uniform",
+      "tp_bps": 5.0,
+      "sl_bps": 8.0,
+      "seed": 123
+    }
+  }
+}
+```
+Exemple (dist normal) :
+```json
+{
+  "tpsl": {
+    "atr_window": 14,
+    "atr_k": 1.0,
+    "r_mult": 2.0,
+    "jitter": {
+      "dist": "normal",
+      "tp_bps": 6.0,
+      "sl_bps": 10.0,
+      "seed": 321
+    }
+  }
+}
+```
+Specs exemples :
+- `specs/examples/backtest_eurusd_m1_csv_stress_10k_tpsl_jitter.json`
+- `specs/examples/backtest_eurusd_m1_csv_stress_10k_tpsl_jitter_light.json`
+- `specs/examples/backtest_eurusd_m1_csv_stress_10k_tpsl_jitter_light_strict.json`
+- `specs/examples/backtest_eurusd_m1_csv_stress_10k_tpsl_jitter_normal.json`
+
+### Time distribution (durations / sessions)
+Permet de perturber la distribution temporelle des trades (durations ou horaires) pour le calcul de `time_to_recovery`
+et le CAGR. Requiert des timestamps (ex: `source: "trades"` ou returns/equity avec timestamps).
+
+Champs supportes :
+- `time_distribution.mode`: `exit_deltas` (defaut), `exit_times` (preserve distribution des horaires/sessions), `trade_durations`
+- `time_distribution.seed`: seed optionnelle
+
+Exemple :
+```json
+{
+  "performance": {
+    "stress_tests": {
+      "monte_carlo": {
+        "source": "trades",
+        "time_distribution": {
+          "mode": "exit_times",
+          "seed": 321
+        }
+      }
+    }
+  }
+}
+```
+Specs exemples :
+- `specs/examples/backtest_eurusd_m1_csv_stress_10k_time_dist.json`
+- `specs/examples/backtest_eurusd_m1_csv_stress_10k_time_dist_light.json`
+- `specs/examples/backtest_eurusd_m1_csv_stress_10k_time_dist_light_strict.json`
+- `specs/examples/backtest_eurusd_m1_csv_stress_10k_time_dist_trade_durations.json`
+- `specs/examples/backtest_eurusd_m1_csv_stress_10k_time_dist_trade_durations_light.json`
+- `specs/examples/backtest_eurusd_m1_csv_stress_10k_time_dist_trade_durations_light_strict.json`
+- `specs/examples/backtest_eurusd_m1_csv_stress_10k_time_dist_exit_deltas.json`
+- `specs/examples/backtest_eurusd_m1_csv_stress_10k_time_dist_exit_deltas_light.json`
+- `specs/examples/backtest_eurusd_m1_csv_stress_10k_time_dist_exit_deltas_light_strict.json`
+
+### Param drift (Monte Carlo)
+Permet de simuler un drift des parametres de strategie en appliquant un multiplicateur sur les PnL.
+Utile pour capturer une degradation progressive des parametres optimises.
+
+Champs supportes :
+- `param_drift.mode`: `per_sim`, `per_trade`, `random_walk`
+- `param_drift.dist`: `normal` (defaut), `uniform`
+- `param_drift.mu` / `param_drift.sigma` (normal)
+- `param_drift.low` / `param_drift.high` (uniform)
+- `param_drift.min` / `param_drift.max` (clamp optionnel)
+- `param_drift.seed`: seed optionnelle
+
+Exemple :
+```json
+{
+  "performance": {
+    "stress_tests": {
+      "monte_carlo": {
+        "source": "trades",
+        "param_drift": {
+          "mode": "random_walk",
+          "dist": "normal",
+          "mu": 1.0,
+          "sigma": 0.05,
+          "min": 0.7,
+          "max": 1.3,
+          "seed": 777
+        }
+      }
+    }
+  }
+}
+```
+Specs exemples :
+- `specs/examples/backtest_eurusd_m1_csv_stress_10k_param_drift.json`
+- `specs/examples/backtest_eurusd_m1_csv_stress_10k_param_drift_light.json`
+- `specs/examples/backtest_eurusd_m1_csv_stress_10k_param_drift_light_strict.json`
 ### Mode "light" / "light_strict" (rÃ©duction taille)
 Pour rÃ©duire la taille des rÃ©sultats, active un mode light sur Monte Carlo :
 ```json
@@ -323,13 +501,38 @@ poetry run qe strategy backtest --spec specs/examples/strategy_dca_etf_delta_202
 ## Ici limité temporairement à QE_STRESS_TEST_MAX_JSON_CHARS =60000 dans le code si on veut changer on peut set la variable 
 poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_delta_mysql_stress.json
 poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress.json
+poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_light.json
+poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_light_strict.json
 poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_10k.json
 poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_10k_light.json
-poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_light.json
 poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_10k_light_strict.json
-poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_light_strict.json
-poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_10k_light.json
+poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_10k_returns.json
+poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_10k_returns_light.json
+poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_10k_returns_light_strict.json
+poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_10k_trades.json
+poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_10k_trades_light.json
+poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_10k_trades_light_strict.json
+poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_10k_sizing.json
+poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_10k_sizing_light.json
+poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_10k_sizing_light_strict.json
+poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_10k_tpsl_jitter.json
+poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_10k_tpsl_jitter_light.json
+poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_10k_tpsl_jitter_light_strict.json
+poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_10k_tpsl_jitter_normal.json
+poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_10k_time_dist.json
+poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_10k_time_dist_light.json
+poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_10k_time_dist_light_strict.json
 
+poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_10k_time_dist_trade_durations.json
+poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_10k_time_dist_exit_deltas.json
+poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_10k_time_dist_trade_durations_light.json
+poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_10k_time_dist_trade_durations_light_strict.json
+poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_10k_time_dist_exit_deltas_light.json
+poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_10k_time_dist_exit_deltas_light_strict.json
+
+poetry run qe backtest run specs/examples/backtest_eurusd_m1_csv_stress_10k_param_drift.json
+poetry run qe backtest run specs/examples/backtest_eurusd_m1_csv_stress_10k_param_drift_light.json
+poetry run qe backtest run specs/examples/backtest_eurusd_m1_csv_stress_10k_param_drift_light_strict.json
 
 poetry run pytest tests/test_backtest_data_sources.py
 poetry run pytest tests/test_strategy_dca_variants.py
@@ -349,11 +552,13 @@ poetry run pytest tests/test_data_edge_cases.py
 poetry run pytest -m slow tests/test_large_dataset_perf.py
 
 ## STRESS TESTS & MONTE CARLO
-poetry run pytest tests\test_stress_tests.py
-poetry run pytest tests\test_dca_stress_tests.py 
-poetry run pytest tests\test_stress_tests_large_dataset.py
-
-## 
+poetry run pytest tests/test_stress_tests.py
+poetry run pytest tests/test_dca_stress_tests.py 
+poetry run pytest tests/test_stress_tests_large_dataset.py
+poetry run pytest tests/test_backtest_stress_sources.py
+poetry run pytest tests/test_backtest_engine_tpsl_jitter.py
+poetry run pytest tests/test_stress_tests_time_distribution.py
+poetry run pytest tests/test_stress_tests_param_drift.py
 
 ## Ajouts de tests filters 
 poetry run pytest tests/test_filters_mtf_anomaly.py

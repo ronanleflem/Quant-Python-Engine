@@ -4,9 +4,51 @@ from __future__ import annotations
 from typing import List, Dict, Any, Tuple, Mapping
 import time
 import logging
+import random
 
 from ..tpsl.rules import StopInitializer, TakeProfit, DynamicStopLoss
 from . import metrics
+
+
+def _parse_tpsl_jitter(jitter_cfg: Mapping[str, Any] | None) -> Dict[str, Any] | None:
+    if not isinstance(jitter_cfg, Mapping):
+        return None
+    if jitter_cfg.get("enabled", True) is False:
+        return None
+    dist = str(jitter_cfg.get("dist", "uniform")).strip().lower()
+    if dist not in {"uniform", "normal"}:
+        raise ValueError(f"Unsupported tpsl jitter dist: {dist}")
+    tp_bps = jitter_cfg.get("tp_bps", jitter_cfg.get("tp", 0.0))
+    sl_bps = jitter_cfg.get("sl_bps", jitter_cfg.get("sl", 0.0))
+    try:
+        tp_bps_val = abs(float(tp_bps))
+    except Exception:
+        tp_bps_val = 0.0
+    try:
+        sl_bps_val = abs(float(sl_bps))
+    except Exception:
+        sl_bps_val = 0.0
+    if tp_bps_val <= 0 and sl_bps_val <= 0:
+        return None
+    seed = jitter_cfg.get("seed")
+    rng = random.Random(seed) if seed is not None else random.Random()
+    return {
+        "dist": dist,
+        "tp_bps": tp_bps_val,
+        "sl_bps": sl_bps_val,
+        "rng": rng,
+    }
+
+
+def _draw_tpsl_jitter(cfg: Mapping[str, Any], *, hit_tp: bool, hit_sl: bool) -> float:
+    dist = cfg["dist"]
+    rng: random.Random = cfg["rng"]
+    bps = cfg["sl_bps"] if hit_sl else cfg["tp_bps"]
+    if not bps:
+        return 0.0
+    if dist == "uniform":
+        return float(rng.uniform(-bps, bps))
+    return float(rng.gauss(0.0, bps))
 
 
 def run(
@@ -21,6 +63,7 @@ def run(
     max_seconds: float | None = None,
     pruning: Mapping[str, Any] | None = None,
     dynamic_sl: Mapping[str, Any] | None = None,
+    tpsl_jitter: Mapping[str, Any] | None = None,
 ) -> Tuple[List[Dict[str, Any]], List[float], Dict[str, float]]:
     """Execute a vectorised backtest.
 
@@ -31,6 +74,7 @@ def run(
     """
 
     cost_rate = (slippage_bps + fee_bps) / 10000.0
+    jitter_cfg = _parse_tpsl_jitter(tpsl_jitter)
     pruning_cfg = pruning if isinstance(pruning, Mapping) else {}
     pruning_enabled = bool(pruning_cfg) and pruning_cfg.get("enabled", True) is not False
     max_dd_pct = pruning_cfg.get("max_drawdown_pct") if pruning_enabled else None
@@ -112,6 +156,10 @@ def run(
             exit_signal = signal == 0
             if hit_tp or hit_sl or exit_signal:
                 exit_price = nxt["open"] * (1 - cost_rate)
+                if jitter_cfg is not None and (hit_tp or hit_sl):
+                    jitter_bps = _draw_tpsl_jitter(jitter_cfg, hit_tp=hit_tp, hit_sl=hit_sl)
+                    if jitter_bps:
+                        exit_price *= 1 + (jitter_bps / 10000.0)
                 exit_ts = nxt["timestamp"]
                 pnl = exit_price - entry_price
                 r_val = pnl / sl_distance if sl_distance else 0.0

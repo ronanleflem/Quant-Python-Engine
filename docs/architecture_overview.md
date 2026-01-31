@@ -21,8 +21,13 @@ Ce document résume l’état **actuel** du moteur lourd Python (après intégra
 
 ### Stress Tests & Monte Carlo
 - **Backtest** : Monte Carlo + scénarios sont calculés sur l’equity curve (PnL cumulé) et ajoutés au payload.
+- **Source Monte Carlo** : configurable via `stress_tests.monte_carlo.source` (equity | returns | trades).
+  - `equity` = par defaut, `returns` = PnL par trade, `trades` = trades + timestamps pour block bootstrap.
 - **DCA** : un Monte Carlo niveau 1 est attaché dans `run.extra["stress_tests"]`.
 - **Sortie** : bloc `stress_tests` avec `monte_carlo` et `scenarios` (métriques + distributions + paramètres).
+- **Sizing jitter** : `stress_tests.monte_carlo.sizing` permet de perturber les PnL par trade (ex: uniform/normal).
+- **Time distribution** : `stress_tests.monte_carlo.time_distribution` perturbe la distribution temporelle (durations/sessions).
+- **Param drift** : `stress_tests.monte_carlo.param_drift` simule un drift de parametres (multiplicateur PnL).
 - **Mode "light"** : réduit `equity_curves` (nombre + downsample) pour limiter la taille des résultats.
 
 Arborescence (simplifiée) :
@@ -34,6 +39,7 @@ src/quant_engine/ api/ (FastAPI, schémas Pydantic) cli/ (Typer CLI) core/ (spec
 - **Entrée** : `ExperimentSpec` (JSON) décrivant data, stratégie, filtres (EMA/VWAP…), exécution, TP/SL, validation (WFA), objectif, search space.
 - **Moteur** : backtest bar-based (entrées/sorties au bar suivant), frais/slippage bps, position 1x (MVP).
 - **TP/SL** : Stop ATR * k, Take Profit en R-multiples {1..5}.
+- **Execution jitter** : `tpsl.jitter` permet d'appliquer un jitter (bps) sur le prix de sortie quand TP/SL est touche.
 - **Validation** : **Walk-Forward Analysis** (ex. 2 mois train / 1 mois test, embargo).
 - **Optimisation** : **Optuna (TPE)** mono-objectif (ex. Sharpe), contrainte min_trades.
 - **Sorties** : `trials.parquet`, `equity_{fold}.parquet`, `trades_{fold}.parquet`, `summary.json`, best params/metrics.

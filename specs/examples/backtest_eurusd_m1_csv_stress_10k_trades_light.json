@@ -1,0 +1,69 @@
+{
+  "strategy": {
+    "strategy_id": "BT_EURUSD_M1_EMA_CSV_STRESS_10K_TRADES_LIGHT",
+    "asset_class": "FX"
+  },
+  "data": {
+    "dataset_path": "C:\\Users\\ronan\\Desktop\\Quant-Engine-Python\\Quant-Python-Engine\\specs\\examples\\data\\forex\\EURUSD_20250101_20250601_1min_10k.csv",
+    "symbols": [
+      "EURUSD"
+    ],
+    "timeframe": "1m",
+    "start": "2025-01-01",
+    "end": "2025-06-01"
+  },
+  "signal": {
+    "type": "ema_cross",
+    "params": {
+      "fast": 5,
+      "slow": 20,
+      "require_crossing": false
+    }
+  },
+  "tpsl": {
+    "atr_window": 14,
+    "atr_k": 1.0,
+    "r_mult": 2.0,
+    "slippage_bps": 0.0,
+    "fee_bps": 0.0
+  },
+  "performance": {
+    "initial_capital": 10000,
+    "stress_tests": {
+      "enabled": true,
+      "monte_carlo": {
+        "source": "trades",
+        "n_sims": 300,
+        "seed": 123,
+        "method": "bootstrap",
+        "block_size": 5,
+        "overlapping": true,
+        "output": {
+          "mode": "light",
+          "max_curves": 50,
+          "curve_stride": 10
+        }
+      },
+      "scenarios": [
+        {
+          "name": "crash_mid",
+          "type": "crash",
+          "shock_pct": -0.15,
+          "index": "mid"
+        },
+        {
+          "name": "vol_x2",
+          "type": "volatility",
+          "vol_multiplier": 2.0
+        }
+      ]
+    }
+  },
+  "persistence": {
+    "enabled": true
+  },
+  "output": {
+    "path": "runs/backtest_eurusd_m1_csv_stress_10k_trades_light.json",
+    "format": "json"
+  }
+}
