@@ -39,7 +39,7 @@
         "overlapping": true,
         "output": {
           "mode": "light_strict",
-          "max_curves": 50,
+          "max_curves": 20,
           "curve_stride": 10
         }
       },

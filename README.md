@@ -503,9 +503,12 @@ poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_delta_mysql_
 poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress.json
 poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_light.json
 poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_light_strict.json
+
 poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_10k.json
 poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_10k_light.json
+
 poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_10k_light_strict.json
+
 poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_10k_returns.json
 poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_10k_returns_light.json
 poetry run qe backtest run --spec specs/examples/backtest_eurusd_m1_csv_stress_10k_returns_light_strict.json
