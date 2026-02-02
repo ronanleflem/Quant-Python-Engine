@@ -1,0 +1,1198 @@
+{
+  "meta": {
+    "version": "2026-02-02",
+    "generated_by": "codex",
+    "notes": [
+      "All paths are dot-paths relative to the spec root.",
+      "This catalog is machine-readable and intended for UI-driven JSON builders.",
+      "Filter param details live in docs/filters.md; this file lists filter types and common container shapes."
+    ],
+    "source_files": [
+      "README.md",
+      "docs/filters.md",
+      "src/quant_engine/backtest/runner.py",
+      "src/quant_engine/strategies/runner.py",
+      "src/quant_engine/performance/stress_tests.py",
+      "src/quant_engine/stats/events.py",
+      "src/quant_engine/stats/conditions.py",
+      "src/quant_engine/stats/targets.py",
+      "src/quant_engine/api/schemas.py"
+    ]
+  },
+  "enums": {
+    "strategy.types": [
+      "dca_equity",
+      "dca_etf",
+      "crypto_grid"
+    ],
+    "signal.types": [
+      "ema_cross"
+    ],
+    "filter.types": [
+      "adx",
+      "atr",
+      "ema_slope",
+      "volume_surge",
+      "vwap_side",
+      "poc_distance",
+      "liquidity_sweep",
+      "bos",
+      "mss",
+      "session_time",
+      "day_of_week",
+      "day_of_month",
+      "month_of_year",
+      "intraday_time",
+      "k_consecutive",
+      "seasonality_bin",
+      "hurst_regime",
+      "entropy_window",
+      "daily_loss_cap",
+      "daily_trades_cap",
+      "cooldown_bars",
+      "atr_risk_gate",
+      "equity_dd_lockout",
+      "benford_law",
+      "cycles",
+      "donchian_channels",
+      "liquidity_cmf",
+      "statistical_arbitrage",
+      "psychologic_ulcer",
+      "stationarity",
+      "volatility",
+      "ema_structure",
+      "rsi_entry",
+      "macd_entry",
+      "volume_above_average",
+      "fractal_analysis",
+      "mean_reversion",
+      "contradictory_signals",
+      "linear_regression_macd_cross",
+      "atr_rising",
+      "market_regime",
+      "trend",
+      "biais_institutional",
+      "stats_gate",
+      "mtf_anomaly",
+      "market_manipulation",
+      "htf_poi",
+      "orderflow_delta",
+      "macro_cot_oi",
+      "lower_timeframe_confluence",
+      "psychologic_and_news",
+      "ict_poi"
+    ],
+    "filter.rule.modes": [
+      "hard",
+      "soft"
+    ],
+    "seasonality.signal.dims": [
+      "hour",
+      "dow",
+      "month",
+      "month_of_year",
+      "session",
+      "is_month_start",
+      "is_month_end",
+      "is_news_hour",
+      "is_rollover_day",
+      "is_third_friday",
+      "week_in_month",
+      "day_in_month",
+      "quarter",
+      "last_1",
+      "last_2",
+      "last_3",
+      "last_4",
+      "last_5",
+      "is_january",
+      "is_february",
+      "is_march",
+      "is_april",
+      "is_may",
+      "is_june",
+      "is_july",
+      "is_august",
+      "is_september",
+      "is_october",
+      "is_november",
+      "is_december"
+    ],
+    "monte_carlo.method": [
+      "bootstrap",
+      "iid",
+      "shuffle",
+      "block",
+      "block_bootstrap"
+    ],
+    "monte_carlo.source": [
+      "equity",
+      "returns",
+      "trades"
+    ],
+    "scenario.types": [
+      "crash",
+      "gap",
+      "volatility",
+      "volatility_spike",
+      "drawdown",
+      "prolonged_drawdown"
+    ],
+    "stats.events": [
+      "k_consecutive",
+      "shock_atr",
+      "breakout_hhll",
+      "bullish_candle",
+      "bearish_candle",
+      "bullish_engulfing",
+      "bearish_engulfing",
+      "bullish_streak",
+      "bearish_streak",
+      "gap_up",
+      "gap_down",
+      "always_true"
+    ],
+    "stats.conditions": [
+      "htf_trend",
+      "vol_tertile",
+      "session",
+      "hour_bin",
+      "day_of_week",
+      "month_of_year",
+      "session_from_ts",
+      "in_zone_level",
+      "distance_to_level",
+      "touched_level_since"
+    ],
+    "stats.targets": [
+      "up_next_bar",
+      "continuation_n",
+      "time_to_reversal",
+      "is_bullish",
+      "is_bearish",
+      "next_bullish",
+      "next_bearish",
+      "body_ratio",
+      "upper_wick_ratio",
+      "lower_wick_ratio",
+      "candle_std",
+      "candle_zscore",
+      "breakout_high_first",
+      "breakout_low_first",
+      "retracement_probability"
+    ]
+  },
+  "schemas": {
+    "OutputSpec": {
+      "type": "object",
+      "fields": [
+        {
+          "name": "path",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "format",
+          "type": "string",
+          "enum": [
+            "json",
+            "csv"
+          ],
+          "required": false
+        }
+      ],
+      "additional_fields": false
+    },
+    "MySQLDataSpec": {
+      "type": "object",
+      "fields": [
+        {
+          "name": "connection_url",
+          "type": "string"
+        },
+        {
+          "name": "env_var",
+          "type": "string",
+          "default": "QE_MARKETDATA_MYSQL_URL"
+        },
+        {
+          "name": "schema",
+          "type": "string"
+        },
+        {
+          "name": "table",
+          "type": "string"
+        },
+        {
+          "name": "symbol_col",
+          "type": "string"
+        },
+        {
+          "name": "ts_col",
+          "type": "string"
+        },
+        {
+          "name": "open_col",
+          "type": "string"
+        },
+        {
+          "name": "high_col",
+          "type": "string"
+        },
+        {
+          "name": "low_col",
+          "type": "string"
+        },
+        {
+          "name": "close_col",
+          "type": "string"
+        },
+        {
+          "name": "volume_col",
+          "type": "string"
+        },
+        {
+          "name": "timeframe_col",
+          "type": "string"
+        },
+        {
+          "name": "extra_where",
+          "type": "string"
+        },
+        {
+          "name": "chunk_minutes",
+          "type": "integer"
+        },
+        {
+          "name": "symbol_lookup_table",
+          "type": "string"
+        },
+        {
+          "name": "symbol_lookup_symbol_col",
+          "type": "string"
+        },
+        {
+          "name": "symbol_lookup_id_col",
+          "type": "string"
+        }
+      ],
+      "additional_fields": false
+    },
+    "FilterSpec": {
+      "type": "object",
+      "fields": [
+        {
+          "name": "type",
+          "type": "string",
+          "enum_ref": "filter.types",
+          "required": true
+        },
+        {
+          "name": "params",
+          "type": "object",
+          "additional_fields": true
+        }
+      ],
+      "additional_fields": false
+    },
+    "FilterRuleSpec": {
+      "type": "object",
+      "fields": [
+        {
+          "name": "type",
+          "type": "string",
+          "enum_ref": "filter.types",
+          "required": true
+        },
+        {
+          "name": "params",
+          "type": "object",
+          "additional_fields": true
+        },
+        {
+          "name": "weight",
+          "type": "number",
+          "default": 1.0
+        },
+        {
+          "name": "mode",
+          "type": "string",
+          "enum_ref": "filter.rule.modes",
+          "default": "hard"
+        },
+        {
+          "name": "enabled",
+          "type": "boolean",
+          "default": true
+        }
+      ],
+      "additional_fields": false
+    },
+    "FilterRulesConfig": {
+      "type": "object",
+      "fields": [
+        {
+          "name": "min_score",
+          "type": "number"
+        },
+        {
+          "name": "min_score_pct",
+          "type": "number"
+        }
+      ],
+      "additional_fields": false
+    },
+    "ScreeningSpec": {
+      "type": "object",
+      "fields": [
+        {
+          "name": "enabled",
+          "type": "boolean"
+        },
+        {
+          "name": "window_start",
+          "type": "string"
+        },
+        {
+          "name": "window_end",
+          "type": "string"
+        },
+        {
+          "name": "max_bars",
+          "type": "integer"
+        },
+        {
+          "name": "max_trades",
+          "type": "integer"
+        },
+        {
+          "name": "max_seconds",
+          "type": "number"
+        },
+        {
+          "name": "pruning",
+          "type": "object",
+          "additional_fields": true
+        }
+      ],
+      "additional_fields": true
+    },
+    "TPSLJitterSpec": {
+      "type": "object",
+      "fields": [
+        {
+          "name": "enabled",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "name": "dist",
+          "type": "string",
+          "enum": [
+            "uniform",
+            "normal"
+          ]
+        },
+        {
+          "name": "tp_bps",
+          "type": "number"
+        },
+        {
+          "name": "sl_bps",
+          "type": "number"
+        },
+        {
+          "name": "seed",
+          "type": "integer"
+        }
+      ],
+      "additional_fields": false
+    },
+    "DynamicSLSpec": {
+      "type": "object",
+      "fields": [
+        {
+          "name": "enabled",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "name": "mode",
+          "type": "string",
+          "enum": [
+            "trail_atr"
+          ]
+        },
+        {
+          "name": "atr_mult",
+          "type": "number"
+        }
+      ],
+      "additional_fields": false
+    },
+    "StressTestsSpec": {
+      "type": "object",
+      "fields": [
+        {
+          "name": "enabled",
+          "type": "boolean"
+        },
+        {
+          "name": "monte_carlo",
+          "type": "object",
+          "additional_fields": true
+        },
+        {
+          "name": "scenarios",
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        {
+          "name": "scenario_params",
+          "type": "object",
+          "additional_fields": true
+        }
+      ],
+      "additional_fields": true
+    }
+  },
+  "specs": {
+    "backtest_signal": {
+      "required": [
+        "data",
+        "strategy",
+        "signal"
+      ],
+      "fields": [
+        {
+          "path": "strategy.strategy_id",
+          "type": "string",
+          "required": true
+        },
+        {
+          "path": "strategy.asset_class",
+          "type": "string"
+        },
+        {
+          "path": "strategy.run_id",
+          "type": "string"
+        },
+        {
+          "path": "data.dataset_path",
+          "type": "string"
+        },
+        {
+          "path": "data.mysql",
+          "type": "object",
+          "schema_ref": "MySQLDataSpec"
+        },
+        {
+          "path": "data.symbols",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        {
+          "path": "data.timeframe",
+          "type": "string"
+        },
+        {
+          "path": "data.start",
+          "type": "string"
+        },
+        {
+          "path": "data.end",
+          "type": "string"
+        },
+        {
+          "path": "signal.type",
+          "type": "string",
+          "enum_ref": "signal.types",
+          "required": true
+        },
+        {
+          "path": "signal.params.fast",
+          "type": "integer"
+        },
+        {
+          "path": "signal.params.slow",
+          "type": "integer"
+        },
+        {
+          "path": "signal.params.ema_fast",
+          "type": "integer"
+        },
+        {
+          "path": "signal.params.ema_slow",
+          "type": "integer"
+        },
+        {
+          "path": "signal.params.require_crossing",
+          "type": "boolean"
+        },
+        {
+          "path": "filters",
+          "type": "array",
+          "items": {
+            "schema_ref": "FilterSpec"
+          }
+        },
+        {
+          "path": "filter_rules",
+          "type": "array",
+          "items": {
+            "schema_ref": "FilterRuleSpec"
+          }
+        },
+        {
+          "path": "filter_rules_config",
+          "type": "object",
+          "schema_ref": "FilterRulesConfig"
+        },
+        {
+          "path": "screening",
+          "type": "object",
+          "schema_ref": "ScreeningSpec"
+        },
+        {
+          "path": "optimization.screening",
+          "type": "object",
+          "schema_ref": "ScreeningSpec"
+        },
+        {
+          "path": "optimization.cache_features",
+          "type": "object",
+          "additional_fields": true
+        },
+        {
+          "path": "tpsl.atr_window",
+          "type": "integer"
+        },
+        {
+          "path": "tpsl.atr_period",
+          "type": "integer"
+        },
+        {
+          "path": "tpsl.atr_k",
+          "type": "number"
+        },
+        {
+          "path": "tpsl.r_mult",
+          "type": "number"
+        },
+        {
+          "path": "tpsl.slippage_bps",
+          "type": "number"
+        },
+        {
+          "path": "tpsl.fee_bps",
+          "type": "number"
+        },
+        {
+          "path": "tpsl.dynamic_sl",
+          "type": "object",
+          "schema_ref": "DynamicSLSpec"
+        },
+        {
+          "path": "tpsl.jitter",
+          "type": "object",
+          "schema_ref": "TPSLJitterSpec"
+        },
+        {
+          "path": "performance.initial_capital",
+          "type": "number"
+        },
+        {
+          "path": "performance.risk_free_rate",
+          "type": "number"
+        },
+        {
+          "path": "performance.risk_free_pct",
+          "type": "number"
+        },
+        {
+          "path": "performance.stress_tests",
+          "type": "object",
+          "schema_ref": "StressTestsSpec"
+        },
+        {
+          "path": "performance.stress_tests_enabled",
+          "type": "boolean"
+        },
+        {
+          "path": "persistence.enabled",
+          "type": "boolean"
+        },
+        {
+          "path": "output",
+          "type": "object",
+          "schema_ref": "OutputSpec"
+        },
+        {
+          "path": "data.mysql_env",
+          "type": "string"
+        },
+        {
+          "path": "data.schema",
+          "type": "string"
+        },
+        {
+          "path": "data.table",
+          "type": "string"
+        },
+        {
+          "path": "data.symbol_col",
+          "type": "string"
+        },
+        {
+          "path": "data.ts_col",
+          "type": "string"
+        },
+        {
+          "path": "data.open_col",
+          "type": "string"
+        },
+        {
+          "path": "data.high_col",
+          "type": "string"
+        },
+        {
+          "path": "data.low_col",
+          "type": "string"
+        },
+        {
+          "path": "data.close_col",
+          "type": "string"
+        },
+        {
+          "path": "data.volume_col",
+          "type": "string"
+        },
+        {
+          "path": "data.timeframe_col",
+          "type": "string"
+        },
+        {
+          "path": "data.delta_base",
+          "type": "string"
+        },
+        {
+          "path": "data.delta_prefix",
+          "type": "string"
+        },
+        {
+          "path": "data.delta_asset_dir",
+          "type": "string"
+        },
+        {
+          "path": "data.delta_exchange",
+          "type": "string"
+        },
+        {
+          "path": "data.delta_market_type",
+          "type": "string"
+        },
+        {
+          "path": "data.delta_quotes",
+          "type": "string"
+        },
+        {
+          "path": "data.delta_min_coverage",
+          "type": "number"
+        },
+        {
+          "path": "data.delta_table",
+          "type": "string"
+        },
+        {
+          "path": "data.delta_symbol",
+          "type": "string"
+        },
+        {
+          "path": "data.delta_calendar",
+          "type": "string"
+        },
+        {
+          "path": "data.delta_broker",
+          "type": "string"
+        },
+        {
+          "path": "data.delta_brokers",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        {
+          "path": "data.java_min_coverage",
+          "type": "number"
+        },
+        {
+          "path": "data.min_coverage",
+          "type": "number"
+        },
+        {
+          "path": "data.coverage_min",
+          "type": "number"
+        },
+        {
+          "path": "data.ohlc_cache",
+          "type": "object",
+          "additional_fields": true
+        },
+        {
+          "path": "data.cache_ohlc",
+          "type": "object",
+          "additional_fields": true
+        },
+        {
+          "path": "data.cache",
+          "type": "object",
+          "additional_fields": true
+        }
+      ]
+    },
+    "strategy_backtest": {
+      "required": [
+        "strategy",
+        "data"
+      ],
+      "fields": [
+        {
+          "path": "strategy.strategy_id",
+          "type": "string",
+          "required": true
+        },
+        {
+          "path": "strategy.type",
+          "type": "string",
+          "enum_ref": "strategy.types",
+          "required": true
+        },
+        {
+          "path": "strategy.params",
+          "type": "object",
+          "additional_fields": true
+        },
+        {
+          "path": "strategy.asset_class",
+          "type": "string"
+        },
+        {
+          "path": "strategy.run_id",
+          "type": "string"
+        },
+        {
+          "path": "strategy.filters",
+          "type": "array",
+          "items": {
+            "schema_ref": "FilterSpec"
+          }
+        },
+        {
+          "path": "strategy.filter_rules",
+          "type": "array",
+          "items": {
+            "schema_ref": "FilterRuleSpec"
+          }
+        },
+        {
+          "path": "strategy.filter_rules_config",
+          "type": "object",
+          "schema_ref": "FilterRulesConfig"
+        },
+        {
+          "path": "data.start",
+          "type": "string"
+        },
+        {
+          "path": "data.end",
+          "type": "string"
+        },
+        {
+          "path": "data.timeframe",
+          "type": "string"
+        },
+        {
+          "path": "data.source",
+          "type": "string"
+        },
+        {
+          "path": "data.path",
+          "type": "string"
+        },
+        {
+          "path": "filters",
+          "type": "array",
+          "items": {
+            "schema_ref": "FilterSpec"
+          }
+        },
+        {
+          "path": "filter_rules",
+          "type": "array",
+          "items": {
+            "schema_ref": "FilterRuleSpec"
+          }
+        },
+        {
+          "path": "filter_rules_config",
+          "type": "object",
+          "schema_ref": "FilterRulesConfig"
+        },
+        {
+          "path": "screening",
+          "type": "object",
+          "schema_ref": "ScreeningSpec"
+        },
+        {
+          "path": "optimization.screening",
+          "type": "object",
+          "schema_ref": "ScreeningSpec"
+        },
+        {
+          "path": "optimization.cache_features",
+          "type": "object",
+          "additional_fields": true
+        },
+        {
+          "path": "universe",
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        {
+          "path": "universe_label",
+          "type": "string"
+        },
+        {
+          "path": "scans",
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        {
+          "path": "performance.initial_capital",
+          "type": "number"
+        },
+        {
+          "path": "performance.capital_per_unit",
+          "type": "number"
+        },
+        {
+          "path": "performance.max_capital_per_trade",
+          "type": "number"
+        },
+        {
+          "path": "performance.stress_tests",
+          "type": "object",
+          "schema_ref": "StressTestsSpec"
+        },
+        {
+          "path": "performance.stress_tests_enabled",
+          "type": "boolean"
+        },
+        {
+          "path": "output",
+          "type": "object",
+          "schema_ref": "OutputSpec"
+        },
+        {
+          "path": "data.mysql_env",
+          "type": "string"
+        },
+        {
+          "path": "data.schema",
+          "type": "string"
+        },
+        {
+          "path": "data.table",
+          "type": "string"
+        },
+        {
+          "path": "data.symbol_col",
+          "type": "string"
+        },
+        {
+          "path": "data.ts_col",
+          "type": "string"
+        },
+        {
+          "path": "data.open_col",
+          "type": "string"
+        },
+        {
+          "path": "data.high_col",
+          "type": "string"
+        },
+        {
+          "path": "data.low_col",
+          "type": "string"
+        },
+        {
+          "path": "data.close_col",
+          "type": "string"
+        },
+        {
+          "path": "data.volume_col",
+          "type": "string"
+        },
+        {
+          "path": "data.timeframe_col",
+          "type": "string"
+        },
+        {
+          "path": "data.delta_base",
+          "type": "string"
+        },
+        {
+          "path": "data.delta_prefix",
+          "type": "string"
+        },
+        {
+          "path": "data.delta_asset_dir",
+          "type": "string"
+        },
+        {
+          "path": "data.delta_exchange",
+          "type": "string"
+        },
+        {
+          "path": "data.delta_market_type",
+          "type": "string"
+        },
+        {
+          "path": "data.delta_quotes",
+          "type": "string"
+        },
+        {
+          "path": "data.delta_min_coverage",
+          "type": "number"
+        },
+        {
+          "path": "data.delta_table",
+          "type": "string"
+        },
+        {
+          "path": "data.delta_symbol",
+          "type": "string"
+        },
+        {
+          "path": "data.delta_calendar",
+          "type": "string"
+        },
+        {
+          "path": "data.delta_broker",
+          "type": "string"
+        },
+        {
+          "path": "data.delta_brokers",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        {
+          "path": "data.java_min_coverage",
+          "type": "number"
+        },
+        {
+          "path": "data.min_coverage",
+          "type": "number"
+        },
+        {
+          "path": "data.coverage_min",
+          "type": "number"
+        },
+        {
+          "path": "data.ohlc_cache",
+          "type": "object",
+          "additional_fields": true
+        },
+        {
+          "path": "data.cache_ohlc",
+          "type": "object",
+          "additional_fields": true
+        },
+        {
+          "path": "data.cache",
+          "type": "object",
+          "additional_fields": true
+        }
+      ]
+    },
+    "market_stats": {
+      "required": [
+        "data"
+      ],
+      "fields": [
+        {
+          "path": "data.dataset_path",
+          "type": "string"
+        },
+        {
+          "path": "data.mysql",
+          "type": "object",
+          "schema_ref": "MySQLDataSpec"
+        },
+        {
+          "path": "data.symbols",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        {
+          "path": "data.timeframe",
+          "type": "string"
+        },
+        {
+          "path": "data.start",
+          "type": "string"
+        },
+        {
+          "path": "data.end",
+          "type": "string"
+        },
+        {
+          "path": "events",
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        {
+          "path": "conditions",
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        {
+          "path": "targets",
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        {
+          "path": "validation",
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        {
+          "path": "artifacts.out_dir",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        {
+          "path": "persistence.enabled",
+          "type": "boolean"
+        },
+        {
+          "path": "persistence.spec_id",
+          "type": "string"
+        },
+        {
+          "path": "persistence.dataset_id",
+          "type": "string"
+        }
+      ]
+    },
+    "seasonality": {
+      "required": [
+        "data"
+      ],
+      "fields": [
+        {
+          "path": "data.dataset_path",
+          "type": "string"
+        },
+        {
+          "path": "data.mysql",
+          "type": "object",
+          "schema_ref": "MySQLDataSpec"
+        },
+        {
+          "path": "data.symbols",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        {
+          "path": "data.timeframe",
+          "type": "string"
+        },
+        {
+          "path": "data.start",
+          "type": "string"
+        },
+        {
+          "path": "data.end",
+          "type": "string"
+        },
+        {
+          "path": "profile",
+          "type": "object",
+          "additional_fields": true
+        },
+        {
+          "path": "signal",
+          "type": "object",
+          "additional_fields": true
+        },
+        {
+          "path": "compute",
+          "type": "object",
+          "additional_fields": true
+        },
+        {
+          "path": "execution",
+          "type": "object",
+          "additional_fields": true
+        },
+        {
+          "path": "risk",
+          "type": "object",
+          "additional_fields": true
+        },
+        {
+          "path": "tp_sl",
+          "type": "object",
+          "additional_fields": true
+        },
+        {
+          "path": "validation",
+          "type": "object",
+          "additional_fields": true
+        },
+        {
+          "path": "artifacts.out_dir",
+          "type": "string"
+        },
+        {
+          "path": "persistence.enabled",
+          "type": "boolean"
+        },
+        {
+          "path": "persistence.spec_id",
+          "type": "string"
+        },
+        {
+          "path": "persistence.dataset_id",
+          "type": "string"
+        }
+      ]
+    }
+  }
+}
