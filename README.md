@@ -738,6 +738,13 @@ curl.exe -X POST http://127.0.0.1:8000/runs/RUN_ID/cancel
 `QE_CANONICAL_STALE_SECONDS` (reprise des jobs RUNNING stale)
 `QE_WORKER_POLL_SECONDS` (polling du worker)
 
+Endpoints lifecycle (canonical runs):
+`GET /runs/{id}` -> { run_id, status, created_at, updated_at, ... }
+`GET /runs/{id}/result` -> terminal: { run_id, status, result?, error? }
+`GET /runs/{id}/result` -> non terminal: { run_id, status, message }
+`POST /runs/{id}/cancel` -> 200 idempotent, 409 si d??j?? terminal
+
+
 #### Saisonalité (profil + optimisation Optuna)
 ```bash
 curl.exe -X POST http://127.0.0.1:8000/seasonality/run -H "Content-Type: application/json" --data-binary @specs/examples/seasonality_run.json | python -m json.tool

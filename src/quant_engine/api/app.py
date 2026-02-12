@@ -159,9 +159,12 @@ def _update_job_status(job_id: str, status: str, *, error: str | None = None) ->
     if status not in JOB_STATUSES:
         raise ValueError(f"Unknown job status: {status}")
     now = _utc_now()
-    started_at = now if status.lower() == "running" else None
-    finished_at = now if status.lower() in {"completed", "failed", "canceled"} else None
-    canceled_at = now if status.lower() == "canceled" else None
+    normalized = status.lower()
+    started_at = now if normalized == "running" else None
+    finished_at = now if normalized in {"completed", "failed", "canceled"} else None
+    if status in {JOB_STATUS_SUCCEEDED, JOB_STATUS_FAILED_CANONICAL, JOB_STATUS_CANCELED}:
+        finished_at = now
+    canceled_at = now if normalized == "canceled" or status == JOB_STATUS_CANCELED else None
     with db.session() as conn:
         conn.execute(
             """
@@ -573,6 +576,36 @@ def _external_job_status(status: str) -> str:
     }:
         return upper
     return normalized
+
+
+def _json_error(status_code: int, code: str, message: str) -> JSONResponse:
+    return JSONResponse(status_code=status_code, content={"code": code, "message": message})
+
+
+def _is_terminal_status(status: str) -> bool:
+    return status in {JOB_STATUS_SUCCEEDED, JOB_STATUS_FAILED_CANONICAL, JOB_STATUS_CANCELED}
+
+
+def _canonical_run_payload(job: Dict[str, Any]) -> Dict[str, Any]:
+    status = _external_job_status(job.get("status", ""))
+    payload: Dict[str, Any] = {
+        "run_id": job.get("job_id"),
+        "request_id": job.get("job_id"),
+        "requestId": job.get("job_id"),
+        "status": status,
+        "job_type": job.get("job_type"),
+        "created_at": job.get("created_at"),
+        "updated_at": job.get("updated_at"),
+        "started_at": job.get("started_at"),
+        "finished_at": job.get("finished_at"),
+        "attempts": job.get("attempts"),
+        "max_attempts": job.get("max_attempts"),
+        "timeout_seconds": job.get("timeout_seconds"),
+        "progress": job.get("progress"),
+    }
+    if job.get("error_message"):
+        payload["error"] = {"code": "execution_error", "message": job.get("error_message")}
+    return payload
 
 
 def _canonical_job_defaults() -> tuple[int | None, int | None]:
@@ -1409,11 +1442,16 @@ def runs_submit_endpoint(payload: Dict[str, Any]) -> schemas.RunEnqueueResponse:
 def runs_cancel_endpoint(run_id: str) -> schemas.StatusResponse:
     """Request cancellation for a canonical run."""
 
-    request_job_cancel(run_id)
     job = _get_job(run_id)
     if not job:
-        return schemas.StatusResponse(status="unknown", id=run_id)
-    return schemas.StatusResponse(status=_external_job_status(job.get("status", "")), id=run_id)
+        return _json_error(404, "not_found", "Run not found")
+    status = _external_job_status(job.get("status", ""))
+    if status in {JOB_STATUS_SUCCEEDED, JOB_STATUS_FAILED_CANONICAL}:
+        return _json_error(409, "already_finished", "Run already finished")
+    request_job_cancel(run_id)
+    job = _get_job(run_id) or job
+    status = _external_job_status(job.get("status", ""))
+    return schemas.StatusResponse(status=status, id=run_id)
 
 
 @fastapi_app.get('/status/{job_id}', response_model=schemas.StatusResponse)
@@ -1727,9 +1765,39 @@ def runs_list_endpoint(
 def run_detail_endpoint(run_id: str) -> Dict[str, Any]:
     """Return a single run and aggregated metrics."""
 
+    job = _get_job(run_id)
+    if job and job.get("job_type") == JOB_TYPE_CANONICAL_RUN:
+        return _canonical_run_payload(job)
     payload = get_run(run_id)
     if payload is None:
         raise HTTPException(status_code=404, detail='Run not found')
+    return payload
+
+
+@fastapi_app.get('/runs/{run_id}/result', response_model=Dict[str, Any])
+def run_result_endpoint(run_id: str) -> Dict[str, Any]:
+    """Return the result for a canonical run."""
+
+    job = _get_job(run_id)
+    if not job or job.get("job_type") != JOB_TYPE_CANONICAL_RUN:
+        return _json_error(404, "not_found", "Run not found")
+    status = _external_job_status(job.get("status", ""))
+    payload: Dict[str, Any] = {
+        "run_id": job.get("job_id"),
+        "request_id": job.get("job_id"),
+        "requestId": job.get("job_id"),
+        "status": status,
+    }
+    if not _is_terminal_status(status):
+        payload["message"] = "Result not available yet"
+        return payload
+    result = job.get("result")
+    if result is not None:
+        payload["result"] = result
+    if job.get("error_message"):
+        payload["error"] = {"code": "execution_error", "message": job.get("error_message")}
+    if isinstance(result, dict) and "error" in result:
+        payload["error"] = result.get("error")
     return payload
 
 
