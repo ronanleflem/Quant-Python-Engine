@@ -143,3 +143,10 @@ def test_cancel_not_found(tmp_path, monkeypatch) -> None:
     assert resp.status_code == 404
     payload = resp.json()
     assert payload["code"] == "not_found"
+
+
+def test_run_detail_not_found(tmp_path, monkeypatch) -> None:
+    client = _setup_db(tmp_path, monkeypatch)
+
+    resp = client.get("/runs/missing_run")
+    assert resp.status_code == 404
