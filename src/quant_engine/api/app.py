@@ -1469,13 +1469,32 @@ async def metrics_middleware(request: Request, call_next):
 async def request_validation_exception_handler(
     request: Request, exc: RequestValidationError
 ) -> JSONResponse:
-    return JSONResponse(status_code=422, content={"errors": normalize_fastapi_errors(exc.errors())})
+    errors = normalize_fastapi_errors(exc.errors())
+    event_payload = {
+        "event": "validation_error",
+        "path": str(request.url.path),
+        "method": request.method,
+        "status": 422,
+        "correlation_id": _get_correlation_id(request),
+        "errors": errors,
+    }
+    threading.Thread(target=_log_event, args=(event_payload,), daemon=True).start()
+    return JSONResponse(status_code=422, content={"errors": errors})
 
 
 @fastapi_app.exception_handler(ApiValidationException)
 async def api_validation_exception_handler(
     request: Request, exc: ApiValidationException
 ) -> JSONResponse:
+    event_payload = {
+        "event": "validation_error",
+        "path": str(request.url.path),
+        "method": request.method,
+        "status": 422,
+        "correlation_id": _get_correlation_id(request),
+        "errors": exc.errors,
+    }
+    threading.Thread(target=_log_event, args=(event_payload,), daemon=True).start()
     return JSONResponse(status_code=422, content={"errors": exc.errors})
 
 
