@@ -1,0 +1,16 @@
+{
+  "spec_type": "backtest",
+  "catalog_version": "v1",
+  "data": {
+    "symbol": "EURUSD",
+    "timeframe": "M1",
+    "start_date": "2025-01-01",
+    "end_date": "2025-01-02",
+    "dataset_path": "specs/examples/data/eurusd_m1_sample.json"
+  },
+  "signal": {
+    "type": "ema_cross",
+    "fast": 9,
+    "slow": 21
+  }
+}

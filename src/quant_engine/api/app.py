@@ -608,6 +608,15 @@ def _canonical_run_payload(job: Dict[str, Any]) -> Dict[str, Any]:
     return payload
 
 
+def _db_ready() -> tuple[bool, str | None]:
+    try:
+        with db.session() as conn:
+            conn.execute("SELECT 1")
+        return True, None
+    except Exception as exc:  # pragma: no cover - defensive
+        return False, str(exc)
+
+
 def _canonical_job_defaults() -> tuple[int | None, int | None]:
     max_attempts_raw = os.getenv("QE_CANONICAL_MAX_ATTEMPTS", "").strip()
     timeout_raw = os.getenv("QE_CANONICAL_TIMEOUT_SECONDS", "").strip()
@@ -1399,6 +1408,26 @@ async def api_validation_exception_handler(
     request: Request, exc: ApiValidationException
 ) -> JSONResponse:
     return JSONResponse(status_code=422, content={"errors": exc.errors})
+
+
+@fastapi_app.get('/healthz', response_model=Dict[str, Any])
+def healthz_endpoint() -> Dict[str, Any]:
+    """Liveness probe."""
+
+    return {"status": "ok", "ts": _utc_now()}
+
+
+@fastapi_app.get('/readyz', response_model=Dict[str, Any])
+def readyz_endpoint() -> Dict[str, Any]:
+    """Readiness probe (checks DB connectivity)."""
+
+    ok, error = _db_ready()
+    if not ok:
+        return JSONResponse(
+            status_code=503,
+            content={"status": "not_ready", "code": "db_unavailable", "message": error},
+        )
+    return {"status": "ready", "ts": _utc_now()}
 
 
 @fastapi_app.post('/submit', response_model=schemas.SubmitResponse)
