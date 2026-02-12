@@ -142,32 +142,32 @@ class RunRequestCommon(StrictModel):
 
 
 class BacktestRunRequest(RunRequestCommon):
-    spec_type: Literal["backtest"] = Field(validation_alias=AliasChoices("spec_type", "specType"))
+    spec_type: Literal["backtest"]
     data: DataRangeBlock
     signal: BacktestSignalBlock
     strategy: Optional[BacktestStrategyBlock] = None
 
 
 class DcaRunRequest(RunRequestCommon):
-    spec_type: Literal["dca"] = Field(validation_alias=AliasChoices("spec_type", "specType"))
+    spec_type: Literal["dca"]
     data: DataRangeBlock
     strategy: DcaStrategyBlock
 
 
 class MarketStatsRunRequest(RunRequestCommon):
-    spec_type: Literal["market_stats"] = Field(validation_alias=AliasChoices("spec_type", "specType"))
+    spec_type: Literal["market_stats"]
     data: MarketStatsDataBlock
     stats: MarketStatsBlock
 
 
 class SeasonalityRunRequest(RunRequestCommon):
-    spec_type: Literal["seasonality"] = Field(validation_alias=AliasChoices("spec_type", "specType"))
+    spec_type: Literal["seasonality"]
     data: SeasonalityDataBlock
     seasonality: SeasonalityBlock
 
 
 class StressTestsRunRequest(RunRequestCommon):
-    spec_type: Literal["stress_tests"] = Field(validation_alias=AliasChoices("spec_type", "specType"))
+    spec_type: Literal["stress_tests"]
     data: DataRangeBlock
     strategy: Optional[Dict[str, Any]] = None
 
@@ -188,5 +188,7 @@ run_request_input_adapter = TypeAdapter(RunRequestInput)
 
 def validate_run_request_input(payload: Dict[str, Any]) -> RunRequestInput:
     """Validate and parse a canonical run request payload."""
-
+    if "spec_type" not in payload and "specType" in payload:
+        payload = dict(payload)
+        payload["spec_type"] = payload.get("specType")
     return run_request_input_adapter.validate_python(payload)
