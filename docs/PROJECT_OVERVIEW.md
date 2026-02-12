@@ -7,7 +7,7 @@
 ## Stack technique
 - **Langage** : Python 3.11 (gestion via Poetry).【F:pyproject.toml†L1-L27】
 - **API** : FastAPI + Pydantic pour l’exposition REST et la validation des specs.【F:pyproject.toml†L9-L20】【F:src/quant_engine/api/app.py†L536-L754】
-- **CLI** : Typer pour `quant-engine` et sous-commandes runs/stats/seasonality.【F:pyproject.toml†L9-L20】【F:src/quant_engine/cli/main.py†L12-L212】
+- **CLI** : Typer expose l'alias `qe` et sous-commandes runs/stats/seasonality.【F:pyproject.toml†L9-L20】【F:src/quant_engine/cli/main.py†L12-L212】
 - **Optimisation** : Optuna pour la recherche d’hyperparamètres.【F:pyproject.toml†L9-L20】【F:README.md†L7-L21】
 - **Persistance** : SQLAlchemy + Alembic, artefacts Parquet/JSON, MLflow optionnel.【F:pyproject.toml†L9-L20】【F:docs/architecture_overview.md†L11-L36】
 - **Colonnes & calculs** : Polars/NumPy/Pandas pour transformations vectorisées.【F:pyproject.toml†L9-L20】【F:docs/seasonality_reference.md†L1-L74】
@@ -19,14 +19,14 @@
    - `QE_MARKETDATA_MYSQL_URL` : DSN MySQL requis pour lire les OHLCV via datafeed dédié.【F:README.md†L74-L123】【F:src/quant_engine/datafeeds/mysql_feed.py†L45-L118】
 3. **Lancer l’API** : `poetry run uvicorn quant_engine.api.app:app --reload --app-dir src`.【F:README.md†L49-L54】
 4. **Utiliser la CLI** :
-   - `poetry run quant-engine run-local --spec path/to/spec.json`
-   - `poetry run quant-engine submit --spec path/to/spec.json`
-   - `poetry run quant-engine runs list --status running`
-   - `poetry run quant-engine runs show RUN_ID`
-   - `poetry run quant-engine stats run --spec specs/stats_run.json`
-   - `poetry run quant-engine stats show --symbol EURUSD --event k_consecutive --target up_next_bar`
-   - `poetry run quant-engine seasonality run --spec specs/seasonality.json`
-   - `poetry run quant-engine seasonality optimize --spec specs/seasonality.json`【F:README.md†L56-L101】【F:src/quant_engine/cli/main.py†L23-L211】
+   - `poetry run qe run-local --spec path/to/spec.json`
+   - `poetry run qe submit --spec path/to/spec.json`
+   - `poetry run qe runs list --status running`
+   - `poetry run qe runs show RUN_ID`
+   - `poetry run qe stats run --spec specs/stats_run.json`
+   - `poetry run qe stats show --symbol EURUSD --event k_consecutive --target up_next_bar`
+   - `poetry run qe seasonality run --spec specs/seasonality.json`
+   - `poetry run qe seasonality optimize --spec specs/seasonality.json`【F:README.md†L56-L101】【F:src/quant_engine/cli/main.py†L23-L211】
 
 ## Arborescence condensée
 ```

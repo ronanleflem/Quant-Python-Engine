@@ -45,6 +45,7 @@ class WorkerConfig:
     job_type: str = api_app.JOB_TYPE_CANONICAL_RUN
     poll_interval: float = 1.0
     stale_after_seconds: Optional[int] = None
+    heartbeat_seconds: float = 30.0
     statuses: tuple[str, ...] = (api_app.JOB_STATUS_QUEUED,)
     running_status: str = api_app.JOB_STATUS_RUNNING_CANONICAL
     success_status: str = api_app.JOB_STATUS_SUCCEEDED
@@ -56,6 +57,7 @@ class WorkerConfig:
         return WorkerConfig(
             poll_interval=_float_env("QE_WORKER_POLL_SECONDS", 1.0),
             stale_after_seconds=_int_env("QE_CANONICAL_STALE_SECONDS", None),
+            heartbeat_seconds=_float_env("QE_WORKER_HEARTBEAT_SECONDS", 30.0),
         )
 
 
@@ -174,6 +176,7 @@ def process_next_job(
 
 
 def run_worker(config: WorkerConfig, *, once: bool = False) -> None:
+    last_heartbeat = time.monotonic()
     while True:
         result = process_next_job(
             job_type=config.job_type,
@@ -184,6 +187,21 @@ def run_worker(config: WorkerConfig, *, once: bool = False) -> None:
             queued_status=config.queued_status,
             stale_after_seconds=config.stale_after_seconds,
         )
+        heartbeat_interval = max(0.0, float(config.heartbeat_seconds))
+        if heartbeat_interval > 0:
+            now = time.monotonic()
+            if now - last_heartbeat >= heartbeat_interval:
+                try:
+                    print(
+                        {
+                            "event": "worker_heartbeat",
+                            "job_type": config.job_type,
+                            "ts": api_app._utc_now(),
+                        }
+                    )
+                except Exception:
+                    pass
+                last_heartbeat = now
         if once:
             return
         if result is None:

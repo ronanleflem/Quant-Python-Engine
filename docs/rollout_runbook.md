@@ -69,3 +69,11 @@ Verifier `GET /readyz` OK et que la queue se vide.
 Metrics:
 `GET /metrics`
 Champs utilises: latency p95/p99, status classes 2xx/4xx/5xx, timeouts.
+
+## Worker heartbeat (env)
+Git Bash:
+`export QE_WORKER_HEARTBEAT_SECONDS=5`
+`QE_WORKER_HEARTBEAT_SECONDS=5 poetry run qe worker`
+PowerShell:
+`$env:QE_WORKER_HEARTBEAT_SECONDS=5`
+`poetry run qe worker`

@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import os
 import time
+import threading
 from dataclasses import asdict, is_dataclass
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Sequence
@@ -1428,17 +1429,16 @@ async def metrics_middleware(request: Request, call_next):
             status_code=500,
             duration_ms=duration_ms,
         )
-        _log_event(
-            {
-                "event": "http_request",
-                "path": request.url.path,
-                "method": request.method,
-                "status": 500,
-                "duration_ms": round(duration_ms, 2),
-                "correlation_id": correlation_id,
-                "error": str(exc),
-            }
-        )
+        event_payload = {
+            "event": "http_request",
+            "path": request.url.path,
+            "method": request.method,
+            "status": 500,
+            "duration_ms": round(duration_ms, 2),
+            "correlation_id": correlation_id,
+            "error": str(exc),
+        }
+        threading.Thread(target=_log_event, args=(event_payload,), daemon=True).start()
         raise
     duration_ms = (time.monotonic() - start) * 1000.0
     METRICS.record(
@@ -1452,17 +1452,16 @@ async def metrics_middleware(request: Request, call_next):
         response.headers["X-Correlation-Id"] = correlation_id
     if request_id:
         response.headers["X-Request-Id"] = request_id
-    _log_event(
-        {
-            "event": "http_request",
-            "path": request.url.path,
-            "method": request.method,
-            "status": response.status_code,
-            "duration_ms": round(duration_ms, 2),
-            "correlation_id": correlation_id,
-            "request_id": request_id,
-        }
-    )
+    event_payload = {
+        "event": "http_request",
+        "path": request.url.path,
+        "method": request.method,
+        "status": response.status_code,
+        "duration_ms": round(duration_ms, 2),
+        "correlation_id": correlation_id,
+        "request_id": request_id,
+    }
+    threading.Thread(target=_log_event, args=(event_payload,), daemon=True).start()
     return response
 
 

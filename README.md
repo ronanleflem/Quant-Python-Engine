@@ -64,20 +64,20 @@ poetry run uvicorn quant_engine.api.app:app --reload --app-dir src
 ## CLI
 - **run-local**
   ```bash
-  poetry run quant-engine run-local --spec path/to/spec.json
+  poetry run qe run-local --spec path/to/spec.json
   ```
   Utilise le job manager si disponible, sinon le runner legacy (`optimize.runner`).
 - **submit**
   ```bash
-  poetry run quant-engine submit --spec path/to/spec.json
+  poetry run qe submit --spec path/to/spec.json
   ```
 - **runs list**
   ```bash
-  poetry run quant-engine runs list --status running
+  poetry run qe runs list --status running
   ```
 - **runs show**
   ```bash
-  poetry run quant-engine runs show RUN_ID
+  poetry run qe runs show RUN_ID
   ```
 - **backtest run**
   ```bash
@@ -442,7 +442,7 @@ QE_STRESS_TEST_MAX_JSON_CHARS=60000
 ### Volatilité & tendance
 
 ```bash
-poetry run quant-engine stats run --spec specs/filters_volatility_trend_example.json
+poetry run qe stats run --spec specs/filters_volatility_trend_example.json
 ```
 
 > Consulte la [référence des filtres](docs/filters.md) pour le détail des paramètres ADX/ATR/EMA slope et des autres filtres disponibles.
@@ -450,25 +450,25 @@ poetry run quant-engine stats run --spec specs/filters_volatility_trend_example.
 ### Structure & ICT
 
 ```bash
-poetry run quant-engine stats run --spec specs/filters_structure_ict_example.json
+poetry run qe stats run --spec specs/filters_structure_ict_example.json
 ```
 
 ### Seasonality & Time
 
 ```bash
-poetry run quant-engine stats run --spec specs/filters_time_seasonality_example.json
+poetry run qe stats run --spec specs/filters_time_seasonality_example.json
 ```
 
 ### Statistical & Probabilistic
 
 ```bash
-poetry run quant-engine stats run --spec specs/filters_stat_prob_example.json
+poetry run qe stats run --spec specs/filters_stat_prob_example.json
 ```
 
 ### Risk & Money Management
 
 ```bash
-poetry run quant-engine stats run --spec specs/filters_risk_mgmt_example.json
+poetry run qe stats run --spec specs/filters_risk_mgmt_example.json
 ```
 
 ## Configuration `.env`
@@ -720,9 +720,9 @@ PY
 - Le worker est d??di?? et se lance s??par??ment :
 
 ```bash
-poetry run quant-engine worker
+poetry run qe worker
 # ou une it??ration unique (debug)
-poetry run quant-engine worker --once
+poetry run qe worker --once
 ```
 
 - Cycle de vie attendu: `QUEUED` -> `RUNNING` -> `SUCCEEDED | FAILED | CANCELED`.
@@ -876,8 +876,8 @@ Les timestamps (`ts`) doivent être en UTC.
 ### CLI
 
 ```bash
-poetry run quant-engine stats run --spec path/to/stats_spec.json
-poetry run quant-engine stats show --symbol EURUSD --event k_consecutive --target up_next_bar --timeframe M1 --limit 20
+poetry run qe stats run --spec path/to/stats_spec.json
+poetry run qe stats show --symbol EURUSD --event k_consecutive --target up_next_bar --timeframe M1 --limit 20
 ```
 
 ### API
