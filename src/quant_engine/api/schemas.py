@@ -28,6 +28,13 @@ class ResultResponse:
     result: Dict[str, Any] | None
 
 
+@dataclass
+class RunEnqueueResponse:
+    run_id: str
+    status: str
+    reused: bool = False
+
+
 class MySQLDataSpec(BaseModel):
     """MySQL data feed configuration."""
 

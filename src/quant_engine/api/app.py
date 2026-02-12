@@ -12,7 +12,10 @@ from dataclasses import asdict, is_dataclass
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Sequence
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from pydantic import ValidationError
 from sqlalchemy import create_engine, text
 
 from ..core import spec as spec_module
@@ -30,6 +33,13 @@ from ..seasonality import runner as seasonality_runner
 from ..seasonality.optimize import run_optimization as seasonality_run_optimization
 from ..filters import list_filter_types
 from . import schemas
+from .run_request_input import validate_run_request_input
+from .validation_errors import (
+    ApiValidationException,
+    normalize_fastapi_errors,
+    normalize_pydantic_errors,
+    single_validation_error,
+)
 
 JOB_TYPE_OPTIMIZATION = "optimization"
 JOB_TYPE_STATS = "stats"
@@ -37,6 +47,7 @@ JOB_TYPE_LEVELS_BUILD = "levels_build"
 JOB_TYPE_LEVELS_FILL = "levels_fill"
 JOB_TYPE_SEASONALITY_RUN = "seasonality_run"
 JOB_TYPE_SEASONALITY_OPTIMIZE = "seasonality_optimize"
+JOB_TYPE_CANONICAL_RUN = "canonical_run"
 
 JOB_STATUSES = {"pending", "running", "completed", "failed"}
 JOB_RESULT_WITH_ID = {
@@ -45,6 +56,7 @@ JOB_RESULT_WITH_ID = {
     JOB_TYPE_LEVELS_FILL,
     JOB_TYPE_SEASONALITY_RUN,
     JOB_TYPE_SEASONALITY_OPTIMIZE,
+    JOB_TYPE_CANONICAL_RUN,
 }
 
 
@@ -213,6 +225,13 @@ def _run_job_payload(job_type: str, payload: Any | None) -> Any:
     if job_type == JOB_TYPE_SEASONALITY_OPTIMIZE:
         spec_obj = schemas.SeasonalitySpec.model_validate(payload or {})
         return seasonality_run_optimization(spec_obj)
+    if job_type == JOB_TYPE_CANONICAL_RUN:
+        # Canonical /runs requests are queued first; execution wiring is added incrementally.
+        if isinstance(payload, dict):
+            request = payload.get("request", {})
+            if isinstance(request, dict):
+                return {"accepted": True, "spec_type": request.get("spec_type")}
+        return {"accepted": True}
     raise ValueError(f"Unknown job type: {job_type}")
 
 
@@ -304,6 +323,48 @@ def result(job_id: str) -> schemas.ResultResponse:
     if not job:
         return schemas.ResultResponse(result=None)
     return schemas.ResultResponse(result=job.get("result"))
+
+
+def enqueue_run_request(payload: Dict[str, Any]) -> schemas.RunEnqueueResponse:
+    """Validate and enqueue a canonical run request."""
+
+    try:
+        parsed = validate_run_request_input(payload)
+    except ValidationError as exc:
+        raise ApiValidationException(normalize_pydantic_errors(exc)) from exc
+
+    canonical_payload = parsed.model_dump(mode="json")
+    request_id = _normalize_request_id(canonical_payload.get("request_id"))
+    reused = False
+    if request_id is not None:
+        existing = _get_job(request_id)
+        if existing and existing.get("job_type") == JOB_TYPE_CANONICAL_RUN:
+            reused = True
+            status = _external_job_status(str(existing.get("status", "pending")))
+            return schemas.RunEnqueueResponse(run_id=request_id, status=status, reused=True)
+        if existing and existing.get("job_type") != JOB_TYPE_CANONICAL_RUN:
+            raise ApiValidationException(
+                single_validation_error("request_id", "conflict", "request_id already exists")
+            )
+    else:
+        request_id = ids.generate_id()
+
+    _init_job(request_id, JOB_TYPE_CANONICAL_RUN, payload={"request": canonical_payload})
+    status = "queued" if not reused else "pending"
+    return schemas.RunEnqueueResponse(run_id=request_id, status=status, reused=reused)
+
+
+def _normalize_request_id(request_id: Any) -> str | None:
+    if request_id is None:
+        return None
+    value = str(request_id).strip()
+    return value or None
+
+
+def _external_job_status(status: str) -> str:
+    if status == "pending":
+        return "queued"
+    return status
 
 
 # ---------------------------------------------------------------------------
@@ -1077,6 +1138,20 @@ def stats_top(
 fastapi_app = FastAPI(title="Quant Engine API", version="0.1.0")
 
 
+@fastapi_app.exception_handler(RequestValidationError)
+async def request_validation_exception_handler(
+    request: Request, exc: RequestValidationError
+) -> JSONResponse:
+    return JSONResponse(status_code=422, content={"errors": normalize_fastapi_errors(exc.errors())})
+
+
+@fastapi_app.exception_handler(ApiValidationException)
+async def api_validation_exception_handler(
+    request: Request, exc: ApiValidationException
+) -> JSONResponse:
+    return JSONResponse(status_code=422, content={"errors": exc.errors})
+
+
 @fastapi_app.post('/submit', response_model=schemas.SubmitResponse)
 def submit_endpoint(payload: Dict[str, Any]) -> schemas.SubmitResponse:
     """HTTP endpoint wrapping :func:`submit`."""
@@ -1084,7 +1159,11 @@ def submit_endpoint(payload: Dict[str, Any]) -> schemas.SubmitResponse:
     try:
         spec_obj = spec_module.spec_from_dict(payload)
     except (KeyError, TypeError, ValueError) as exc:
-        raise HTTPException(status_code=400, detail=f"Invalid spec: {exc}") from exc
+        raise ApiValidationException(
+            single_validation_error("spec", "invalid_spec", f"Invalid spec: {exc}")
+        ) from exc
+    except ValidationError as exc:
+        raise ApiValidationException(normalize_pydantic_errors(exc)) from exc
     return submit(spec_obj)
 
 
@@ -1095,8 +1174,19 @@ def submit_async_endpoint(payload: Dict[str, Any]) -> schemas.StatusResponse:
     try:
         spec_obj = spec_module.spec_from_dict(payload)
     except (KeyError, TypeError, ValueError) as exc:
-        raise HTTPException(status_code=400, detail=f"Invalid spec: {exc}") from exc
+        raise ApiValidationException(
+            single_validation_error("spec", "invalid_spec", f"Invalid spec: {exc}")
+        ) from exc
+    except ValidationError as exc:
+        raise ApiValidationException(normalize_pydantic_errors(exc)) from exc
     return submit_async(spec_obj)
+
+
+@fastapi_app.post('/runs', response_model=schemas.RunEnqueueResponse)
+def runs_submit_endpoint(payload: Dict[str, Any]) -> schemas.RunEnqueueResponse:
+    """Validate and enqueue a canonical run request."""
+
+    return enqueue_run_request(payload)
 
 
 @fastapi_app.get('/status/{job_id}', response_model=schemas.StatusResponse)
