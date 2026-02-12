@@ -64,3 +64,8 @@ Stuck RUNNING au-dela du timeout.
 Rebasculer la source de trafic vers mode legacy (cote orchestrateur).
 Laisser le worker canonical finir/annuler les jobs en cours.
 Verifier `GET /readyz` OK et que la queue se vide.
+
+## Monitoring rapide
+Metrics:
+`GET /metrics`
+Champs utilises: latency p95/p99, status classes 2xx/4xx/5xx, timeouts.

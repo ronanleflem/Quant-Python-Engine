@@ -11,6 +11,13 @@ Ce document résume l’état **actuel** du moteur lourd Python (après intégra
 - **Persistence** : SQLAlchemy/Alembic (MySQL cible, SQLite fallback), artefacts Parquet/JSON, logging MLflow (si configuré).
 - **Qualité & CI** : pytest, ruff, black, mypy, pré-commit, GitHub Actions.
 
+### Canonical runs (mode production)
+- `/runs` (enqueue canonical)
+- `/runs/{id}` (lifecycle status)
+- `/runs/{id}/result` (resultat)
+- `/runs/{id}/cancel` (annulation)
+- Worker dedie (queue DB-backed)
+
 ### Performance & DCA (source de vérité Python)
 - **Python calcule tout** : production des signaux, logique DCA/grid, reconstruction des trades agrégés et calcul des métriques de performance (Sharpe, Sortino, drawdown, win/loss…).
 - **Pas de persistance métier longue durée** : le moteur Python prépare un payload pour le backend Java qui se charge de stocker les résultats.

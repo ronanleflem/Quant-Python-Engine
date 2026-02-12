@@ -8,11 +8,12 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from dataclasses import asdict, is_dataclass
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Sequence
 
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
@@ -40,6 +41,7 @@ from .validation_errors import (
     normalize_pydantic_errors,
     single_validation_error,
 )
+from .metrics import METRICS
 
 JOB_TYPE_OPTIMIZATION = "optimization"
 JOB_TYPE_STATS = "stats"
@@ -615,6 +617,21 @@ def _db_ready() -> tuple[bool, str | None]:
         return True, None
     except Exception as exc:  # pragma: no cover - defensive
         return False, str(exc)
+
+
+def _get_correlation_id(request: Request) -> str | None:
+    return (
+        request.headers.get("x-correlation-id")
+        or request.headers.get("x-correlationid")
+        or request.headers.get("x-request-id")
+    )
+
+
+def _log_event(event: Dict[str, Any]) -> None:
+    try:
+        print(json.dumps(event, separators=(",", ":")), flush=True)
+    except Exception:
+        pass
 
 
 def _canonical_job_defaults() -> tuple[int | None, int | None]:
@@ -1396,6 +1413,59 @@ def stats_top(
 fastapi_app = FastAPI(title="Quant Engine API", version="0.1.0")
 
 
+@fastapi_app.middleware("http")
+async def metrics_middleware(request: Request, call_next):
+    start = time.monotonic()
+    correlation_id = _get_correlation_id(request)
+    response: Response
+    try:
+        response = await call_next(request)
+    except Exception as exc:  # pragma: no cover - defensive
+        duration_ms = (time.monotonic() - start) * 1000.0
+        METRICS.record(
+            endpoint=request.url.path,
+            method=request.method,
+            status_code=500,
+            duration_ms=duration_ms,
+        )
+        _log_event(
+            {
+                "event": "http_request",
+                "path": request.url.path,
+                "method": request.method,
+                "status": 500,
+                "duration_ms": round(duration_ms, 2),
+                "correlation_id": correlation_id,
+                "error": str(exc),
+            }
+        )
+        raise
+    duration_ms = (time.monotonic() - start) * 1000.0
+    METRICS.record(
+        endpoint=request.url.path,
+        method=request.method,
+        status_code=response.status_code,
+        duration_ms=duration_ms,
+    )
+    request_id = getattr(request.state, "request_id", None)
+    if correlation_id:
+        response.headers["X-Correlation-Id"] = correlation_id
+    if request_id:
+        response.headers["X-Request-Id"] = request_id
+    _log_event(
+        {
+            "event": "http_request",
+            "path": request.url.path,
+            "method": request.method,
+            "status": response.status_code,
+            "duration_ms": round(duration_ms, 2),
+            "correlation_id": correlation_id,
+            "request_id": request_id,
+        }
+    )
+    return response
+
+
 @fastapi_app.exception_handler(RequestValidationError)
 async def request_validation_exception_handler(
     request: Request, exc: RequestValidationError
@@ -1430,6 +1500,13 @@ def readyz_endpoint() -> Dict[str, Any]:
     return {"status": "ready", "ts": _utc_now()}
 
 
+@fastapi_app.get('/metrics', response_model=Dict[str, Any])
+def metrics_endpoint() -> Dict[str, Any]:
+    """Return in-memory metrics snapshot."""
+
+    return METRICS.snapshot()
+
+
 @fastapi_app.post('/submit', response_model=schemas.SubmitResponse)
 def submit_endpoint(payload: Dict[str, Any]) -> schemas.SubmitResponse:
     """HTTP endpoint wrapping :func:`submit`."""
@@ -1461,10 +1538,12 @@ def submit_async_endpoint(payload: Dict[str, Any]) -> schemas.StatusResponse:
 
 
 @fastapi_app.post('/runs', response_model=schemas.RunEnqueueResponse)
-def runs_submit_endpoint(payload: Dict[str, Any]) -> schemas.RunEnqueueResponse:
+def runs_submit_endpoint(payload: Dict[str, Any], request: Request) -> schemas.RunEnqueueResponse:
     """Validate and enqueue a canonical run request."""
 
-    return enqueue_run_request(payload)
+    response = enqueue_run_request(payload)
+    request.state.request_id = response.run_id
+    return response
 
 
 @fastapi_app.post('/runs/{run_id}/cancel', response_model=schemas.StatusResponse)
