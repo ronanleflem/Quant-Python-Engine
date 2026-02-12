@@ -715,6 +715,29 @@ print(job_result)
 PY
 ```
 
+#### Worker / Queue / Lifecycle
+- `POST /runs` enfile un run canonique avec statut `QUEUED` (traitement async).
+- Le worker est d??di?? et se lance s??par??ment :
+
+```bash
+poetry run quant-engine worker
+# ou une it??ration unique (debug)
+poetry run quant-engine worker --once
+```
+
+- Cycle de vie attendu: `QUEUED` -> `RUNNING` -> `SUCCEEDED | FAILED | CANCELED`.
+- Cancel (best-effort) :
+
+```bash
+curl.exe -X POST http://127.0.0.1:8000/runs/RUN_ID/cancel
+```
+
+- Retries / timeouts configurables via env :
+`QE_CANONICAL_MAX_ATTEMPTS` (defaut: 3)
+`QE_CANONICAL_TIMEOUT_SECONDS` (timeout par job, optionnel)
+`QE_CANONICAL_STALE_SECONDS` (reprise des jobs RUNNING stale)
+`QE_WORKER_POLL_SECONDS` (polling du worker)
+
 #### Saisonalité (profil + optimisation Optuna)
 ```bash
 curl.exe -X POST http://127.0.0.1:8000/seasonality/run -H "Content-Type: application/json" --data-binary @specs/examples/seasonality_run.json | python -m json.tool

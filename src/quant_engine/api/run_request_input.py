@@ -15,6 +15,10 @@ class DataRangeBlock(StrictModel):
     timeframe: str
     start_date: str = Field(validation_alias=AliasChoices("start_date", "startDate"))
     end_date: str = Field(validation_alias=AliasChoices("end_date", "endDate"))
+    dataset_path: Optional[str] = None
+    path: Optional[str] = None
+    mysql: Optional[Dict[str, Any]] = None
+    symbols: Optional[List[str]] = None
 
 
 class MarketStatsDataBlock(StrictModel):
@@ -26,6 +30,10 @@ class MarketStatsDataBlock(StrictModel):
     include_weekends: Optional[bool] = Field(
         default=None, validation_alias=AliasChoices("include_weekends", "includeWeekends")
     )
+    dataset_path: Optional[str] = None
+    path: Optional[str] = None
+    mysql: Optional[Dict[str, Any]] = None
+    symbols: Optional[List[str]] = None
 
 
 class SeasonalityDataBlock(StrictModel):
@@ -34,6 +42,10 @@ class SeasonalityDataBlock(StrictModel):
     window: Optional[str] = None
     start_year: Optional[int] = Field(default=None, validation_alias=AliasChoices("start_year", "startYear"))
     end_year: Optional[int] = Field(default=None, validation_alias=AliasChoices("end_year", "endYear"))
+    dataset_path: Optional[str] = None
+    path: Optional[str] = None
+    mysql: Optional[Dict[str, Any]] = None
+    symbols: Optional[List[str]] = None
 
 
 class FilterSpec(StrictModel):

@@ -127,6 +127,35 @@ def submit(
     typer.echo(payload.get("id", ""))
 
 
+@app.command("worker")
+def run_worker(
+    job_type: str = typer.Option("canonical_run", "--job-type"),
+    poll_interval: Optional[float] = typer.Option(None, "--poll-interval"),
+    stale_after_seconds: Optional[int] = typer.Option(None, "--stale-after"),
+    once: bool = typer.Option(False, "--once"),
+) -> None:
+    """Run the async worker that processes queued jobs."""
+
+    from ..api.worker import WorkerConfig, run_worker as worker_loop
+
+    env_cfg = WorkerConfig.from_env()
+    cfg = WorkerConfig(
+        job_type=job_type or env_cfg.job_type,
+        poll_interval=poll_interval if poll_interval is not None else env_cfg.poll_interval,
+        stale_after_seconds=(
+            stale_after_seconds
+            if stale_after_seconds is not None
+            else env_cfg.stale_after_seconds
+        ),
+        statuses=env_cfg.statuses,
+        running_status=env_cfg.running_status,
+        success_status=env_cfg.success_status,
+        failure_status=env_cfg.failure_status,
+        queued_status=env_cfg.queued_status,
+    )
+    worker_loop(cfg, once=once)
+
+
 @stats_app.command("run")
 def stats_run(
     spec: Path = typer.Option(..., "--spec", exists=True, file_okay=True, dir_okay=False)

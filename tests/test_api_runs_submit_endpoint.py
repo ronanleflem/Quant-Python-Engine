@@ -30,7 +30,7 @@ def test_runs_submit_enqueues_request(tmp_path, monkeypatch) -> None:
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["status"] == "queued"
+    assert payload["status"] == "QUEUED"
     assert payload["reused"] is False
     assert isinstance(payload["run_id"], str)
     assert payload["run_id"]

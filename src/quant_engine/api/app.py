@@ -49,7 +49,27 @@ JOB_TYPE_SEASONALITY_RUN = "seasonality_run"
 JOB_TYPE_SEASONALITY_OPTIMIZE = "seasonality_optimize"
 JOB_TYPE_CANONICAL_RUN = "canonical_run"
 
-JOB_STATUSES = {"pending", "running", "completed", "failed"}
+JOB_STATUS_PENDING = "pending"
+JOB_STATUS_RUNNING = "running"
+JOB_STATUS_COMPLETED = "completed"
+JOB_STATUS_FAILED = "failed"
+JOB_STATUS_QUEUED = "QUEUED"
+JOB_STATUS_RUNNING_CANONICAL = "RUNNING"
+JOB_STATUS_SUCCEEDED = "SUCCEEDED"
+JOB_STATUS_FAILED_CANONICAL = "FAILED"
+JOB_STATUS_CANCELED = "CANCELED"
+
+JOB_STATUSES = {
+    JOB_STATUS_PENDING,
+    JOB_STATUS_RUNNING,
+    JOB_STATUS_COMPLETED,
+    JOB_STATUS_FAILED,
+    JOB_STATUS_QUEUED,
+    JOB_STATUS_RUNNING_CANONICAL,
+    JOB_STATUS_SUCCEEDED,
+    JOB_STATUS_FAILED_CANONICAL,
+    JOB_STATUS_CANCELED,
+}
 JOB_RESULT_WITH_ID = {
     JOB_TYPE_STATS,
     JOB_TYPE_LEVELS_BUILD,
@@ -90,7 +110,15 @@ def _decode_json(payload: Any) -> Any:
     return payload
 
 
-def _init_job(job_id: str, job_type: str, payload: Any | None) -> None:
+def _init_job(
+    job_id: str,
+    job_type: str,
+    payload: Any | None,
+    *,
+    status: str = JOB_STATUS_PENDING,
+    max_attempts: int | None = None,
+    timeout_seconds: int | None = None,
+) -> None:
     with db.session() as conn:
         conn.execute(
             """
@@ -99,12 +127,31 @@ def _init_job(job_id: str, job_type: str, payload: Any | None) -> None:
                 job_type,
                 status,
                 payload_json,
+                attempts,
+                max_attempts,
+                timeout_seconds,
+                progress_json,
+                cancel_requested,
+                canceled_at,
                 created_at,
                 updated_at
             )
-            VALUES (?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (job_id, job_type, "pending", _serialize_payload(payload), _utc_now(), _utc_now()),
+            (
+                job_id,
+                job_type,
+                status,
+                _serialize_payload(payload),
+                0,
+                max_attempts,
+                timeout_seconds,
+                None,
+                0,
+                None,
+                _utc_now(),
+                _utc_now(),
+            ),
         )
 
 
@@ -112,8 +159,9 @@ def _update_job_status(job_id: str, status: str, *, error: str | None = None) ->
     if status not in JOB_STATUSES:
         raise ValueError(f"Unknown job status: {status}")
     now = _utc_now()
-    started_at = now if status == "running" else None
-    finished_at = now if status in {"completed", "failed"} else None
+    started_at = now if status.lower() == "running" else None
+    finished_at = now if status.lower() in {"completed", "failed", "canceled"} else None
+    canceled_at = now if status.lower() == "canceled" else None
     with db.session() as conn:
         conn.execute(
             """
@@ -122,14 +170,17 @@ def _update_job_status(job_id: str, status: str, *, error: str | None = None) ->
                 error_message = COALESCE(?, error_message),
                 started_at = COALESCE(?, started_at),
                 finished_at = COALESCE(?, finished_at),
+                canceled_at = COALESCE(?, canceled_at),
                 updated_at = ?
             WHERE job_id = ?
             """,
-            (status, error, started_at, finished_at, now, job_id),
+            (status, error, started_at, finished_at, canceled_at, now, job_id),
         )
 
 
-def _update_job_result(job_id: str, result: Any) -> None:
+def _update_job_result(job_id: str, result: Any, *, status: str = JOB_STATUS_COMPLETED) -> None:
+    if status not in JOB_STATUSES:
+        raise ValueError(f"Unknown job status: {status}")
     with db.session() as conn:
         conn.execute(
             """
@@ -140,7 +191,7 @@ def _update_job_result(job_id: str, result: Any) -> None:
                 updated_at = ?
             WHERE job_id = ?
             """,
-            ("completed", _serialize_payload(result), _utc_now(), _utc_now(), job_id),
+            (status, _serialize_payload(result), _utc_now(), _utc_now(), job_id),
         )
 
 
@@ -149,6 +200,8 @@ def _get_job(job_id: str) -> Dict[str, Any] | None:
         row = conn.execute(
             """
             SELECT job_id, job_type, status, payload_json, result_json, error_message,
+                   attempts, max_attempts, timeout_seconds, progress_json,
+                   cancel_requested, canceled_at,
                    created_at, started_at, finished_at, updated_at
             FROM api_jobs
             WHERE job_id = ?
@@ -160,6 +213,7 @@ def _get_job(job_id: str) -> Dict[str, Any] | None:
         payload = dict(row)
         payload["payload"] = _decode_json(payload.pop("payload_json", None))
         payload["result"] = _decode_json(payload.pop("result_json", None))
+        payload["progress"] = _decode_json(payload.pop("progress_json", None))
         return payload
 
 
@@ -168,6 +222,8 @@ def _latest_job(job_type: str) -> Dict[str, Any] | None:
         row = conn.execute(
             """
             SELECT job_id, job_type, status, payload_json, result_json, error_message,
+                   attempts, max_attempts, timeout_seconds, progress_json,
+                   cancel_requested, canceled_at,
                    created_at, started_at, finished_at, updated_at
             FROM api_jobs
             WHERE job_type = ?
@@ -181,12 +237,27 @@ def _latest_job(job_type: str) -> Dict[str, Any] | None:
         payload = dict(row)
         payload["payload"] = _decode_json(payload.pop("payload_json", None))
         payload["result"] = _decode_json(payload.pop("result_json", None))
+        payload["progress"] = _decode_json(payload.pop("progress_json", None))
         return payload
 
 
-def _enqueue_job(job_type: str, payload: Any | None) -> str:
+def _enqueue_job(
+    job_type: str,
+    payload: Any | None,
+    *,
+    status: str = JOB_STATUS_PENDING,
+    max_attempts: int | None = None,
+    timeout_seconds: int | None = None,
+) -> str:
     job_id = ids.generate_id()
-    _init_job(job_id, job_type, payload=payload)
+    _init_job(
+        job_id,
+        job_type,
+        payload=payload,
+        status=status,
+        max_attempts=max_attempts,
+        timeout_seconds=timeout_seconds,
+    )
     return job_id
 
 
@@ -203,6 +274,89 @@ def _build_job_result(job_type: str, job_id: str, result: Any) -> Any:
         payload["job_id"] = job_id
         return payload
     return result
+
+
+def _job_error_payload(code: str, message: str) -> Dict[str, Any]:
+    return {"error": {"code": code, "message": message}}
+
+
+def _update_job_error_result(job_id: str, payload: Dict[str, Any], *, status: str) -> None:
+    if status not in JOB_STATUSES:
+        raise ValueError(f"Unknown job status: {status}")
+    now = _utc_now()
+    with db.session() as conn:
+        conn.execute(
+            """
+            UPDATE api_jobs
+            SET status = ?,
+                result_json = ?,
+                finished_at = ?,
+                updated_at = ?
+            WHERE job_id = ?
+            """,
+            (status, _serialize_payload(payload), now, now, job_id),
+        )
+
+
+def _requeue_job(job_id: str, *, error: str | None = None, queued_status: str = JOB_STATUS_QUEUED) -> None:
+    now = _utc_now()
+    with db.session() as conn:
+        conn.execute(
+            """
+            UPDATE api_jobs
+            SET status = ?,
+                error_message = COALESCE(?, error_message),
+                started_at = NULL,
+                finished_at = NULL,
+                updated_at = ?
+            WHERE job_id = ?
+            """,
+            (queued_status, error, now, job_id),
+        )
+
+
+def _mark_canceled(job_id: str, *, message: str = "Run canceled") -> None:
+    _update_job_status(job_id, JOB_STATUS_CANCELED, error=message)
+    _update_job_error_result(job_id, _job_error_payload("canceled", message), status=JOB_STATUS_CANCELED)
+
+
+def request_job_cancel(job_id: str, *, message: str = "Run canceled") -> bool:
+    """Request cancellation of a job. Returns True when the job is canceled immediately."""
+    with db.session() as conn:
+        row = conn.execute(
+            "SELECT status FROM api_jobs WHERE job_id = ?",
+            (job_id,),
+        ).fetchone()
+        if not row:
+            return False
+        status = str(row["status"])
+        if status in {JOB_STATUS_QUEUED, JOB_STATUS_PENDING}:
+            conn.execute(
+                """
+                UPDATE api_jobs
+                SET status = ?, cancel_requested = 1, canceled_at = ?, finished_at = ?, updated_at = ?
+                WHERE job_id = ?
+                """,
+                (JOB_STATUS_CANCELED, _utc_now(), _utc_now(), _utc_now(), job_id),
+            )
+            return True
+        conn.execute(
+            "UPDATE api_jobs SET cancel_requested = 1, updated_at = ? WHERE job_id = ?",
+            (_utc_now(), job_id),
+        )
+    return False
+
+
+def update_job_progress(job_id: str, progress: Dict[str, Any]) -> None:
+    with db.session() as conn:
+        conn.execute(
+            """
+            UPDATE api_jobs
+            SET progress_json = ?, updated_at = ?
+            WHERE job_id = ?
+            """,
+            (_serialize_payload(progress), _utc_now(), job_id),
+        )
 
 
 def _run_job_payload(job_type: str, payload: Any | None) -> Any:
@@ -241,16 +395,19 @@ def _execute_job(
     payload: Any | None,
     *,
     set_running: bool = True,
+    running_status: str = JOB_STATUS_RUNNING,
+    success_status: str = JOB_STATUS_COMPLETED,
+    failure_status: str = JOB_STATUS_FAILED,
 ) -> Any:
     if set_running:
-        _update_job_status(job_id, "running")
+        _update_job_status(job_id, running_status)
     try:
         result = _run_job_payload(job_type, payload)
     except Exception as exc:  # pragma: no cover - defensive
-        _update_job_status(job_id, "failed", error=str(exc))
+        _update_job_status(job_id, failure_status, error=str(exc))
         raise
     payload_out = _build_job_result(job_type, job_id, result)
-    _update_job_result(job_id, payload_out)
+    _update_job_result(job_id, payload_out, status=success_status)
     return payload_out
 
 
@@ -260,37 +417,59 @@ def _run_job(job_type: str, payload: Any | None) -> tuple[str, Any]:
     return job_id, result
 
 
-def _claim_next_job(job_type: str | None = None) -> Dict[str, Any] | None:
+def _claim_next_job(
+    job_type: str | None = None,
+    *,
+    statuses: Sequence[str] | None = None,
+    running_status: str = JOB_STATUS_RUNNING,
+) -> Dict[str, Any] | None:
+    if statuses is None:
+        statuses = (JOB_STATUS_PENDING,)
     with db.session() as conn:
-        query = "SELECT job_id FROM api_jobs WHERE status = 'pending'"
+        conn.execute("BEGIN IMMEDIATE")
+        placeholders = ", ".join(["?"] * len(statuses))
+        query = f"SELECT job_id FROM api_jobs WHERE status IN ({placeholders})"
         params: List[Any] = []
+        params.extend(list(statuses))
         if job_type:
             query += " AND job_type = ?"
             params.append(job_type)
+        query += " AND (cancel_requested IS NULL OR cancel_requested = 0)"
         query += " ORDER BY created_at ASC LIMIT 1"
         row = conn.execute(query, params).fetchone()
         if not row:
             return None
         job_id = row["job_id"]
         now = _utc_now()
+        update_placeholders = ", ".join(["?"] * len(statuses))
         conn.execute(
-            """
+            f"""
             UPDATE api_jobs
-            SET status = ?, started_at = ?, updated_at = ?
-            WHERE job_id = ? AND status = 'pending'
+            SET status = ?,
+                started_at = ?,
+                updated_at = ?,
+                attempts = COALESCE(attempts, 0) + 1
+            WHERE job_id = ? AND status IN ({update_placeholders})
             """,
-            ("running", now, now, job_id),
+            (running_status, now, now, job_id, *statuses),
         )
     job = _get_job(job_id)
-    if job is None or job.get("status") != "running":
+    if job is None or job.get("status") != running_status:
         return None
     return job
 
 
-def run_next_job(job_type: str | None = None) -> Dict[str, Any] | None:
+def run_next_job(
+    job_type: str | None = None,
+    *,
+    statuses: Sequence[str] | None = None,
+    running_status: str = JOB_STATUS_RUNNING,
+    success_status: str = JOB_STATUS_COMPLETED,
+    failure_status: str = JOB_STATUS_FAILED,
+) -> Dict[str, Any] | None:
     """Claim and execute the next queued job (used by async workers)."""
 
-    job = _claim_next_job(job_type)
+    job = _claim_next_job(job_type, statuses=statuses, running_status=running_status)
     if not job:
         return None
     return _execute_job(
@@ -298,6 +477,9 @@ def run_next_job(job_type: str | None = None) -> Dict[str, Any] | None:
         job_type=job["job_type"],
         payload=job.get("payload"),
         set_running=False,
+        running_status=running_status,
+        success_status=success_status,
+        failure_status=failure_status,
     )
 
 
@@ -349,8 +531,16 @@ def enqueue_run_request(payload: Dict[str, Any]) -> schemas.RunEnqueueResponse:
     else:
         request_id = ids.generate_id()
 
-    _init_job(request_id, JOB_TYPE_CANONICAL_RUN, payload={"request": canonical_payload})
-    status = "queued" if not reused else "pending"
+    max_attempts, timeout_seconds = _canonical_job_defaults()
+    _init_job(
+        request_id,
+        JOB_TYPE_CANONICAL_RUN,
+        payload={"request": canonical_payload},
+        status=JOB_STATUS_QUEUED,
+        max_attempts=max_attempts,
+        timeout_seconds=timeout_seconds,
+    )
+    status = JOB_STATUS_QUEUED
     return schemas.RunEnqueueResponse(run_id=request_id, status=status, reused=reused)
 
 
@@ -362,9 +552,35 @@ def _normalize_request_id(request_id: Any) -> str | None:
 
 
 def _external_job_status(status: str) -> str:
-    if status == "pending":
-        return "queued"
-    return status
+    normalized = str(status or "").strip()
+    if not normalized:
+        return JOB_STATUS_QUEUED
+    legacy_map = {
+        JOB_STATUS_PENDING: JOB_STATUS_QUEUED,
+        JOB_STATUS_RUNNING: JOB_STATUS_RUNNING_CANONICAL,
+        JOB_STATUS_COMPLETED: JOB_STATUS_SUCCEEDED,
+        JOB_STATUS_FAILED: JOB_STATUS_FAILED_CANONICAL,
+    }
+    if normalized in legacy_map:
+        return legacy_map[normalized]
+    upper = normalized.upper()
+    if upper in {
+        JOB_STATUS_QUEUED,
+        JOB_STATUS_RUNNING_CANONICAL,
+        JOB_STATUS_SUCCEEDED,
+        JOB_STATUS_FAILED_CANONICAL,
+        JOB_STATUS_CANCELED,
+    }:
+        return upper
+    return normalized
+
+
+def _canonical_job_defaults() -> tuple[int | None, int | None]:
+    max_attempts_raw = os.getenv("QE_CANONICAL_MAX_ATTEMPTS", "").strip()
+    timeout_raw = os.getenv("QE_CANONICAL_TIMEOUT_SECONDS", "").strip()
+    max_attempts = int(max_attempts_raw) if max_attempts_raw.isdigit() else 3
+    timeout_seconds = int(timeout_raw) if timeout_raw.isdigit() else None
+    return max_attempts, timeout_seconds
 
 
 # ---------------------------------------------------------------------------
@@ -1187,6 +1403,17 @@ def runs_submit_endpoint(payload: Dict[str, Any]) -> schemas.RunEnqueueResponse:
     """Validate and enqueue a canonical run request."""
 
     return enqueue_run_request(payload)
+
+
+@fastapi_app.post('/runs/{run_id}/cancel', response_model=schemas.StatusResponse)
+def runs_cancel_endpoint(run_id: str) -> schemas.StatusResponse:
+    """Request cancellation for a canonical run."""
+
+    request_job_cancel(run_id)
+    job = _get_job(run_id)
+    if not job:
+        return schemas.StatusResponse(status="unknown", id=run_id)
+    return schemas.StatusResponse(status=_external_job_status(job.get("status", "")), id=run_id)
 
 
 @fastapi_app.get('/status/{job_id}', response_model=schemas.StatusResponse)

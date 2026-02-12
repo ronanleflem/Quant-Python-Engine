@@ -271,6 +271,22 @@ def _migration_2(conn: sqlite3.Connection) -> None:
         pass
 
 
+def _migration_3(conn: sqlite3.Connection) -> None:
+    cur = conn.cursor()
+    for statement in (
+        "ALTER TABLE api_jobs ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE api_jobs ADD COLUMN max_attempts INTEGER",
+        "ALTER TABLE api_jobs ADD COLUMN timeout_seconds INTEGER",
+        "ALTER TABLE api_jobs ADD COLUMN progress_json TEXT",
+        "ALTER TABLE api_jobs ADD COLUMN cancel_requested INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE api_jobs ADD COLUMN canceled_at TEXT",
+    ):
+        try:
+            cur.execute(statement)
+        except sqlite3.OperationalError:
+            pass
+
+
 MYSQL_MIGRATION_1 = (
     """
     CREATE TABLE IF NOT EXISTS experiment_runs (
@@ -435,9 +451,19 @@ MYSQL_MIGRATION_2 = (
     "ALTER TABLE seasonality_profiles ADD COLUMN metrics TEXT",
 )
 
+MYSQL_MIGRATION_3 = (
+    "ALTER TABLE api_jobs ADD COLUMN attempts INT NOT NULL DEFAULT 0",
+    "ALTER TABLE api_jobs ADD COLUMN max_attempts INT NULL",
+    "ALTER TABLE api_jobs ADD COLUMN timeout_seconds INT NULL",
+    "ALTER TABLE api_jobs ADD COLUMN progress_json TEXT",
+    "ALTER TABLE api_jobs ADD COLUMN cancel_requested TINYINT NOT NULL DEFAULT 0",
+    "ALTER TABLE api_jobs ADD COLUMN canceled_at TIMESTAMP NULL",
+)
+
 MIGRATIONS = [
     Migration(1, "initial_schema", _migration_1, MYSQL_MIGRATION_1),
     Migration(2, "seasonality_profiles_metrics", _migration_2, MYSQL_MIGRATION_2),
+    Migration(3, "api_jobs_queue_fields", _migration_3, MYSQL_MIGRATION_3),
 ]
 
 
