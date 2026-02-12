@@ -1470,6 +1470,13 @@ async def request_validation_exception_handler(
     request: Request, exc: RequestValidationError
 ) -> JSONResponse:
     errors = normalize_fastapi_errors(exc.errors())
+    try:
+        raw_body = await request.body()
+        body_text = raw_body.decode("utf-8", errors="replace")
+        if len(body_text) > 4000:
+            body_text = body_text[:4000] + "...(truncated)"
+    except Exception:
+        body_text = None
     event_payload = {
         "event": "validation_error",
         "path": str(request.url.path),
@@ -1477,6 +1484,7 @@ async def request_validation_exception_handler(
         "status": 422,
         "correlation_id": _get_correlation_id(request),
         "errors": errors,
+        "body": body_text,
     }
     threading.Thread(target=_log_event, args=(event_payload,), daemon=True).start()
     return JSONResponse(status_code=422, content={"errors": errors})
@@ -1486,6 +1494,13 @@ async def request_validation_exception_handler(
 async def api_validation_exception_handler(
     request: Request, exc: ApiValidationException
 ) -> JSONResponse:
+    try:
+        raw_body = await request.body()
+        body_text = raw_body.decode("utf-8", errors="replace")
+        if len(body_text) > 4000:
+            body_text = body_text[:4000] + "...(truncated)"
+    except Exception:
+        body_text = None
     event_payload = {
         "event": "validation_error",
         "path": str(request.url.path),
@@ -1493,6 +1508,7 @@ async def api_validation_exception_handler(
         "status": 422,
         "correlation_id": _get_correlation_id(request),
         "errors": exc.errors,
+        "body": body_text,
     }
     threading.Thread(target=_log_event, args=(event_payload,), daemon=True).start()
     return JSONResponse(status_code=422, content={"errors": exc.errors})
