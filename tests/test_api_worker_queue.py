@@ -121,3 +121,26 @@ def test_recover_stale_jobs_requeues(tmp_path, monkeypatch) -> None:
     assert recovered == 1
     job = api_app._get_job(response.run_id)
     assert job["status"] == api_app.JOB_STATUS_QUEUED
+
+
+def test_worker_marks_canonical_backtest_not_implemented(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("DB_SQLITE_PATH", str(tmp_path / "quant.db"))
+    reset_settings_cache()
+    payload = _canonical_payload()
+    payload["filters"] = {"filters": [{"id": "trend", "params": {"min": 1}}]}
+    payload["strategy"] = {"name": "demo", "params": {"tp_sl": {"dynamic_sl": {"enabled": True}}}}
+    response = api_app.enqueue_run_request(payload)
+
+    result = worker_module.process_next_job()
+
+    assert result is None
+    job = api_app._get_job(response.run_id)
+    assert job["status"] == api_app.JOB_STATUS_FAILED_CANONICAL
+    error = job["result"]["error"]
+    assert error["code"] == "not_implemented_feature"
+    assert error["message"] == "Feature not implemented for canonical backtest run"
+    fields = {item["field"] for item in error["details"]}
+    assert "signal" in fields
+    assert "filters.filters" in fields
+    assert "strategy.name" in fields
+    assert "strategy.params.tp_sl" in fields

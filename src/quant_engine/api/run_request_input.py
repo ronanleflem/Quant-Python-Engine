@@ -191,4 +191,5 @@ def validate_run_request_input(payload: Dict[str, Any]) -> RunRequestInput:
     if "spec_type" not in payload and "specType" in payload:
         payload = dict(payload)
         payload["spec_type"] = payload.get("specType")
+        payload.pop("specType", None)
     return run_request_input_adapter.validate_python(payload)

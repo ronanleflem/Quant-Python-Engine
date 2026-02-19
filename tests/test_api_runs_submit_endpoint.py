@@ -67,3 +67,17 @@ def test_runs_submit_returns_422_with_normalized_errors(tmp_path, monkeypatch) -
     assert "errors" in payload
     assert payload["errors"]
     assert set(payload["errors"][0].keys()) == {"field", "code", "message"}
+
+
+def test_runs_submit_rejects_top_level_screening_field(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("DB_SQLITE_PATH", str(tmp_path / "quant.db"))
+    reset_settings_cache()
+    client = TestClient(api_app.fastapi_app)
+    payload = _canonical_backtest_payload()
+    payload["screening"] = {"enabled": True}
+
+    response = client.post("/runs", json=payload)
+
+    assert response.status_code == 422
+    errors = response.json()["errors"]
+    assert any(err["field"] == "backtest.screening" for err in errors)

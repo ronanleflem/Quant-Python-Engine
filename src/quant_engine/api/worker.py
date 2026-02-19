@@ -167,6 +167,15 @@ def process_next_job(
         else:
             api_app._requeue_job(job_id, error=message, queued_status=queued_status)
         return None
+    if (
+        job.get("job_type") == api_app.JOB_TYPE_CANONICAL_RUN
+        and isinstance(result, dict)
+        and isinstance(result.get("error"), dict)
+    ):
+        error_message = str(result["error"].get("message") or "Run failed")
+        api_app._update_job_status(job_id, failure_status, error=error_message)
+        api_app._update_job_error_result(job_id, result, status=failure_status)
+        return None
     if api_app._get_job(job_id).get("cancel_requested"):
         api_app._mark_canceled(job_id)
         return None

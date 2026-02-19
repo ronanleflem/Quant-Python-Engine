@@ -2,6 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from quant_engine.api import app as api_app
+from quant_engine.api import worker as worker_module
 from quant_engine.config import reset_settings_cache
 
 
@@ -99,6 +100,27 @@ def test_run_result_terminal_failure(tmp_path, monkeypatch) -> None:
     payload = resp.json()
     assert payload["status"] == api_app.JOB_STATUS_FAILED_CANONICAL
     assert payload["error"]["message"] == "boom"
+
+
+def test_run_result_returns_not_implemented_error_details(tmp_path, monkeypatch) -> None:
+    client = _setup_db(tmp_path, monkeypatch)
+    payload = _canonical_payload()
+    payload["filters"] = {"filters": [{"id": "trend", "params": {"min": 1}}]}
+    payload["strategy"] = {"name": "demo", "params": {"tpSl": {"dynamic_sl": {"enabled": True}}}}
+    response = api_app.enqueue_run_request(payload)
+
+    worker_module.process_next_job()
+
+    resp = client.get(f"/runs/{response.run_id}/result")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == api_app.JOB_STATUS_FAILED_CANONICAL
+    assert body["error"]["code"] == "not_implemented_feature"
+    fields = {item["field"] for item in body["error"]["details"]}
+    assert "signal" in fields
+    assert "filters.filters" in fields
+    assert "strategy.name" in fields
+    assert "strategy.params.tp_sl" in fields
 
 
 def test_cancel_idempotent(tmp_path, monkeypatch) -> None:

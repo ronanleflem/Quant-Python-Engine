@@ -282,8 +282,41 @@ def _build_job_result(job_type: str, job_id: str, result: Any) -> Any:
     return result
 
 
-def _job_error_payload(code: str, message: str) -> Dict[str, Any]:
-    return {"error": {"code": code, "message": message}}
+def _job_error_payload(code: str, message: str, *, details: List[Dict[str, Any]] | None = None) -> Dict[str, Any]:
+    error: Dict[str, Any] = {"code": code, "message": message}
+    if details:
+        error["details"] = details
+    return {"error": error}
+
+
+def _canonical_backtest_unsupported_details(request: Dict[str, Any]) -> List[Dict[str, str]]:
+    details: List[Dict[str, str]] = []
+
+    # Canonical backtest requests validate these blocks, but runtime wiring is not implemented yet.
+    if isinstance(request.get("signal"), dict):
+        details.append({"field": "signal", "reason": "accepted_but_not_wired"})
+
+    filters_block = request.get("filters")
+    if isinstance(filters_block, dict):
+        has_filters = bool(filters_block.get("filters"))
+        has_rules = bool(filters_block.get("rules"))
+        has_rules_cfg = filters_block.get("rules_config") is not None
+        if has_filters:
+            details.append({"field": "filters.filters", "reason": "accepted_but_not_wired"})
+        if has_rules:
+            details.append({"field": "filters.rules", "reason": "accepted_but_not_wired"})
+        if has_rules_cfg:
+            details.append({"field": "filters.rules_config", "reason": "accepted_but_not_wired"})
+
+    strategy_block = request.get("strategy")
+    if isinstance(strategy_block, dict):
+        if strategy_block.get("name"):
+            details.append({"field": "strategy.name", "reason": "accepted_but_not_wired"})
+        params = strategy_block.get("params")
+        if isinstance(params, dict) and ("tp_sl" in params or "tpSl" in params):
+            details.append({"field": "strategy.params.tp_sl", "reason": "accepted_but_not_wired"})
+
+    return details
 
 
 def _update_job_error_result(job_id: str, payload: Dict[str, Any], *, status: str) -> None:
@@ -390,6 +423,15 @@ def _run_job_payload(job_type: str, payload: Any | None) -> Any:
         if isinstance(payload, dict):
             request = payload.get("request", {})
             if isinstance(request, dict):
+                spec_type = str(request.get("spec_type") or "").strip().lower()
+                if spec_type == "backtest":
+                    details = _canonical_backtest_unsupported_details(request)
+                    if details:
+                        return _job_error_payload(
+                            "not_implemented_feature",
+                            "Feature not implemented for canonical backtest run",
+                            details=details,
+                        )
                 return {"accepted": True, "spec_type": request.get("spec_type")}
         return {"accepted": True}
     raise ValueError(f"Unknown job type: {job_type}")
