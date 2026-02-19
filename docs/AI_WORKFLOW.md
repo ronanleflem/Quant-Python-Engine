@@ -1,40 +1,38 @@
-﻿# AI_WORKFLOW
+# FILE: docs/AI_WORKFLOW.md
+# AI Workflow Guide (Python Quant Engine)
 
-## Objectif
-Guider un agent IA pour travailler sur ce repo de moteur quant Python de facon fiable, testable, et PR-friendly.
+This project uses AI-friendly tickets to ensure clear scope, testability, and predictable delivery.
 
-## Workflow standard
-1. **Audit du ticket**
-   - Utiliser `tickets/_templates/AUDIT_PROMPT.md`.
-   - Completer ou corriger le ticket si des elements manquent.
-2. **Plan**
-   - Produire un plan en petites etapes (2-6), chacune testable.
-3. **Implementation**
-   - Appliquer le plan et faire des commits logiques si demande.
-   - Respecter strictement le scope du ticket.
-4. **Validation**
-   - Executer les commandes de validation du ticket.
-   - Si un test est trop lourd, documenter une alternative (smoke test).
-   - Distinguer tests rapides vs tests slow.
+## Workflow (BMAD)
+1. PM stage: clarify goal, scope, non-goals, DoD, and risks.
+2. Architect stage: validate technical approach, dependencies, and rollback strategy.
+3. Dev stage: implement in small reviewable steps with tests.
+4. Reviewer stage: run review gate before merge.
+5. Done only if all gates pass and validation commands are green.
 
-## Regles obligatoires
-- Tests obligatoires pour chaque changement fonctionnel.
-- Aucun refactor hors ticket.
-- Aucun changement d'API silencieux.
-- Respecter les conventions de nommage et les patterns existants.
-- Preferer numpy/pandas vectorise; eviter les boucles Python lentes.
+## Cross-repo workflow
+Use this when a feature spans Python + other repos (Spring/Angular):
+1. Create one initiative in coordination repo (`INIT-xxx`).
+2. Build one context pack referencing source docs from each repo (with commit SHA).
+3. Generate one local ticket per repo (no ticket duplication).
+4. Link all local tickets to the same `INIT-xxx`.
+5. Track dependencies explicitly (`blocked_by`, `unblocks`) at ticket level.
 
-## Gestion des tickets
-- Creer un ticket a partir du template: `tickets/_templates/TICKET_TEMPLATE.md`.
-- Placer les tickets actifs dans `tickets/active/` (a creer si besoin).
-- Deplacer les tickets termines dans `tickets/done/`.
+## Context7 policy (required only when necessary)
+Use Context7 only when at least one condition is true:
+- New library/framework/API not already mastered by the team.
+- Version-specific behavior can change implementation details.
+- Uncertain or conflicting documentation in local/project docs.
+- Architecture decision depends on external official documentation.
 
-## Branches / PR
-- Branches: `feat/EX-###-short-title`, `fix/EX-###-short-title`.
-- PR: titre = `[EX-###] short title`.
-- Chaque PR doit referencer le ticket.
+## Python rules
+- Tests required for functional changes.
+- Keep scope local to this repository.
+- Prefer vectorized numpy/pandas over slow loops.
+- Preserve deterministic behavior unless explicitly documented.
 
-## Utiliser les templates
-- Nouveau ticket: copier `tickets/_templates/TICKET_TEMPLATE.md`.
-- Audit: executer la checklist dans `tickets/_templates/AUDIT_PROMPT.md`.
-- Exemple de reference: `tickets/examples/EX-001-Add-Indicator-With-Tests.md`.
+## Ticket states
+- Active: currently in progress.
+- Review: waiting for review gate decision.
+- Done: validated, tests passing, DoD met.
+- Blocked: waiting on missing dependency or product decision.

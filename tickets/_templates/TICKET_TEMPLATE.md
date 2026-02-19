@@ -1,52 +1,71 @@
-﻿# TICKET TEMPLATE
+# FILE: tickets/_templates/TICKET_TEMPLATE.md
+# Ticket Template (Python)
 
 ## Title
-- Short, action-oriented, and specific (e.g., "Add ATR Indicator With Tests").
+- [Short, actionable title]
+
+## Ticket type
+- [Type A: Audit/Discovery | Type B: Implementation]
+
+## BMAD Stage
+- [PM | Architect | Dev | Reviewer]
+
+## Cross-Repo Coordination
+- Cross-Repo Initiative: [INIT-xxx or N/A]
+- Repo Owner: [quant-python-engine]
+- Upstream Dependencies: [ticket/PR ids or None]
+- Contract Version: [version/tag/commit or N/A]
 
 ## Goal
-- One or two sentences describing the user-visible or pipeline-visible outcome.
-- Must be testable (describe observable behavior or artifact).
+- [Observable and testable outcome]
 
 ## Context / Entry points
-- Files / modules likely to be touched (paths only).
-- Where the new logic plugs into the pipeline (e.g., feature builder, indicator registry).
-- Related specs or docs (paths only).
+- Modules/files:
+- Pipeline integration points:
+- Related docs:
+
+## BMAD Handover In
+- [Required artifacts from previous stage]
+
+## BMAD Handover Out
+- [Artifacts produced for next stage]
+
+## Context7 Decision
+- Required: [Yes/No]
+- Reason: [One short justification]
 
 ## Constraints & conventions
-- Naming conventions (module/class/function).
-- Performance expectations (vectorized numpy/pandas; avoid Python loops).
-- Determinism rules (no randomness unless explicitly seeded).
-- Data assumptions (index type, column names, timezone, frequency).
+- Preserve deterministic behavior unless specified otherwise.
+- Prefer vectorized numpy/pandas operations.
+- Avoid silent API/contract changes.
 
-## Definition of Done (DoD)
-- [ ] Feature implemented per Goal.
-- [ ] Unit tests added and passing.
-- [ ] Integration / pipeline tests updated or added.
-- [ ] Performance sanity check added (if relevant).
-- [ ] Validation commands executed successfully.
-- [ ] Docs / examples updated if behavior changes.
+## Definition of Done
+- [ ] Feature implemented per goal.
+- [ ] Unit tests added or updated.
+- [ ] Integration tests added or updated.
+- [ ] Validation commands pass.
 
 ## Implementation plan
-1. Step-by-step plan with small, reviewable changes.
-2. Include new files and updated files explicitly.
-3. Mention any new config or fixtures.
+1. [Step 1]
+2. [Step 2]
+3. [Step 3]
 
 ## Tests
-- Unit tests: target functions and edge cases.
-- Integration tests: pipeline run or feature set validation.
-- Performance sanity: quick timing or scale check.
-
-## Fast tests vs Slow tests
-- Fast tests: focused unit/integration tests that run quickly.
-- Slow tests: marked or heavy tests (e.g., `-m slow`); run explicitly.
-- Always include at least one fast test in the validation commands.
+- Unit tests:
+- Integration tests:
+- Performance sanity (if applicable):
 
 ## Validation commands
-- Exact commands to run locally (e.g., `poetry run pytest -q`).
-- Any environment variables or optional flags.
+- `poetry run pytest -q`
+
+## Reviewer Gate
+- [ ] Scope matches ticket and DoD.
+- [ ] Architecture constraints respected.
+- [ ] Tests are meaningful and pass.
+- [ ] No regression risk left unaddressed.
 
 ## Non-goals / Out of scope
-- Explicitly list what should NOT be touched.
+- [Explicit list]
 
 ## Notes / pitfalls
-- Known edge cases, numeric stability issues, or API contracts to preserve.
+- [Edge cases, determinism, data assumptions]
