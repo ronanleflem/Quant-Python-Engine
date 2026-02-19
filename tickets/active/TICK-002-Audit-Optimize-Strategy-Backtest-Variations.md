@@ -1,4 +1,16 @@
-﻿# Title
+﻿## BMAD Stage
+- PM
+
+## Cross-Repo Coordination
+- Cross-Repo Initiative: N/A
+- Upstream Dependencies: None
+- Contract Version: N/A
+
+## Context7 Decision
+- Required: No
+- Reason: Audit and optimization scope uses local codebase and known tooling.
+
+# Title
 Audit et optimisation des variations de calcul (stratégies / backtests)
 
 ## Goal
