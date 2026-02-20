@@ -33,6 +33,7 @@ from ..stats import conditions as stats_conditions
 from ..stats.estimators import freq_with_wilson
 from ..seasonality import runner as seasonality_runner
 from ..seasonality.optimize import run_optimization as seasonality_run_optimization
+from ..strategies import runner as strategies_runner
 from ..filters import list_filter_types
 from . import schemas
 from .run_request_input import validate_run_request_input
@@ -319,6 +320,195 @@ def _canonical_backtest_unsupported_details(request: Dict[str, Any]) -> List[Dic
     return details
 
 
+def _canonical_dca_unsupported_details(request: Dict[str, Any]) -> List[Dict[str, str]]:
+    details: List[Dict[str, str]] = []
+    strategy_block = request.get("strategy")
+    if not isinstance(strategy_block, dict):
+        return details
+
+    params = strategy_block.get("params")
+    if not isinstance(params, dict):
+        return details
+
+    _grid_internal, grid_supported = _canonical_dca_grid_to_internal(strategy_block, params)
+    if not grid_supported:
+        details.append({"field": "strategy.grid", "reason": "accepted_but_not_wired"})
+
+    _tp_sl_internal, tp_sl_supported = _canonical_dca_tp_sl_to_internal(params)
+    if not tp_sl_supported:
+        details.append({"field": "strategy.params.tp_sl", "reason": "accepted_but_not_wired"})
+
+    execution_mode = params.get("execution_mode")
+    if isinstance(execution_mode, str) and execution_mode.strip().lower() not in {"bar_close", "intracandle"}:
+        details.append({"field": "strategy.params.execution_mode", "reason": "accepted_but_not_wired"})
+
+    _drawdown_reference_internal, drawdown_reference_supported = _canonical_dca_drawdown_reference_to_internal(params)
+    if not drawdown_reference_supported:
+        details.append({"field": "strategy.params.drawdown_reference", "reason": "accepted_but_not_wired"})
+
+    return details
+
+
+def _canonical_dca_grid_to_internal(strategy_block: Dict[str, Any], params: Dict[str, Any]) -> tuple[Any, bool]:
+    params_grid = params.get("grid")
+    if isinstance(params_grid, list) and params_grid:
+        return params_grid, True
+
+    raw_grid = strategy_block.get("grid")
+    if raw_grid in (None, []):
+        return params_grid, True
+    if not isinstance(raw_grid, list) or not raw_grid:
+        return None, False
+
+    preset = str(raw_grid[0]).strip().lower()
+    presets: Dict[str, List[Dict[str, float]]] = {
+        "grid_balanced": [
+            {"dd": -5.0, "weight": 1.0},
+            {"dd": -10.0, "weight": 1.0},
+            {"dd": -15.0, "weight": 1.0},
+        ],
+    }
+    if preset not in presets:
+        return None, False
+    return presets[preset], True
+
+
+def _canonical_dca_drawdown_reference_to_internal(params: Dict[str, Any]) -> tuple[Any, bool]:
+    raw = params.get("drawdown_reference")
+    if raw is None:
+        return None, True
+    if not isinstance(raw, str):
+        return raw, True
+    token = raw.strip().lower()
+    aliases = {
+        "rolling_high": "90D",
+    }
+    return aliases.get(token, raw), True
+
+
+def _canonical_dca_tp_sl_to_internal(params: Dict[str, Any]) -> tuple[Any, bool]:
+    tp_sl_raw = params.get("tp_sl", params.get("tpSl"))
+    if tp_sl_raw is None:
+        return None, True
+    if isinstance(tp_sl_raw, dict):
+        # Already internal-compatible shape used by the strategy runtime.
+        if "rules" in tp_sl_raw or "sl_dd" in tp_sl_raw:
+            return tp_sl_raw, True
+
+        # Canonical explicit shape: tp/sl/break_even.
+        if not (isinstance(tp_sl_raw.get("tp"), dict) and isinstance(tp_sl_raw.get("sl"), dict)):
+            return None, False
+        tp_cfg = tp_sl_raw.get("tp", {})
+        sl_cfg = tp_sl_raw.get("sl", {})
+        be_cfg = tp_sl_raw.get("break_even", {})
+        if str(tp_cfg.get("type", "")).strip().lower() != "percent":
+            return None, False
+        if str(sl_cfg.get("type", "")).strip().lower() != "percent":
+            return None, False
+        try:
+            tp_value = float(tp_cfg.get("value"))
+            sl_value = float(sl_cfg.get("value"))
+        except Exception:
+            return None, False
+        if tp_value <= 0 or sl_value <= 0:
+            return None, False
+        be_value = None
+        if isinstance(be_cfg, dict) and be_cfg.get("enabled") and be_cfg.get("trigger_pct") is not None:
+            try:
+                be_value = float(be_cfg.get("trigger_pct"))
+            except Exception:
+                return None, False
+        converted = {
+            "enabled": bool(tp_sl_raw.get("enabled", True)),
+            "mode": "per_grid_max_dd",
+            "sl_dd": -abs(sl_value),
+            "rules": [{"max_dd_reached": 0.0, "tp_pct": tp_value, "be_pct": be_value}],
+        }
+        return converted, True
+
+    if isinstance(tp_sl_raw, str):
+        token = tp_sl_raw.strip().lower()
+        import re
+
+        match = re.fullmatch(r"tp_(\d+(?:\.\d+)?)_sl_(\d+(?:\.\d+)?)", token)
+        if not match:
+            return None, False
+        tp_value = float(match.group(1))
+        sl_value = float(match.group(2))
+        if tp_value <= 0 or sl_value <= 0:
+            return None, False
+        return {
+            "enabled": True,
+            "mode": "per_grid_max_dd",
+            "sl_dd": -abs(sl_value),
+            "rules": [{"max_dd_reached": 0.0, "tp_pct": tp_value, "be_pct": None}],
+        }, True
+
+    return None, False
+
+
+def _canonical_dca_to_strategy_spec(request: Dict[str, Any]) -> Dict[str, Any]:
+    data_block = request.get("data") or {}
+    strategy_block = request.get("strategy") or {}
+    params = dict(strategy_block.get("params") or {})
+
+    data_spec: Dict[str, Any] = {
+        "timeframe": data_block.get("timeframe"),
+        "start": data_block.get("start_date"),
+        "end": data_block.get("end_date"),
+    }
+    data_path = data_block.get("path") or data_block.get("dataset_path")
+    if isinstance(data_path, str) and data_path.strip():
+        data_spec["source"] = "csv"
+        data_spec["path"] = data_path
+    if isinstance(data_block.get("mysql"), dict):
+        data_spec["mysql"] = data_block.get("mysql")
+
+    strategy_type = str(strategy_block.get("type") or "").strip()
+    asset_class = str(params.get("asset_class") or ("ETF" if strategy_type == "dca_etf" else "EQUITY")).upper()
+    params.setdefault("asset_class", asset_class)
+    grid_internal, grid_supported = _canonical_dca_grid_to_internal(strategy_block, params)
+    if grid_supported and grid_internal is not None:
+        params["grid"] = grid_internal
+    tp_sl_internal, tp_sl_supported = _canonical_dca_tp_sl_to_internal(params)
+    if tp_sl_supported and tp_sl_internal is not None:
+        params["tp_sl"] = tp_sl_internal
+    drawdown_reference_internal, drawdown_reference_supported = _canonical_dca_drawdown_reference_to_internal(params)
+    if drawdown_reference_supported and drawdown_reference_internal is not None:
+        params["drawdown_reference"] = drawdown_reference_internal
+    params.pop("tpSl", None)
+    strategy_id = f"CANONICAL_{strategy_type.upper()}" if strategy_type else "CANONICAL_DCA"
+
+    spec: Dict[str, Any] = {
+        "strategy": {
+            "strategy_id": strategy_id,
+            "type": strategy_type,
+            "params": params,
+        },
+        "data": data_spec,
+        "universe": [{"symbol": data_block.get("symbol"), "asset_class": asset_class}],
+    }
+
+    filters_block = request.get("filters")
+    if isinstance(filters_block, dict):
+        if isinstance(filters_block.get("filters"), list):
+            spec["filters"] = filters_block.get("filters", [])
+        if isinstance(filters_block.get("rules"), list):
+            spec["filter_rules"] = filters_block.get("rules", [])
+        if isinstance(filters_block.get("rules_config"), dict):
+            spec["filter_rules_config"] = filters_block.get("rules_config", {})
+
+    performance_block = request.get("performance")
+    if isinstance(performance_block, dict):
+        performance_spec: Dict[str, Any] = {}
+        if performance_block.get("initial_capital") is not None:
+            performance_spec["initial_capital"] = performance_block.get("initial_capital")
+        if performance_spec:
+            spec["performance"] = performance_spec
+
+    return spec
+
+
 def _update_job_error_result(job_id: str, payload: Dict[str, Any], *, status: str) -> None:
     if status not in JOB_STATUSES:
         raise ValueError(f"Unknown job status: {status}")
@@ -432,6 +622,22 @@ def _run_job_payload(job_type: str, payload: Any | None) -> Any:
                             "Feature not implemented for canonical backtest run",
                             details=details,
                         )
+                if spec_type == "dca":
+                    details = _canonical_dca_unsupported_details(request)
+                    if details:
+                        return _job_error_payload(
+                            "not_implemented_feature",
+                            "Feature not implemented for canonical dca run",
+                            details=details,
+                        )
+                    spec = _canonical_dca_to_strategy_spec(request)
+                    strategy_result = strategies_runner.run_backtest_with_payload(spec)
+                    return {
+                        "accepted": True,
+                        "spec_type": request.get("spec_type"),
+                        "result": strategy_result.get("result"),
+                        "payload": strategy_result.get("payload"),
+                    }
                 return {"accepted": True, "spec_type": request.get("spec_type")}
         return {"accepted": True}
     raise ValueError(f"Unknown job type: {job_type}")

@@ -717,12 +717,20 @@ PY
 
 #### Worker / Queue / Lifecycle
 - `POST /runs` enfile un run canonique avec statut `QUEUED` (traitement async).
+- La queue canonical (`api_jobs`) est stockee en SQLite dans cette implementation locale.
+- API et worker doivent pointer vers le meme fichier SQLite (`DB_SQLITE_PATH`) sinon les runs restent en `QUEUED`.
 - Le worker est d??di?? et se lance s??par??ment :
 
 ```bash
 poetry run qe worker
 # ou une it??ration unique (debug)
 poetry run qe worker --once
+```
+
+Exemple recommande (meme variable dans les 2 terminaux):
+
+```powershell
+$env:DB_SQLITE_PATH="C:\Users\ronan\Desktop\Quant-Engine-Python\Quant-Python-Engine\.db\quant.db"
 ```
 
 - Cycle de vie attendu: `QUEUED` -> `RUNNING` -> `SUCCEEDED | FAILED | CANCELED`.
@@ -743,6 +751,9 @@ Endpoints lifecycle (canonical runs):
 `GET /runs/{id}/result` -> terminal: { run_id, status, result?, error? }
 `GET /runs/{id}/result` -> non terminal: { run_id, status, message }
 `POST /runs/{id}/cancel` -> 200 idempotent, 409 si d??j?? terminal
+
+Canonical DCA source of truth (support matrix + payload rules):
+`docs/canonical_runs_dca_source_of_truth_2026-02-20.md`
 
 
 #### Saisonalité (profil + optimisation Optuna)

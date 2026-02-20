@@ -20,6 +20,28 @@ def _canonical_payload() -> dict:
     }
 
 
+def _canonical_dca_payload() -> dict:
+    return {
+        "spec_type": "dca",
+        "catalog_version": "v1",
+        "data": {
+            "symbol": "BTCUSD",
+            "timeframe": "H1",
+            "start_date": "2025-01-01",
+            "end_date": "2025-01-02",
+        },
+        "strategy": {
+            "type": "dca_equity",
+            "grid": [],
+            "params": {
+                "grid": [{"dd": -5.0, "weight": 1.0}],
+                "execution_mode": "bar_close",
+                "drawdown_reference": "ATH",
+            },
+        },
+    }
+
+
 def test_worker_processes_job_success(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("DB_SQLITE_PATH", str(tmp_path / "quant.db"))
     reset_settings_cache()
@@ -144,3 +166,138 @@ def test_worker_marks_canonical_backtest_not_implemented(tmp_path, monkeypatch) 
     assert "filters.filters" in fields
     assert "strategy.name" in fields
     assert "strategy.params.tp_sl" in fields
+
+
+def test_worker_processes_canonical_dca_with_strategy_runner(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("DB_SQLITE_PATH", str(tmp_path / "quant.db"))
+    reset_settings_cache()
+
+    observed = {}
+
+    def _fake_backtest(spec):
+        observed["spec"] = spec
+        return {"result": {"counts": {"BTCUSD": 3}}, "payload": {"run": {"status": "ok"}}}
+
+    monkeypatch.setattr(api_app.strategies_runner, "run_backtest_with_payload", _fake_backtest)
+
+    response = api_app.enqueue_run_request(_canonical_dca_payload())
+    result = worker_module.process_next_job()
+
+    assert result is not None
+    job = api_app._get_job(response.run_id)
+    assert job["status"] == api_app.JOB_STATUS_SUCCEEDED
+    assert observed["spec"]["strategy"]["type"] == "dca_equity"
+    assert observed["spec"]["universe"][0]["symbol"] == "BTCUSD"
+    assert job["result"]["accepted"] is True
+    assert job["result"]["spec_type"] == "dca"
+    assert job["result"]["result"]["counts"]["BTCUSD"] == 3
+
+
+def test_worker_processes_canonical_dca_with_tp_sl_preset(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("DB_SQLITE_PATH", str(tmp_path / "quant.db"))
+    reset_settings_cache()
+    payload = _canonical_dca_payload()
+    payload["strategy"]["params"]["tp_sl"] = "tp_2_sl_1"
+    observed = {}
+
+    def _fake_backtest(spec):
+        observed["spec"] = spec
+        return {"result": {"counts": {"BTCUSD": 1}}, "payload": {"run": {"status": "ok"}}}
+
+    monkeypatch.setattr(api_app.strategies_runner, "run_backtest_with_payload", _fake_backtest)
+
+    response = api_app.enqueue_run_request(payload)
+    result = worker_module.process_next_job()
+
+    assert result is not None
+    job = api_app._get_job(response.run_id)
+    assert job["status"] == api_app.JOB_STATUS_SUCCEEDED
+    tp_sl = observed["spec"]["strategy"]["params"]["tp_sl"]
+    assert tp_sl["mode"] == "per_grid_max_dd"
+    assert tp_sl["rules"][0]["tp_pct"] == 2.0
+    assert tp_sl["sl_dd"] == -1.0
+
+
+def test_worker_processes_canonical_dca_with_explicit_tp_sl_object(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("DB_SQLITE_PATH", str(tmp_path / "quant.db"))
+    reset_settings_cache()
+    payload = _canonical_dca_payload()
+    payload["strategy"]["params"]["tp_sl"] = {
+        "enabled": True,
+        "mode": "rule_based",
+        "tp": {"type": "percent", "value": 2.5},
+        "sl": {"type": "percent", "value": 1.5},
+        "break_even": {"enabled": True, "trigger_pct": 0.8},
+    }
+    observed = {}
+
+    def _fake_backtest(spec):
+        observed["spec"] = spec
+        return {"result": {"counts": {"BTCUSD": 1}}, "payload": {"run": {"status": "ok"}}}
+
+    monkeypatch.setattr(api_app.strategies_runner, "run_backtest_with_payload", _fake_backtest)
+
+    response = api_app.enqueue_run_request(payload)
+    result = worker_module.process_next_job()
+
+    assert result is not None
+    job = api_app._get_job(response.run_id)
+    assert job["status"] == api_app.JOB_STATUS_SUCCEEDED
+    tp_sl = observed["spec"]["strategy"]["params"]["tp_sl"]
+    assert tp_sl["mode"] == "per_grid_max_dd"
+    assert tp_sl["rules"][0]["tp_pct"] == 2.5
+    assert tp_sl["rules"][0]["be_pct"] == 0.8
+    assert tp_sl["sl_dd"] == -1.5
+
+
+def test_worker_processes_canonical_dca_with_grid_preset_and_rolling_high(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("DB_SQLITE_PATH", str(tmp_path / "quant.db"))
+    reset_settings_cache()
+    payload = _canonical_dca_payload()
+    payload["strategy"]["grid"] = ["grid_balanced"]
+    payload["strategy"]["params"].pop("grid", None)
+    payload["strategy"]["params"]["drawdown_reference"] = "rolling_high"
+    observed = {}
+
+    def _fake_backtest(spec):
+        observed["spec"] = spec
+        return {"result": {"counts": {"BTCUSD": 1}}, "payload": {"run": {"status": "ok"}}}
+
+    monkeypatch.setattr(api_app.strategies_runner, "run_backtest_with_payload", _fake_backtest)
+
+    response = api_app.enqueue_run_request(payload)
+    result = worker_module.process_next_job()
+
+    assert result is not None
+    job = api_app._get_job(response.run_id)
+    assert job["status"] == api_app.JOB_STATUS_SUCCEEDED
+    params = observed["spec"]["strategy"]["params"]
+    assert isinstance(params["grid"], list)
+    assert len(params["grid"]) == 3
+    assert params["drawdown_reference"] == "90D"
+
+
+def test_worker_marks_canonical_dca_not_implemented_for_unwired_fields(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("DB_SQLITE_PATH", str(tmp_path / "quant.db"))
+    reset_settings_cache()
+    payload = _canonical_dca_payload()
+    payload["strategy"]["grid"] = ["grid_custom"]
+    payload["strategy"]["params"].pop("grid", None)
+    payload["strategy"]["params"]["execution_mode"] = "limit"
+    payload["strategy"]["params"]["drawdown_reference"] = "ATH"
+    payload["strategy"]["params"]["tp_sl"] = "tp_custom"
+
+    response = api_app.enqueue_run_request(payload)
+    result = worker_module.process_next_job()
+
+    assert result is None
+    job = api_app._get_job(response.run_id)
+    assert job["status"] == api_app.JOB_STATUS_FAILED_CANONICAL
+    error = job["result"]["error"]
+    assert error["code"] == "not_implemented_feature"
+    assert error["message"] == "Feature not implemented for canonical dca run"
+    fields = {item["field"] for item in error["details"]}
+    assert "strategy.grid" in fields
+    assert "strategy.params.tp_sl" in fields
+    assert "strategy.params.execution_mode" in fields
+    assert "strategy.params.drawdown_reference" not in fields

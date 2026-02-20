@@ -20,6 +20,28 @@ def _canonical_payload() -> dict:
     }
 
 
+def _canonical_dca_payload() -> dict:
+    return {
+        "spec_type": "dca",
+        "catalog_version": "v1",
+        "data": {
+            "symbol": "BTCUSD",
+            "timeframe": "H1",
+            "start_date": "2025-01-01",
+            "end_date": "2025-01-02",
+        },
+        "strategy": {
+            "type": "dca_equity",
+            "grid": [],
+            "params": {
+                "grid": [{"dd": -5.0, "weight": 1.0}],
+                "execution_mode": "bar_close",
+                "drawdown_reference": "ATH",
+            },
+        },
+    }
+
+
 def _setup_db(tmp_path, monkeypatch) -> TestClient:
     monkeypatch.setenv("DB_SQLITE_PATH", str(tmp_path / "quant.db"))
     reset_settings_cache()
@@ -120,6 +142,42 @@ def test_run_result_returns_not_implemented_error_details(tmp_path, monkeypatch)
     assert "signal" in fields
     assert "filters.filters" in fields
     assert "strategy.name" in fields
+    assert "strategy.params.tp_sl" in fields
+
+
+def test_run_result_returns_canonical_dca_success_payload(tmp_path, monkeypatch) -> None:
+    client = _setup_db(tmp_path, monkeypatch)
+
+    def _fake_backtest(spec):
+        return {"result": {"counts": {"BTCUSD": 2}}, "payload": {"run": {"status": "ok"}}}
+
+    monkeypatch.setattr(api_app.strategies_runner, "run_backtest_with_payload", _fake_backtest)
+    response = api_app.enqueue_run_request(_canonical_dca_payload())
+    worker_module.process_next_job()
+
+    resp = client.get(f"/runs/{response.run_id}/result")
+    assert resp.status_code == 200
+    payload = resp.json()
+    assert payload["status"] == api_app.JOB_STATUS_SUCCEEDED
+    assert payload["result"]["accepted"] is True
+    assert payload["result"]["spec_type"] == "dca"
+    assert payload["result"]["result"]["counts"]["BTCUSD"] == 2
+
+
+def test_run_result_returns_canonical_dca_unwired_tp_sl_error(tmp_path, monkeypatch) -> None:
+    client = _setup_db(tmp_path, monkeypatch)
+    payload = _canonical_dca_payload()
+    payload["strategy"]["params"]["tp_sl"] = "tp_custom"
+    response = api_app.enqueue_run_request(payload)
+
+    worker_module.process_next_job()
+
+    resp = client.get(f"/runs/{response.run_id}/result")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == api_app.JOB_STATUS_FAILED_CANONICAL
+    assert body["error"]["code"] == "not_implemented_feature"
+    fields = {item["field"] for item in body["error"]["details"]}
     assert "strategy.params.tp_sl" in fields
 
 
