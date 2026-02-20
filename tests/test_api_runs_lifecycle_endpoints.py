@@ -250,6 +250,11 @@ def test_runs_capabilities_returns_dca_runtime_matrix(tmp_path, monkeypatch) -> 
     assert body["presets"]["supported"]["strategy.grid"] == ["grid_balanced"]
     assert "grid_conservative" in body["presets"]["not_supported"]["strategy.grid"]
     assert "grid_aggressive" in body["presets"]["not_supported"]["strategy.grid"]
+    assert "filters" in body
+    assert "supported_ids" in body["filters"]
+    assert "ema_slope" in body["filters"]["supported_ids"]
+    assert "trend" in body["filters"]["supported_ids"]
+    assert body["filters"]["rules_modes"] == ["hard", "soft"]
     assert "legacy_dca" in body
     assert "universe" in body["legacy_dca"]["fields"]["supported"]
     assert "universe" in body["legacy_dca"]["fields"]["not_in_canonical"]

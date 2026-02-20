@@ -277,6 +277,57 @@ def test_worker_processes_canonical_dca_with_grid_preset_and_rolling_high(tmp_pa
     assert params["drawdown_reference"] == "90D"
 
 
+def test_worker_maps_canonical_filters_id_to_internal_type(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("DB_SQLITE_PATH", str(tmp_path / "quant.db"))
+    reset_settings_cache()
+    payload = _canonical_dca_payload()
+    payload["filters"] = {"filters": [{"id": "ema_slope", "params": {"period": 20}}]}
+    observed = {}
+
+    def _fake_backtest(spec):
+        observed["spec"] = spec
+        return {"result": {"counts": {"BTCUSD": 1}}, "payload": {"run": {"status": "ok"}}}
+
+    monkeypatch.setattr(api_app.strategies_runner, "run_backtest_with_payload", _fake_backtest)
+
+    response = api_app.enqueue_run_request(payload)
+    result = worker_module.process_next_job()
+
+    assert result is not None
+    job = api_app._get_job(response.run_id)
+    assert job["status"] == api_app.JOB_STATUS_SUCCEEDED
+    assert observed["spec"]["filters"][0]["type"] == "ema_slope"
+    assert observed["spec"]["filters"][0]["params"]["period"] == 20
+
+
+def test_worker_maps_canonical_filter_rules_id_to_internal_type(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("DB_SQLITE_PATH", str(tmp_path / "quant.db"))
+    reset_settings_cache()
+    payload = _canonical_dca_payload()
+    payload["filters"] = {
+        "filters": [],
+        "rules": [{"id": "momentum_alignment", "mode": "soft", "weight": 0.6}],
+        "rules_config": {"min_score": 60, "min_score_pct": 70},
+    }
+    observed = {}
+
+    def _fake_backtest(spec):
+        observed["spec"] = spec
+        return {"result": {"counts": {"BTCUSD": 1}}, "payload": {"run": {"status": "ok"}}}
+
+    monkeypatch.setattr(api_app.strategies_runner, "run_backtest_with_payload", _fake_backtest)
+
+    response = api_app.enqueue_run_request(payload)
+    result = worker_module.process_next_job()
+
+    assert result is not None
+    job = api_app._get_job(response.run_id)
+    assert job["status"] == api_app.JOB_STATUS_SUCCEEDED
+    assert observed["spec"]["filter_rules"][0]["type"] == "momentum_alignment"
+    assert observed["spec"]["filter_rules"][0]["mode"] == "soft"
+    assert observed["spec"]["filter_rules"][0]["weight"] == 0.6
+
+
 def test_worker_marks_canonical_dca_not_implemented_for_unwired_fields(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("DB_SQLITE_PATH", str(tmp_path / "quant.db"))
     reset_settings_cache()

@@ -493,9 +493,34 @@ def _canonical_dca_to_strategy_spec(request: Dict[str, Any]) -> Dict[str, Any]:
     filters_block = request.get("filters")
     if isinstance(filters_block, dict):
         if isinstance(filters_block.get("filters"), list):
-            spec["filters"] = filters_block.get("filters", [])
+            mapped_filters: List[Dict[str, Any]] = []
+            for item in filters_block.get("filters", []):
+                if not isinstance(item, dict):
+                    continue
+                mapped_filters.append(
+                    {
+                        "type": item.get("id"),
+                        "params": item.get("params", {}),
+                    }
+                )
+            spec["filters"] = mapped_filters
         if isinstance(filters_block.get("rules"), list):
-            spec["filter_rules"] = filters_block.get("rules", [])
+            mapped_rules: List[Dict[str, Any]] = []
+            for item in filters_block.get("rules", []):
+                if not isinstance(item, dict):
+                    continue
+                mapped_rule: Dict[str, Any] = {
+                    "type": item.get("id"),
+                    "params": item.get("params", {}),
+                }
+                if "mode" in item:
+                    mapped_rule["mode"] = item.get("mode")
+                if "weight" in item:
+                    mapped_rule["weight"] = item.get("weight")
+                if "enabled" in item:
+                    mapped_rule["enabled"] = item.get("enabled")
+                mapped_rules.append(mapped_rule)
+            spec["filter_rules"] = mapped_rules
         if isinstance(filters_block.get("rules_config"), dict):
             spec["filter_rules_config"] = filters_block.get("rules_config", {})
 
@@ -614,6 +639,14 @@ def _run_job_payload(job_type: str, payload: Any | None) -> Any:
         if isinstance(payload, dict):
             request = payload.get("request", {})
             if isinstance(request, dict):
+                _log_event(
+                    {
+                        "event": "runs_worker_payload",
+                        "spec_type": request.get("spec_type"),
+                        "request_id": request.get("request_id"),
+                        "payload": _truncate_json_payload(request),
+                    }
+                )
                 spec_type = str(request.get("spec_type") or "").strip().lower()
                 if spec_type == "backtest":
                     details = _canonical_backtest_unsupported_details(request)
@@ -884,6 +917,16 @@ def _log_event(event: Dict[str, Any]) -> None:
         pass
 
 
+def _truncate_json_payload(value: Any, *, max_len: int = 4000) -> str:
+    try:
+        payload = json.dumps(value, separators=(",", ":"), default=str)
+    except Exception:
+        payload = str(value)
+    if len(payload) > max_len:
+        return payload[: max_len - 3] + "..."
+    return payload
+
+
 def _canonical_job_defaults() -> tuple[int | None, int | None]:
     max_attempts_raw = os.getenv("QE_CANONICAL_MAX_ATTEMPTS", "").strip()
     timeout_raw = os.getenv("QE_CANONICAL_TIMEOUT_SECONDS", "").strip()
@@ -938,6 +981,11 @@ def _canonical_runs_capabilities(spec_type: str) -> Dict[str, Any]:
             "not_supported": {
                 "strategy.grid": ["grid_conservative", "grid_aggressive"],
             },
+        },
+        "filters": {
+            "supported_ids": sorted(list_filter_types()),
+            "rules_modes": ["hard", "soft"],
+            "rules_weights": {"min": 0.0},
         },
         "legacy_dca": {
             "entrypoint": "qe strategy backtest --spec <strategy_spec.json>",
@@ -1982,6 +2030,15 @@ def submit_async_endpoint(payload: Dict[str, Any]) -> schemas.StatusResponse:
 def runs_submit_endpoint(payload: Dict[str, Any], request: Request) -> schemas.RunEnqueueResponse:
     """Validate and enqueue a canonical run request."""
 
+    _log_event(
+        {
+            "event": "runs_submit_payload",
+            "path": "/runs",
+            "method": "POST",
+            "payload": _truncate_json_payload(payload),
+            "payload_keys": sorted(list(payload.keys())),
+        }
+    )
     response = enqueue_run_request(payload)
     request.state.request_id = response.run_id
     return response
