@@ -46,6 +46,29 @@ def _canonical_dca_payload(request_id: str | None = None) -> dict:
     return payload
 
 
+def _canonical_dca_payload_universe_only() -> dict:
+    return {
+        "spec_type": "dca",
+        "catalog_version": "v1",
+        "data": {
+            "timeframe": "H1",
+            "start_date": "2025-01-01",
+            "end_date": "2025-01-31",
+        },
+        "universe": [{"symbol": "BTCUSDT", "asset_class": "CRYPTO"}],
+        "strategy": {
+            "type": "dca_equity",
+            "grid": [],
+            "params": {
+                "asset_class": "CRYPTO",
+                "grid": [{"dd": -5.0, "weight": 1.0}],
+                "execution_mode": "bar_close",
+                "drawdown_reference": "ATH",
+            },
+        },
+    }
+
+
 def test_runs_submit_enqueues_request(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("DB_SQLITE_PATH", str(tmp_path / "quant.db"))
     reset_settings_cache()
@@ -59,6 +82,18 @@ def test_runs_submit_enqueues_request(tmp_path, monkeypatch) -> None:
     assert payload["reused"] is False
     assert isinstance(payload["run_id"], str)
     assert payload["run_id"]
+
+
+def test_runs_submit_enqueues_dca_universe_only_request(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("DB_SQLITE_PATH", str(tmp_path / "quant.db"))
+    reset_settings_cache()
+    client = TestClient(api_app.fastapi_app)
+
+    response = client.post("/runs", json=_canonical_dca_payload_universe_only())
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "QUEUED"
 
 
 def test_runs_submit_enqueues_dca_request(tmp_path, monkeypatch) -> None:

@@ -61,6 +61,12 @@ export $(grep -v '^#' .env | xargs)
 poetry run uvicorn quant_engine.api.app:app --reload --app-dir src
 ```
 
+### Canonical DCA migration (`/runs`)
+- For `spec_type=dca`, prefer `universe[]` as symbol source (including single-symbol runs).
+- `data.symbol` is kept for compatibility but deprecated (target window: `2026-06`).
+- Runtime priority is `universe` then fallback `data.symbol`.
+- Capabilities endpoint: `GET /runs/capabilities?spec_type=dca`.
+
 ## CLI
 - **run-local**
   ```bash

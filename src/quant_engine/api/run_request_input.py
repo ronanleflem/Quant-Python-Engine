@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Annotated, Any, Dict, List, Literal, Optional, Union
 
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field, TypeAdapter
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, TypeAdapter, model_validator
 
 
 class StrictModel(BaseModel):
@@ -94,6 +94,27 @@ class DcaStrategyBlock(StrictModel):
     params: Dict[str, Any] = Field(default_factory=dict)
 
 
+class DcaDataBlock(StrictModel):
+    symbol: Optional[str] = None
+    timeframe: str
+    start_date: str = Field(validation_alias=AliasChoices("start_date", "startDate"))
+    end_date: str = Field(validation_alias=AliasChoices("end_date", "endDate"))
+    dataset_path: Optional[str] = None
+    path: Optional[str] = None
+    mysql: Optional[Dict[str, Any]] = None
+    symbols: Optional[List[str]] = None
+
+
+class DcaUniverseItem(StrictModel):
+    symbol: str
+    asset_class: Optional[str] = Field(default=None, validation_alias=AliasChoices("asset_class", "assetClass"))
+    name: Optional[str] = None
+    exchange: Optional[str] = None
+    currency: Optional[str] = None
+    broker: Optional[str] = None
+    market_type: Optional[str] = Field(default=None, validation_alias=AliasChoices("market_type", "marketType"))
+
+
 class MarketLeafSpec(StrictModel):
     id: str
     params: Dict[str, Any] = Field(default_factory=dict)
@@ -150,8 +171,17 @@ class BacktestRunRequest(RunRequestCommon):
 
 class DcaRunRequest(RunRequestCommon):
     spec_type: Literal["dca"]
-    data: DataRangeBlock
+    data: DcaDataBlock
     strategy: DcaStrategyBlock
+    universe: List[DcaUniverseItem] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _validate_symbol_or_universe(self) -> "DcaRunRequest":
+        has_symbol = bool((self.data.symbol or "").strip()) if self.data is not None else False
+        has_universe = bool(self.universe)
+        if not has_symbol and not has_universe:
+            raise ValueError("dca requires data.symbol or universe")
+        return self
 
 
 class MarketStatsRunRequest(RunRequestCommon):

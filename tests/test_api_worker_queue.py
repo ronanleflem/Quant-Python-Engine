@@ -42,6 +42,15 @@ def _canonical_dca_payload() -> dict:
     }
 
 
+def _canonical_dca_payload_universe() -> dict:
+    payload = _canonical_dca_payload()
+    payload["universe"] = [
+        {"symbol": "ETHUSDT", "asset_class": "CRYPTO"},
+        {"symbol": "BTCUSDT", "asset_class": "CRYPTO"},
+    ]
+    return payload
+
+
 def test_worker_processes_job_success(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("DB_SQLITE_PATH", str(tmp_path / "quant.db"))
     reset_settings_cache()
@@ -191,6 +200,89 @@ def test_worker_processes_canonical_dca_with_strategy_runner(tmp_path, monkeypat
     assert job["result"]["accepted"] is True
     assert job["result"]["spec_type"] == "dca"
     assert job["result"]["result"]["counts"]["BTCUSD"] == 3
+
+
+def test_worker_uses_universe_over_data_symbol_for_canonical_dca(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("DB_SQLITE_PATH", str(tmp_path / "quant.db"))
+    reset_settings_cache()
+    payload = _canonical_dca_payload_universe()
+    observed = {}
+
+    def _fake_backtest(spec):
+        observed["spec"] = spec
+        return {"result": {"counts": {"ETHUSDT": 2}}, "payload": {"run": {"status": "ok"}}}
+
+    monkeypatch.setattr(api_app.strategies_runner, "run_backtest_with_payload", _fake_backtest)
+
+    response = api_app.enqueue_run_request(payload)
+    result = worker_module.process_next_job()
+
+    assert result is not None
+    job = api_app._get_job(response.run_id)
+    assert job["status"] == api_app.JOB_STATUS_SUCCEEDED
+    symbols = [item["symbol"] for item in observed["spec"]["universe"]]
+    assert symbols == ["ETHUSDT", "BTCUSDT"]
+    assert "BTCUSD" not in symbols
+
+
+def test_worker_logs_deprecation_warning_when_using_data_symbol_fallback(tmp_path, monkeypatch, capsys) -> None:
+    monkeypatch.setenv("DB_SQLITE_PATH", str(tmp_path / "quant.db"))
+    reset_settings_cache()
+    payload = _canonical_dca_payload()
+
+    def _fake_backtest(spec):
+        return {"result": {"counts": {"BTCUSD": 1}}, "payload": {"run": {"status": "ok"}}}
+
+    monkeypatch.setattr(api_app.strategies_runner, "run_backtest_with_payload", _fake_backtest)
+
+    response = api_app.enqueue_run_request(payload)
+    result = worker_module.process_next_job()
+
+    assert result is not None
+    job = api_app._get_job(response.run_id)
+    assert job["status"] == api_app.JOB_STATUS_SUCCEEDED
+    captured = capsys.readouterr()
+    assert "canonical_dca_deprecation_warning" in captured.out
+    assert '"field":"data.symbol"' in captured.out
+
+
+def test_worker_processes_canonical_dca_multisymbol_universe_with_real_runner(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("DB_SQLITE_PATH", str(tmp_path / "quant.db"))
+    reset_settings_cache()
+    payload = {
+        "spec_type": "dca",
+        "catalog_version": "v1",
+        "data": {
+            "timeframe": "1D",
+            "start_date": "2025-01-01",
+            "end_date": "2025-01-20",
+            "path": "tests/data/ohlcv_ts.csv",
+        },
+        "universe": [
+            {"symbol": "SPY", "asset_class": "EQUITY"},
+            {"symbol": "QQQ", "asset_class": "EQUITY"},
+        ],
+        "strategy": {
+            "type": "dca_equity",
+            "grid": [],
+            "params": {
+                "asset_class": "EQUITY",
+                "drawdown_reference": "ATH",
+                "execution_mode": "bar_close",
+                "grid": [{"dd": -5.0, "weight": 1.0}],
+                "require_crossing": False,
+            },
+        },
+    }
+
+    response = api_app.enqueue_run_request(payload)
+    result = worker_module.process_next_job()
+
+    assert result is not None
+    job = api_app._get_job(response.run_id)
+    assert job["status"] == api_app.JOB_STATUS_SUCCEEDED
+    counts = job["result"]["result"]["counts"]
+    assert set(counts.keys()) == {"SPY", "QQQ"}
 
 
 def test_worker_processes_canonical_dca_with_tp_sl_preset(tmp_path, monkeypatch) -> None:

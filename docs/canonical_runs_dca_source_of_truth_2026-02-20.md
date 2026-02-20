@@ -41,7 +41,7 @@ Runtime not-wired errors are returned as:
 
 ### `data`
 
-- `symbol`, `timeframe`, `start_date`, `end_date`: required and mapped
+- `symbol`, `timeframe`, `start_date`, `end_date`: mapped (symbol required only when `universe` is omitted)
 - `dataset_path` or `path`: optional; mapped to internal CSV source
 - `mysql`: optional; mapped to internal source config
 
@@ -61,6 +61,13 @@ Runtime not-wired errors are returned as:
 - `strategy.params.drawdown_reference`:
   - `ATH`, `1M`, `3M`, `6M`, `1Y`: supported by strategy runtime
   - `rolling_high`: supported alias in canonical mapping, converted to `90D`
+
+### `universe`
+
+- `universe[]`: supported in canonical DCA input
+- each item requires at least `symbol` (optional metadata: `asset_class`, `exchange`, `currency`, `broker`, ...)
+- resolution priority in runtime mapping: `universe` first, then fallback `data.symbol`
+- recommended mode: always send `universe[]` (including mono-symbol runs)
 
 ### `strategy.params.tp_sl`
 
@@ -112,6 +119,40 @@ Not wired:
       }
     }
   }
+}
+```
+
+## Multi-symbol runtime rules
+
+- execution scope: per symbol in `universe`
+- filters/rules scope: evaluated independently per symbol on each symbol OHLC
+- aggregation:
+  - `result.counts` is keyed by symbol
+  - backend payload aggregates generated trades/signals for the run
+- missing data behavior:
+  - if one symbol cannot load OHLC, the run fails (`execution_error`)
+
+## Deprecation & migration
+
+- `data.symbol` is still accepted for compatibility, but deprecated for canonical DCA
+- replacement: `universe[]`
+- deprecation warning event in worker logs: `canonical_dca_deprecation_warning`
+- target removal window: `2026-06` (subject to release validation)
+
+Migration example (mono-symbol):
+
+Before:
+```json
+{
+  "data": {"symbol": "BTCUSDT", "timeframe": "1h", "start_date": "2022-12-31", "end_date": "2024-12-30"}
+}
+```
+
+After:
+```json
+{
+  "data": {"timeframe": "1h", "start_date": "2022-12-31", "end_date": "2024-12-30"},
+  "universe": [{"symbol": "BTCUSDT", "asset_class": "CRYPTO"}]
 }
 ```
 

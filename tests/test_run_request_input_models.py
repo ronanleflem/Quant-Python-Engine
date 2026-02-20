@@ -96,3 +96,33 @@ def test_rejects_unknown_top_level_field() -> None:
         validate_run_request_input(payload)
 
     assert "unexpected" in str(exc_info.value)
+
+
+def test_dca_accepts_universe_without_data_symbol() -> None:
+    payload = {
+        "spec_type": "dca",
+        "catalog_version": "v1",
+        "data": {"timeframe": "D1", "start_date": "2020-01-01", "end_date": "2025-01-01"},
+        "universe": [{"symbol": "BTCUSDT", "asset_class": "CRYPTO"}],
+        "strategy": {"type": "dca_equity", "params": {"grid": [{"dd": -5, "weight": 1}]}},
+    }
+
+    parsed = validate_run_request_input(payload)
+
+    assert parsed.spec_type == "dca"
+    assert parsed.universe[0].symbol == "BTCUSDT"
+    assert parsed.data.symbol is None
+
+
+def test_dca_rejects_when_symbol_and_universe_missing() -> None:
+    payload = {
+        "spec_type": "dca",
+        "catalog_version": "v1",
+        "data": {"timeframe": "D1", "start_date": "2020-01-01", "end_date": "2025-01-01"},
+        "strategy": {"type": "dca_equity", "params": {"grid": [{"dd": -5, "weight": 1}]}},
+    }
+
+    with pytest.raises(ValidationError) as exc_info:
+        validate_run_request_input(payload)
+
+    assert "dca requires data.symbol or universe" in str(exc_info.value)

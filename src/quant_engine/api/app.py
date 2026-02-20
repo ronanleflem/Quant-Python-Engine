@@ -480,6 +480,41 @@ def _canonical_dca_to_strategy_spec(request: Dict[str, Any]) -> Dict[str, Any]:
     params.pop("tpSl", None)
     strategy_id = f"CANONICAL_{strategy_type.upper()}" if strategy_type else "CANONICAL_DCA"
 
+    universe_block = request.get("universe")
+    universe_items: List[Dict[str, Any]] = []
+    if isinstance(universe_block, list) and universe_block:
+        for item in universe_block:
+            if not isinstance(item, dict):
+                continue
+            symbol = str(item.get("symbol") or "").strip()
+            if not symbol:
+                continue
+            universe_asset = str(item.get("asset_class") or item.get("assetClass") or asset_class).upper()
+            universe_item = {
+                "symbol": symbol,
+                "asset_class": universe_asset,
+            }
+            for key in ("name", "exchange", "currency", "broker", "market_type", "marketType"):
+                if item.get(key) is not None:
+                    target_key = "market_type" if key == "marketType" else key
+                    universe_item[target_key] = item.get(key)
+            universe_items.append(universe_item)
+    elif data_block.get("symbol"):
+        # Compatibility path kept for current clients.
+        _log_event(
+            {
+                "event": "canonical_dca_deprecation_warning",
+                "field": "data.symbol",
+                "message": "data.symbol fallback is deprecated; prefer universe[] for canonical dca runs",
+                "target_version": "2026-06",
+                "request_id": request.get("request_id"),
+            }
+        )
+        universe_items = [{"symbol": data_block.get("symbol"), "asset_class": asset_class}]
+
+    if not universe_items:
+        raise ValueError("dca requires data.symbol or universe")
+
     spec: Dict[str, Any] = {
         "strategy": {
             "strategy_id": strategy_id,
@@ -487,7 +522,7 @@ def _canonical_dca_to_strategy_spec(request: Dict[str, Any]) -> Dict[str, Any]:
             "params": params,
         },
         "data": data_spec,
-        "universe": [{"symbol": data_block.get("symbol"), "asset_class": asset_class}],
+        "universe": universe_items,
     }
 
     filters_block = request.get("filters")
@@ -956,6 +991,7 @@ def _canonical_runs_capabilities(spec_type: str) -> Dict[str, Any]:
                 "data.dataset_path",
                 "data.path",
                 "data.mysql",
+                "universe",
                 "strategy.type",
                 "strategy.params.asset_class",
                 "strategy.params.grid",
@@ -986,6 +1022,14 @@ def _canonical_runs_capabilities(spec_type: str) -> Dict[str, Any]:
             "supported_ids": sorted(list_filter_types()),
             "rules_modes": ["hard", "soft"],
             "rules_weights": {"min": 0.0},
+        },
+        "runtime_rules": {
+            "multi_symbol": {
+                "execution_scope": "per_symbol",
+                "aggregation": "result.counts keyed by symbol; payload trades aggregated across symbols",
+                "filter_application": "filters and filter_rules are evaluated independently per symbol on each symbol OHLC",
+                "missing_data_behavior": "run fails fast if any universe symbol cannot load OHLC",
+            }
         },
         "legacy_dca": {
             "entrypoint": "qe strategy backtest --spec <strategy_spec.json>",
@@ -1094,6 +1138,17 @@ def _canonical_runs_capabilities(spec_type: str) -> Dict[str, Any]:
                 "Use canonical_passthrough_supported to know what can be forwarded without additional Python canonical wiring.",
                 "Use canonical /runs fields for production launcher payloads; use legacy section to plan incremental parity.",
             ],
+        },
+        "resolution": {
+            "dca_symbol_source_priority": ["universe", "data.symbol"],
+        },
+        "deprecations": {
+            "data.symbol": {
+                "status": "deprecated",
+                "recommended_replacement": "universe[]",
+                "warning_event": "canonical_dca_deprecation_warning",
+                "target_version": "2026-06",
+            }
         },
     }
 

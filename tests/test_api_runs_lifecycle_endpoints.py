@@ -244,6 +244,7 @@ def test_runs_capabilities_returns_dca_runtime_matrix(tmp_path, monkeypatch) -> 
     assert "fields" in body
     assert "supported" in body["fields"]
     assert "accepted_but_not_wired" in body["fields"]
+    assert "universe" in body["fields"]["supported"]
     assert "strategy.params.asset_class" in body["fields"]["supported"]
     assert "strategy.params.tp_sl" in body["fields"]["supported"]
     assert "performance.stress_tests" in body["fields"]["accepted_but_not_wired"]
@@ -255,12 +256,18 @@ def test_runs_capabilities_returns_dca_runtime_matrix(tmp_path, monkeypatch) -> 
     assert "ema_slope" in body["filters"]["supported_ids"]
     assert "trend" in body["filters"]["supported_ids"]
     assert body["filters"]["rules_modes"] == ["hard", "soft"]
+    assert "runtime_rules" in body
+    assert body["runtime_rules"]["multi_symbol"]["execution_scope"] == "per_symbol"
+    assert "missing_data_behavior" in body["runtime_rules"]["multi_symbol"]
     assert "legacy_dca" in body
     assert "universe" in body["legacy_dca"]["fields"]["supported"]
     assert "universe" in body["legacy_dca"]["fields"]["not_in_canonical"]
     assert "strategy.strategy_id" in body["legacy_dca"]["fields"]["not_in_canonical"]
     assert "canonical_passthrough_supported" in body["legacy_dca"]["fields"]
     assert "strategy.params.asset_class" in body["legacy_dca"]["fields"]["canonical_passthrough_supported"]
+    assert body["resolution"]["dca_symbol_source_priority"] == ["universe", "data.symbol"]
+    assert body["deprecations"]["data.symbol"]["status"] == "deprecated"
+    assert body["deprecations"]["data.symbol"]["recommended_replacement"] == "universe[]"
 
 
 def test_runs_capabilities_rejects_unknown_spec_type(tmp_path, monkeypatch) -> None:
