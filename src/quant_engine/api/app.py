@@ -52,6 +52,7 @@ JOB_TYPE_LEVELS_FILL = "levels_fill"
 JOB_TYPE_SEASONALITY_RUN = "seasonality_run"
 JOB_TYPE_SEASONALITY_OPTIMIZE = "seasonality_optimize"
 JOB_TYPE_CANONICAL_RUN = "canonical_run"
+CANONICAL_CAPABILITIES_CATALOG_VERSION = "2026-02-02"
 
 JOB_STATUS_PENDING = "pending"
 JOB_STATUS_RUNNING = "running"
@@ -889,6 +890,164 @@ def _canonical_job_defaults() -> tuple[int | None, int | None]:
     max_attempts = int(max_attempts_raw) if max_attempts_raw.isdigit() else 3
     timeout_seconds = int(timeout_raw) if timeout_raw.isdigit() else None
     return max_attempts, timeout_seconds
+
+
+def _canonical_runs_capabilities(spec_type: str) -> Dict[str, Any]:
+    normalized = str(spec_type or "").strip().lower()
+    if normalized != "dca":
+        raise ApiValidationException(
+            single_validation_error("spec_type", "unsupported_spec_type", "Unsupported spec_type for capabilities")
+        )
+
+    return {
+        "spec_type": "dca",
+        "catalog_version": CANONICAL_CAPABILITIES_CATALOG_VERSION,
+        "fields": {
+            "supported": [
+                "catalog_version",
+                "request_id",
+                "data.symbol",
+                "data.timeframe",
+                "data.start_date",
+                "data.end_date",
+                "data.dataset_path",
+                "data.path",
+                "data.mysql",
+                "strategy.type",
+                "strategy.params.asset_class",
+                "strategy.params.grid",
+                "strategy.params.execution_mode",
+                "strategy.params.drawdown_reference",
+                "strategy.params.tp_sl",
+                "filters.filters",
+                "filters.rules",
+                "filters.rules_config",
+                "performance.initial_capital",
+            ],
+            "accepted_but_not_wired": [
+                "performance.stress_tests",
+                "output",
+                "persistence",
+            ],
+        },
+        "presets": {
+            "supported": {
+                "strategy.grid": ["grid_balanced"],
+                "strategy.params.tp_sl": ["tp_X_sl_Y"],
+            },
+            "not_supported": {
+                "strategy.grid": ["grid_conservative", "grid_aggressive"],
+            },
+        },
+        "legacy_dca": {
+            "entrypoint": "qe strategy backtest --spec <strategy_spec.json>",
+            "fields": {
+                "supported_in_legacy_runner": [
+                    "strategy.strategy_id",
+                    "strategy.type",
+                    "strategy.params.asset_class",
+                    "strategy.params.execution_mode",
+                    "strategy.params.drawdown_reference",
+                    "strategy.params.grid",
+                    "strategy.params.require_crossing",
+                    "strategy.params.tp_sl",
+                    "strategy.params.log_drawdown_summary",
+                    "data.source",
+                    "data.path",
+                    "data.start",
+                    "data.end",
+                    "data.timeframe",
+                    "data.dataset_path",
+                    "data.mysql",
+                    "data.delta_base",
+                    "data.delta_prefix",
+                    "data.delta_exchange",
+                    "data.delta_market_type",
+                    "data.delta_quotes",
+                    "data.delta_min_coverage",
+                    "universe",
+                    "filters",
+                    "filter_rules",
+                    "filter_rules_config",
+                    "screening",
+                    "optimization.screening",
+                    "optimization.cache_features",
+                    "performance.initial_capital",
+                    "performance.capital_per_unit",
+                    "performance.stress_tests",
+                    "output.path",
+                    "output.format",
+                ],
+                "supported": [
+                    "strategy.strategy_id",
+                    "strategy.type",
+                    "strategy.params.asset_class",
+                    "strategy.params.execution_mode",
+                    "strategy.params.drawdown_reference",
+                    "strategy.params.grid",
+                    "strategy.params.require_crossing",
+                    "strategy.params.tp_sl",
+                    "strategy.params.log_drawdown_summary",
+                    "data.source",
+                    "data.path",
+                    "data.start",
+                    "data.end",
+                    "data.timeframe",
+                    "data.dataset_path",
+                    "data.mysql",
+                    "data.delta_base",
+                    "data.delta_prefix",
+                    "data.delta_exchange",
+                    "data.delta_market_type",
+                    "data.delta_quotes",
+                    "data.delta_min_coverage",
+                    "universe",
+                    "filters",
+                    "filter_rules",
+                    "filter_rules_config",
+                    "screening",
+                    "optimization.screening",
+                    "optimization.cache_features",
+                    "performance.initial_capital",
+                    "performance.capital_per_unit",
+                    "performance.stress_tests",
+                    "output.path",
+                    "output.format",
+                ],
+                "canonical_passthrough_supported": [
+                    "strategy.type",
+                    "strategy.params.asset_class",
+                    "strategy.params.grid",
+                    "strategy.params.execution_mode",
+                    "strategy.params.drawdown_reference",
+                    "strategy.params.tp_sl",
+                    "filters",
+                    "performance.initial_capital",
+                ],
+                "not_in_canonical": [
+                    "strategy.strategy_id",
+                    "data.source",
+                    "data.start",
+                    "data.end",
+                    "universe",
+                    "filter_rules",
+                    "filter_rules_config",
+                    "screening",
+                    "optimization.screening",
+                    "optimization.cache_features",
+                    "performance.capital_per_unit",
+                    "output.path",
+                    "output.format",
+                ],
+            },
+            "notes": [
+                "Legacy DCA supports richer strategy specs than canonical /runs.",
+                "Fields listed under legacy support are not automatically accepted as-is by canonical /runs.",
+                "Use canonical_passthrough_supported to know what can be forwarded without additional Python canonical wiring.",
+                "Use canonical /runs fields for production launcher payloads; use legacy section to plan incremental parity.",
+            ],
+        },
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -2149,6 +2308,13 @@ def runs_list_endpoint(
         page=page,
         page_size=page_size,
     )
+
+
+@fastapi_app.get('/runs/capabilities', response_model=Dict[str, Any])
+def runs_capabilities_endpoint(spec_type: str = Query(..., description="Canonical spec type")) -> Dict[str, Any]:
+    """Return canonical runtime capabilities for a given spec_type."""
+
+    return _canonical_runs_capabilities(spec_type)
 
 
 @fastapi_app.get('/runs/{run_id}', response_model=Dict[str, Any])

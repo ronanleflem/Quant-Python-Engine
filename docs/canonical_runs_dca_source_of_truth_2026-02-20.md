@@ -48,6 +48,7 @@ Runtime not-wired errors are returned as:
 ### `strategy`
 
 - `strategy.type`: required (`dca_equity` / `dca_etf`)
+- `strategy.params.asset_class`: supported (`CRYPTO` recommended for crypto symbols)
 - `strategy.params.grid` (explicit list of `{dd, weight}`): supported and preferred
 - `strategy.grid` presets:
   - `grid_balanced`: supported, mapped to internal `params.grid`
@@ -119,4 +120,3 @@ Not wired:
 - Prefer sending explicit `strategy.params.grid` instead of `strategy.grid` presets.
 - If UI exposes `grid_conservative` / `grid_aggressive`, convert them to explicit `params.grid` client-side.
 - Prefer explicit `tp_sl` object over preset strings.
-

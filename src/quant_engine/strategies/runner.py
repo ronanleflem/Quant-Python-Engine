@@ -445,6 +445,12 @@ def _delta_brokers(asset_class: Optional[str], spec: Mapping[str, Any]) -> List[
 def _fetch_from_delta(symbol: str, asset_class: Optional[str], spec: Mapping[str, Any]) -> Optional[pd.DataFrame]:
     base_uri = spec.get("delta_base") or os.getenv("DELTA_BASE_URI")
     if not base_uri or DeltaTable is None:
+        LOGGER.info(
+            "Delta source skipped for %s: base_uri_present=%s deltalake_available=%s",
+            symbol,
+            bool(base_uri),
+            DeltaTable is not None,
+        )
         if base_uri and DeltaTable is None:
             LOGGER.warning("deltalake package not installed; skipping Delta Lake source")
         return None
@@ -488,9 +494,26 @@ def _fetch_from_delta(symbol: str, asset_class: Optional[str], spec: Mapping[str
 
     storage_options = _build_delta_storage_options()
     table_name = spec.get("delta_table") or spec.get("delta_symbol") or symbol
+    LOGGER.info(
+        "Delta lookup config for %s: base_uri=%s asset_dir=%s table_name=%s brokers=%s market_type=%s exchanges=%s quotes=%s timeframe=%s start=%s end=%s min_coverage=%.1f%%",
+        symbol,
+        str(base_uri).rstrip("/"),
+        asset_dir,
+        table_name,
+        _delta_brokers(asset_class, spec),
+        market_type,
+        exchanges,
+        quotes,
+        timeframe,
+        start_str,
+        end_str,
+        min_coverage * 100,
+    )
     brokers = _delta_brokers(asset_class, spec)
     asset_upper = (asset_class_value or "").upper()
     use_exchange_dir = asset_upper != "CRYPTO"
+    attempted_paths: List[str] = []
+    attempt_count = 0
     for broker in (brokers or [""]):
         for quote in quotes:
             for exchange in exchanges:
@@ -507,7 +530,9 @@ def _fetch_from_delta(symbol: str, asset_class: Optional[str], spec: Mapping[str
                     parts.append(exchange.strip("/"))
                 parts.extend([quote.strip("/"), table_name])
                 table_path = "/".join(parts)
-                LOGGER.info("Trying Delta path: %s", table_path)
+                attempt_count += 1
+                attempted_paths.append(table_path)
+                LOGGER.info("Trying Delta path (%d): %s", attempt_count, table_path)
                 try:
                     dt = DeltaTable(table_path, storage_options=storage_options)
                     df = dt.to_pyarrow_table().to_pandas()
@@ -575,11 +600,14 @@ def _fetch_from_delta(symbol: str, asset_class: Optional[str], spec: Mapping[str
                     LOGGER.info("Sample missing dates for %s: %s", table_path, missing_sample[:20])
 
     LOGGER.warning(
-        "No Delta data for %s (asset_class=%s, asset_dir=%s); fallback to other sources",
+        "No Delta data for %s (asset_class=%s, asset_dir=%s, attempts=%d); fallback to other sources",
         symbol,
         (asset_class_value or "UNKNOWN"),
         asset_dir,
+        attempt_count,
     )
+    if attempted_paths:
+        LOGGER.info("Delta attempted paths for %s: %s", symbol, attempted_paths)
     return None
 
 

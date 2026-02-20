@@ -230,3 +230,40 @@ def test_run_detail_not_found(tmp_path, monkeypatch) -> None:
 
     resp = client.get("/runs/missing_run")
     assert resp.status_code == 404
+
+
+def test_runs_capabilities_returns_dca_runtime_matrix(tmp_path, monkeypatch) -> None:
+    client = _setup_db(tmp_path, monkeypatch)
+
+    resp = client.get("/runs/capabilities", params={"spec_type": "dca"})
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["spec_type"] == "dca"
+    assert body["catalog_version"] == "2026-02-02"
+    assert "fields" in body
+    assert "supported" in body["fields"]
+    assert "accepted_but_not_wired" in body["fields"]
+    assert "strategy.params.asset_class" in body["fields"]["supported"]
+    assert "strategy.params.tp_sl" in body["fields"]["supported"]
+    assert "performance.stress_tests" in body["fields"]["accepted_but_not_wired"]
+    assert body["presets"]["supported"]["strategy.grid"] == ["grid_balanced"]
+    assert "grid_conservative" in body["presets"]["not_supported"]["strategy.grid"]
+    assert "grid_aggressive" in body["presets"]["not_supported"]["strategy.grid"]
+    assert "legacy_dca" in body
+    assert "universe" in body["legacy_dca"]["fields"]["supported"]
+    assert "universe" in body["legacy_dca"]["fields"]["not_in_canonical"]
+    assert "strategy.strategy_id" in body["legacy_dca"]["fields"]["not_in_canonical"]
+    assert "canonical_passthrough_supported" in body["legacy_dca"]["fields"]
+    assert "strategy.params.asset_class" in body["legacy_dca"]["fields"]["canonical_passthrough_supported"]
+
+
+def test_runs_capabilities_rejects_unknown_spec_type(tmp_path, monkeypatch) -> None:
+    client = _setup_db(tmp_path, monkeypatch)
+
+    resp = client.get("/runs/capabilities", params={"spec_type": "backtest"})
+
+    assert resp.status_code == 422
+    body = resp.json()
+    assert body["errors"][0]["field"] == "spec_type"
+    assert body["errors"][0]["code"] == "unsupported_spec_type"

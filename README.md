@@ -751,9 +751,28 @@ Endpoints lifecycle (canonical runs):
 `GET /runs/{id}/result` -> terminal: { run_id, status, result?, error? }
 `GET /runs/{id}/result` -> non terminal: { run_id, status, message }
 `POST /runs/{id}/cancel` -> 200 idempotent, 409 si d??j?? terminal
+`GET /runs/capabilities?spec_type=dca` -> runtime capabilities matrix (supported vs accepted-but-not-wired)
 
 Canonical DCA source of truth (support matrix + payload rules):
 `docs/canonical_runs_dca_source_of_truth_2026-02-20.md`
+
+Delta troubleshooting (`Delta source skipped ... base_uri_present=False`):
+- Provide `data.delta_base` in spec or export `DELTA_BASE_URI`.
+- Optional env (especially for crypto):
+
+```powershell
+$env:DELTA_BASE_URI="s3://quant-delta-dev"
+$env:DELTA_PREFIX="delta"
+$env:DELTA_QUOTES="USDT,USD"
+$env:DELTA_MARKET_TYPE="SPOT"
+$env:DELTA_EXCHANGE="BINANCE"
+```
+
+Capabilities example:
+
+```bash
+curl.exe "http://127.0.0.1:8000/runs/capabilities?spec_type=dca" | python -m json.tool
+```
 
 
 #### Saisonalité (profil + optimisation Optuna)
