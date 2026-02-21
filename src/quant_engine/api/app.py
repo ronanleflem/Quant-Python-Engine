@@ -21,6 +21,7 @@ from pydantic import ValidationError
 from sqlalchemy import create_engine, text
 
 from ..core import spec as spec_module
+from ..backtest import runner as backtest_runner
 from ..core.spec import Spec
 from ..levels.runner import run_levels_build, run_levels_fill
 from ..levels.repo import select_levels as repo_select_levels
@@ -294,31 +295,125 @@ def _job_error_payload(code: str, message: str, *, details: List[Dict[str, Any]]
 def _canonical_backtest_unsupported_details(request: Dict[str, Any]) -> List[Dict[str, str]]:
     details: List[Dict[str, str]] = []
 
-    # Canonical backtest requests validate these blocks, but runtime wiring is not implemented yet.
-    if isinstance(request.get("signal"), dict):
-        details.append({"field": "signal", "reason": "accepted_but_not_wired"})
-
-    filters_block = request.get("filters")
-    if isinstance(filters_block, dict):
-        has_filters = bool(filters_block.get("filters"))
-        has_rules = bool(filters_block.get("rules"))
-        has_rules_cfg = filters_block.get("rules_config") is not None
-        if has_filters:
-            details.append({"field": "filters.filters", "reason": "accepted_but_not_wired"})
-        if has_rules:
-            details.append({"field": "filters.rules", "reason": "accepted_but_not_wired"})
-        if has_rules_cfg:
-            details.append({"field": "filters.rules_config", "reason": "accepted_but_not_wired"})
+    signal_block = request.get("signal")
+    if isinstance(signal_block, dict):
+        signal_type = str(signal_block.get("type") or "").strip().lower()
+        if signal_type and signal_type != "ema_cross":
+            details.append({"field": "signal", "reason": "accepted_but_not_wired"})
 
     strategy_block = request.get("strategy")
     if isinstance(strategy_block, dict):
         if strategy_block.get("name"):
             details.append({"field": "strategy.name", "reason": "accepted_but_not_wired"})
         params = strategy_block.get("params")
-        if isinstance(params, dict) and ("tp_sl" in params or "tpSl" in params):
-            details.append({"field": "strategy.params.tp_sl", "reason": "accepted_but_not_wired"})
+        if isinstance(params, dict):
+            _tp_sl_internal, tp_sl_supported = _canonical_backtest_tp_sl_to_internal(params)
+            if not tp_sl_supported:
+                details.append({"field": "strategy.params.tp_sl", "reason": "accepted_but_not_wired"})
 
     return details
+
+
+def _canonical_backtest_tp_sl_to_internal(params: Dict[str, Any]) -> tuple[Any, bool]:
+    tp_sl_raw = params.get("tp_sl", params.get("tpSl"))
+    if tp_sl_raw is None:
+        return None, True
+    if not isinstance(tp_sl_raw, dict):
+        return None, False
+    supported_keys = {
+        "atr_window",
+        "atr_period",
+        "atr_k",
+        "r_mult",
+        "slippage_bps",
+        "fee_bps",
+        "dynamic_sl",
+        "jitter",
+    }
+    if not any(key in tp_sl_raw for key in supported_keys):
+        return None, False
+    return dict(tp_sl_raw), True
+
+
+def _canonical_backtest_to_spec(request: Dict[str, Any]) -> Dict[str, Any]:
+    data_block = request.get("data") or {}
+    signal_block = request.get("signal") or {}
+
+    mapped_data: Dict[str, Any] = {
+        "symbol": data_block.get("symbol"),
+        "timeframe": data_block.get("timeframe"),
+        "start": data_block.get("start_date"),
+        "end": data_block.get("end_date"),
+    }
+    data_path = data_block.get("path") or data_block.get("dataset_path")
+    if isinstance(data_path, str) and data_path.strip():
+        mapped_data["source"] = "csv"
+        mapped_data["path"] = data_path
+    if isinstance(data_block.get("mysql"), dict):
+        mapped_data["mysql"] = data_block.get("mysql")
+    elif "path" not in mapped_data:
+        # Canonical backtest auto mode: enable strategy source resolution chain
+        # (Delta -> MySQL -> Java) when no explicit source is provided.
+        mapped_data["mysql_env"] = "QE_MARKETDATA_MYSQL_URL"
+
+    signal_params: Dict[str, Any] = {}
+    for key in ("fast", "slow", "require_crossing"):
+        if signal_block.get(key) is not None:
+            signal_params[key] = signal_block.get(key)
+
+    mapped: Dict[str, Any] = {
+        "data": mapped_data,
+        "signal": {
+            "type": signal_block.get("type"),
+            "params": signal_params,
+        },
+    }
+
+    strategy_block = request.get("strategy")
+    if isinstance(strategy_block, dict):
+        params = strategy_block.get("params")
+        if isinstance(params, dict):
+            tp_sl_internal, tp_sl_supported = _canonical_backtest_tp_sl_to_internal(params)
+            if tp_sl_supported and tp_sl_internal is not None:
+                mapped["tpsl"] = tp_sl_internal
+
+    filters_block = request.get("filters")
+    if isinstance(filters_block, dict):
+        if isinstance(filters_block.get("filters"), list):
+            mapped["filters"] = [
+                {"type": item.get("id"), "params": item.get("params", {})}
+                for item in filters_block.get("filters", [])
+                if isinstance(item, dict)
+            ]
+        if isinstance(filters_block.get("rules"), list):
+            mapped["filter_rules"] = [
+                {
+                    "type": item.get("id"),
+                    **({"mode": item.get("mode")} if "mode" in item else {}),
+                    **({"weight": item.get("weight")} if "weight" in item else {}),
+                    **({"enabled": item.get("enabled")} if "enabled" in item else {}),
+                    "params": item.get("params", {}),
+                }
+                for item in filters_block.get("rules", [])
+                if isinstance(item, dict)
+            ]
+        if isinstance(filters_block.get("rules_config"), dict):
+            mapped["filter_rules_config"] = dict(filters_block.get("rules_config", {}))
+
+    performance_block = request.get("performance")
+    if isinstance(performance_block, dict):
+        performance_spec: Dict[str, Any] = {}
+        if performance_block.get("initial_capital") is not None:
+            performance_spec["initial_capital"] = performance_block.get("initial_capital")
+        if performance_spec:
+            mapped["performance"] = performance_spec
+
+    if isinstance(request.get("output"), dict):
+        mapped["output"] = request.get("output")
+    if isinstance(request.get("persistence"), dict):
+        mapped["persistence"] = request.get("persistence")
+
+    return mapped
 
 
 def _canonical_dca_unsupported_details(request: Dict[str, Any]) -> List[Dict[str, str]]:
@@ -691,6 +786,13 @@ def _run_job_payload(job_type: str, payload: Any | None) -> Any:
                             "Feature not implemented for canonical backtest run",
                             details=details,
                         )
+                    spec = _canonical_backtest_to_spec(request)
+                    result = backtest_runner.run_backtest_from_spec(spec)
+                    return {
+                        "accepted": True,
+                        "spec_type": request.get("spec_type"),
+                        "result": result,
+                    }
                 if spec_type == "dca":
                     details = _canonical_dca_unsupported_details(request)
                     if details:
@@ -972,6 +1074,57 @@ def _canonical_job_defaults() -> tuple[int | None, int | None]:
 
 def _canonical_runs_capabilities(spec_type: str) -> Dict[str, Any]:
     normalized = str(spec_type or "").strip().lower()
+    if normalized == "backtest":
+        return {
+            "spec_type": "backtest",
+            "catalog_version": CANONICAL_CAPABILITIES_CATALOG_VERSION,
+            "fields": {
+                "supported": [
+                    "catalog_version",
+                    "request_id",
+                    "data.symbol",
+                    "data.timeframe",
+                    "data.start_date",
+                    "data.end_date",
+                    "data.dataset_path",
+                    "data.path",
+                    "data.mysql",
+                    "signal",
+                    "filters.filters",
+                    "filters.rules",
+                    "filters.rules_config",
+                    "strategy.name",
+                    "strategy.params.tp_sl",
+                    "performance.initial_capital",
+                    "performance.stress_tests",
+                    "output",
+                    "persistence",
+                ],
+                "accepted_but_not_wired": [
+                    "strategy.name",
+                    "performance.stress_tests",
+                ],
+            },
+            "presets": {
+                "supported": {
+                    "signal.type": ["ema_cross"],
+                },
+                "not_supported": {
+                    "signal.type": ["* (except ema_cross)"],
+                },
+            },
+            "runtime_rules": {
+                "execution_status": "partially_wired",
+                "failure_mode": "worker returns not_implemented_feature for accepted_but_not_wired blocks",
+                "details_source": "_canonical_backtest_unsupported_details",
+                "data_source_resolution": {
+                    "mode": "auto_when_no_explicit_source",
+                    "order": ["delta", "mysql", "java"],
+                    "explicit_source_priority": ["data.path|data.dataset_path", "data.mysql"],
+                },
+            },
+        }
+
     if normalized != "dca":
         raise ApiValidationException(
             single_validation_error("spec_type", "unsupported_spec_type", "Unsupported spec_type for capabilities")

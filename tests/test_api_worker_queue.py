@@ -171,9 +171,90 @@ def test_worker_marks_canonical_backtest_not_implemented(tmp_path, monkeypatch) 
     assert error["code"] == "not_implemented_feature"
     assert error["message"] == "Feature not implemented for canonical backtest run"
     fields = {item["field"] for item in error["details"]}
-    assert "signal" in fields
-    assert "filters.filters" in fields
     assert "strategy.name" in fields
+
+
+def test_worker_processes_canonical_backtest_with_runner(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("DB_SQLITE_PATH", str(tmp_path / "quant.db"))
+    reset_settings_cache()
+    observed = {}
+
+    def _fake_run_backtest(spec):
+        observed["spec"] = spec
+        return {"trades": [], "metrics": {"n_trades": 0}}
+
+    monkeypatch.setattr(api_app.backtest_runner, "run_backtest_from_spec", _fake_run_backtest)
+
+    response = api_app.enqueue_run_request(_canonical_payload())
+    result = worker_module.process_next_job()
+
+    assert result is not None
+    job = api_app._get_job(response.run_id)
+    assert job["status"] == api_app.JOB_STATUS_SUCCEEDED
+    assert observed["spec"]["data"]["symbol"] == "EURUSD"
+    assert observed["spec"]["data"]["start"] == "2025-01-01"
+    assert observed["spec"]["signal"]["type"] == "ema_cross"
+    assert observed["spec"]["signal"]["params"]["fast"] == 9
+    assert observed["spec"]["signal"]["params"]["slow"] == 21
+    assert observed["spec"]["data"]["mysql_env"] == "QE_MARKETDATA_MYSQL_URL"
+
+
+def test_worker_maps_canonical_backtest_filters_and_tp_sl(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("DB_SQLITE_PATH", str(tmp_path / "quant.db"))
+    reset_settings_cache()
+    observed = {}
+    payload = _canonical_payload()
+    payload["filters"] = {
+        "filters": [{"id": "ema_slope", "params": {"period": 20}}],
+        "rules": [{"id": "momentum_alignment", "mode": "soft", "weight": 0.6}],
+        "rules_config": {"min_score": 60, "min_score_pct": 70},
+    }
+    payload["strategy"] = {
+        "params": {
+            "tp_sl": {
+                "atr_window": 14,
+                "atr_k": 2.0,
+                "r_mult": 1.5,
+                "slippage_bps": 5,
+                "fee_bps": 2,
+            }
+        }
+    }
+
+    def _fake_run_backtest(spec):
+        observed["spec"] = spec
+        return {"trades": [], "metrics": {"n_trades": 0}}
+
+    monkeypatch.setattr(api_app.backtest_runner, "run_backtest_from_spec", _fake_run_backtest)
+
+    response = api_app.enqueue_run_request(payload)
+    result = worker_module.process_next_job()
+
+    assert result is not None
+    job = api_app._get_job(response.run_id)
+    assert job["status"] == api_app.JOB_STATUS_SUCCEEDED
+    assert observed["spec"]["filters"][0]["type"] == "ema_slope"
+    assert observed["spec"]["filter_rules"][0]["type"] == "momentum_alignment"
+    assert observed["spec"]["filter_rules_config"]["min_score"] == 60
+    assert observed["spec"]["tpsl"]["atr_window"] == 14
+    assert observed["spec"]["tpsl"]["r_mult"] == 1.5
+
+
+def test_worker_marks_canonical_backtest_not_implemented_for_unwired_tp_sl(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("DB_SQLITE_PATH", str(tmp_path / "quant.db"))
+    reset_settings_cache()
+    payload = _canonical_payload()
+    payload["strategy"] = {"params": {"tp_sl": "tp_2_sl_1"}}
+    response = api_app.enqueue_run_request(payload)
+
+    result = worker_module.process_next_job()
+
+    assert result is None
+    job = api_app._get_job(response.run_id)
+    assert job["status"] == api_app.JOB_STATUS_FAILED_CANONICAL
+    error = job["result"]["error"]
+    assert error["code"] == "not_implemented_feature"
+    fields = {item["field"] for item in error["details"]}
     assert "strategy.params.tp_sl" in fields
 
 

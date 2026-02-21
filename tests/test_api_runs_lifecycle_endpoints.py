@@ -139,10 +139,26 @@ def test_run_result_returns_not_implemented_error_details(tmp_path, monkeypatch)
     assert body["status"] == api_app.JOB_STATUS_FAILED_CANONICAL
     assert body["error"]["code"] == "not_implemented_feature"
     fields = {item["field"] for item in body["error"]["details"]}
-    assert "signal" in fields
-    assert "filters.filters" in fields
     assert "strategy.name" in fields
-    assert "strategy.params.tp_sl" in fields
+
+
+def test_run_result_returns_canonical_backtest_success_payload(tmp_path, monkeypatch) -> None:
+    client = _setup_db(tmp_path, monkeypatch)
+
+    def _fake_run_backtest(spec):
+        return {"trades": [], "metrics": {"n_trades": 0}, "symbol": spec["data"]["symbol"]}
+
+    monkeypatch.setattr(api_app.backtest_runner, "run_backtest_from_spec", _fake_run_backtest)
+    response = api_app.enqueue_run_request(_canonical_payload())
+    worker_module.process_next_job()
+
+    resp = client.get(f"/runs/{response.run_id}/result")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == api_app.JOB_STATUS_SUCCEEDED
+    assert body["result"]["accepted"] is True
+    assert body["result"]["spec_type"] == "backtest"
+    assert body["result"]["result"]["symbol"] == "EURUSD"
 
 
 def test_run_result_returns_canonical_dca_success_payload(tmp_path, monkeypatch) -> None:
@@ -273,9 +289,44 @@ def test_runs_capabilities_returns_dca_runtime_matrix(tmp_path, monkeypatch) -> 
 def test_runs_capabilities_rejects_unknown_spec_type(tmp_path, monkeypatch) -> None:
     client = _setup_db(tmp_path, monkeypatch)
 
-    resp = client.get("/runs/capabilities", params={"spec_type": "backtest"})
+    resp = client.get("/runs/capabilities", params={"spec_type": "market_stats"})
 
     assert resp.status_code == 422
     body = resp.json()
     assert body["errors"][0]["field"] == "spec_type"
     assert body["errors"][0]["code"] == "unsupported_spec_type"
+
+
+def test_runs_capabilities_returns_backtest_runtime_matrix(tmp_path, monkeypatch) -> None:
+    client = _setup_db(tmp_path, monkeypatch)
+
+    resp = client.get("/runs/capabilities", params={"spec_type": "backtest"})
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["spec_type"] == "backtest"
+    assert body["catalog_version"] == "2026-02-02"
+    assert "signal" in body["fields"]["supported"]
+    assert "filters.rules" in body["fields"]["supported"]
+    assert "strategy.params.tp_sl" in body["fields"]["supported"]
+    assert "strategy.name" in body["fields"]["accepted_but_not_wired"]
+    assert body["runtime_rules"]["execution_status"] == "partially_wired"
+    assert body["runtime_rules"]["data_source_resolution"]["mode"] == "auto_when_no_explicit_source"
+    assert body["runtime_rules"]["data_source_resolution"]["order"] == ["delta", "mysql", "java"]
+
+
+def test_run_result_returns_canonical_backtest_unwired_tp_sl_error(tmp_path, monkeypatch) -> None:
+    client = _setup_db(tmp_path, monkeypatch)
+    payload = _canonical_payload()
+    payload["strategy"] = {"params": {"tp_sl": "tp_2_sl_1"}}
+    response = api_app.enqueue_run_request(payload)
+
+    worker_module.process_next_job()
+
+    resp = client.get(f"/runs/{response.run_id}/result")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == api_app.JOB_STATUS_FAILED_CANONICAL
+    assert body["error"]["code"] == "not_implemented_feature"
+    fields = {item["field"] for item in body["error"]["details"]}
+    assert "strategy.params.tp_sl" in fields

@@ -67,6 +67,9 @@ poetry run uvicorn quant_engine.api.app:app --reload --app-dir src
 - Runtime priority is `universe` then fallback `data.symbol`.
 - Capabilities endpoint: `GET /runs/capabilities?spec_type=dca`.
 
+### Canonical Backtest source of truth (`/runs`)
+- Runtime contract and wiring status: `docs/canonical_runs_backtest_source_of_truth_2026-02-20.md`.
+
 ## CLI
 - **run-local**
   ```bash
