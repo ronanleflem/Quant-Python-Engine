@@ -338,6 +338,7 @@ def _canonical_backtest_tp_sl_to_internal(params: Dict[str, Any]) -> tuple[Any, 
 def _canonical_backtest_to_spec(request: Dict[str, Any]) -> Dict[str, Any]:
     data_block = request.get("data") or {}
     signal_block = request.get("signal") or {}
+    strategy_block = request.get("strategy")
 
     mapped_data: Dict[str, Any] = {
         "symbol": data_block.get("symbol"),
@@ -369,10 +370,12 @@ def _canonical_backtest_to_spec(request: Dict[str, Any]) -> Dict[str, Any]:
         },
     }
 
-    strategy_block = request.get("strategy")
     if isinstance(strategy_block, dict):
         params = strategy_block.get("params")
         if isinstance(params, dict):
+            asset_class = params.get("asset_class")
+            if isinstance(asset_class, str) and asset_class.strip():
+                mapped["strategy"] = {"asset_class": asset_class.strip().upper()}
             tp_sl_internal, tp_sl_supported = _canonical_backtest_tp_sl_to_internal(params)
             if tp_sl_supported and tp_sl_internal is not None:
                 mapped["tpsl"] = tp_sl_internal

@@ -211,6 +211,7 @@ def test_worker_maps_canonical_backtest_filters_and_tp_sl(tmp_path, monkeypatch)
     }
     payload["strategy"] = {
         "params": {
+            "asset_class": "CRYPTO",
             "tp_sl": {
                 "atr_window": 14,
                 "atr_k": 2.0,
@@ -236,6 +237,7 @@ def test_worker_maps_canonical_backtest_filters_and_tp_sl(tmp_path, monkeypatch)
     assert observed["spec"]["filters"][0]["type"] == "ema_slope"
     assert observed["spec"]["filter_rules"][0]["type"] == "momentum_alignment"
     assert observed["spec"]["filter_rules_config"]["min_score"] == 60
+    assert observed["spec"]["strategy"]["asset_class"] == "CRYPTO"
     assert observed["spec"]["tpsl"]["atr_window"] == 14
     assert observed["spec"]["tpsl"]["r_mult"] == 1.5
 

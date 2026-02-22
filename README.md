@@ -742,6 +742,19 @@ Exemple recommande (meme variable dans les 2 terminaux):
 $env:DB_SQLITE_PATH="C:\Users\ronan\Desktop\Quant-Engine-Python\Quant-Python-Engine\.db\quant.db"
 ```
 
+Package minimal recommande (API + worker + MySQL read + Delta):
+
+```powershell
+$env:QE_MARKETDATA_MYSQL_URL="mysql+pymysql://restadmin:ronanronan77@127.0.0.1:3306/restdb?charset=utf8mb4"
+$env:DB_DSN="sqlite:///.db/quant.db"
+$env:DB_SQLITE_PATH="C:\Users\ronan\Desktop\Quant-Engine-Python\Quant-Python-Engine\.db\quant.db"
+$env:DELTA_BASE_URI="s3://quant-delta-dev"
+```
+
+Notes:
+- `DB_SQLITE_PATH` doit etre identique dans le terminal API et le terminal worker.
+- `DELTA_BASE_URI` est necessaire si tu veux activer le fallback Delta (`base_uri_present=True` dans les logs).
+
 - Cycle de vie attendu: `QUEUED` -> `RUNNING` -> `SUCCEEDED | FAILED | CANCELED`.
 - Cancel (best-effort) :
 
