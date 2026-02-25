@@ -308,8 +308,10 @@ def test_runs_capabilities_returns_market_stats_runtime_matrix(tmp_path, monkeyp
     assert body["spec_type"] == "market_stats"
     assert "data.asset_class" in body["fields"]["supported"]
     assert "data.currency" in body["fields"]["supported"]
+    assert "data.symbols" in body["fields"]["supported"]
     assert "stats.validation" in body["fields"]["supported"]
-    assert body["runtime_rules"]["execution_status"] == "accepted_not_wired"
+    assert body["runtime_rules"]["symbol_resolution"] == "data.symbols has priority over data.symbol"
+    assert body["runtime_rules"]["execution_status"] == "partially_wired"
 
 
 def test_runs_capabilities_returns_seasonality_runtime_matrix(tmp_path, monkeypatch) -> None:
@@ -322,8 +324,10 @@ def test_runs_capabilities_returns_seasonality_runtime_matrix(tmp_path, monkeypa
     assert body["spec_type"] == "seasonality"
     assert "data.asset_class" in body["fields"]["supported"]
     assert "data.currency" in body["fields"]["supported"]
+    assert "data.symbols" in body["fields"]["supported"]
     assert "seasonality.profile" in body["fields"]["supported"]
-    assert body["runtime_rules"]["execution_status"] == "accepted_not_wired"
+    assert body["runtime_rules"]["symbol_resolution"] == "data.symbols has priority over data.symbol"
+    assert body["runtime_rules"]["execution_status"] == "partially_wired"
 
 
 def test_runs_capabilities_returns_backtest_runtime_matrix(tmp_path, monkeypatch) -> None:

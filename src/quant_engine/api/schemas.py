@@ -70,6 +70,20 @@ class DataInputSpec(BaseModel):
     timeframe: str
     start: str
     end: str
+    asset_class: Optional[str] = None
+    currency: Optional[str] = None
+    delta_base: Optional[str] = None
+    delta_prefix: Optional[str] = None
+    delta_exchange: Optional[str] = None
+    delta_market_type: Optional[str] = None
+    delta_quotes: Optional[str] = None
+    delta_broker: Optional[str] = None
+    delta_brokers: Optional[List[str]] = None
+    delta_asset_dir: Optional[str] = None
+    delta_table: Optional[str] = None
+    delta_symbol: Optional[str] = None
+    delta_calendar: Optional[str] = None
+    delta_min_coverage: Optional[float] = None
 
 
 class StatsDataSpec(DataInputSpec):

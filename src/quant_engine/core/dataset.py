@@ -232,7 +232,7 @@ def load_dataset(spec: DataSpec) -> List[Dict]:
 
 
 def load_ohlcv(spec_data) -> pd.DataFrame:
-    """Load OHLCV data from CSV or MySQL."""
+    """Load OHLCV data from CSV, Delta, or MySQL (in that order)."""
 
     dataset_path = getattr(spec_data, "dataset_path", None)
     if dataset_path:
@@ -246,6 +246,54 @@ def load_ohlcv(spec_data) -> pd.DataFrame:
         df = _normalize_dataframe_timestamps(df)
         df = _ensure_session_column(df)
         return df.sort_values(["symbol", "ts"]).reset_index(drop=True)
+
+    symbols = [str(s).strip() for s in list(getattr(spec_data, "symbols", []) or []) if str(s).strip()]
+    if symbols:
+        # Delta-first lookup for canonical workflows (stats/seasonality included).
+        from ..strategies import runner as strategies_runner
+
+        delta_spec: Dict[str, Any] = {
+            "timeframe": getattr(spec_data, "timeframe", None),
+            "start": getattr(spec_data, "start", None),
+            "end": getattr(spec_data, "end", None),
+        }
+        for key in (
+            "asset_class",
+            "currency",
+            "delta_base",
+            "delta_prefix",
+            "delta_exchange",
+            "delta_market_type",
+            "delta_quotes",
+            "delta_broker",
+            "delta_brokers",
+            "delta_asset_dir",
+            "delta_table",
+            "delta_symbol",
+            "delta_calendar",
+            "delta_min_coverage",
+        ):
+            value = getattr(spec_data, key, None)
+            if value is not None:
+                delta_spec[key] = value
+
+        asset_class = getattr(spec_data, "asset_class", None)
+        delta_frames: List[pd.DataFrame] = []
+        for symbol in symbols:
+            delta_df = strategies_runner._fetch_from_delta(symbol, asset_class, delta_spec)
+            if delta_df is None or delta_df.empty:
+                continue
+            df_symbol = delta_df.copy()
+            if "symbol" not in df_symbol.columns:
+                df_symbol["symbol"] = symbol
+            delta_frames.append(df_symbol)
+
+        if delta_frames:
+            df = pd.concat(delta_frames, ignore_index=True)
+            df = _normalize_dataframe_columns(df)
+            df = _normalize_dataframe_timestamps(df)
+            df = _ensure_session_column(df)
+            return df.sort_values(["symbol", "ts"]).reset_index(drop=True)
 
     mysql_spec = getattr(spec_data, "mysql", None)
     if mysql_spec:

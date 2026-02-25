@@ -69,6 +69,39 @@ def _canonical_dca_payload_universe_only() -> dict:
     }
 
 
+def _canonical_market_stats_payload_symbols_only() -> dict:
+    return {
+        "spec_type": "market_stats",
+        "catalog_version": "v1",
+        "data": {
+            "symbols": ["BTCUSDT", "ETHUSDT"],
+            "timeframe": "1h",
+            "path": "tests/data/ohlcv_ts.csv",
+        },
+        "stats": {
+            "event": {"id": "always_true", "params": {}},
+            "condition": {"id": "day_of_week", "params": {}},
+            "target": {"id": "up_next_bar", "params": {}},
+        },
+    }
+
+
+def _canonical_seasonality_payload_symbols_only() -> dict:
+    return {
+        "spec_type": "seasonality",
+        "catalog_version": "v1",
+        "data": {
+            "symbols": ["SPY", "QQQ"],
+            "timeframe": "1d",
+            "path": "tests/data/ohlcv_ts.csv",
+        },
+        "seasonality": {
+            "profile": {"id": "by_hour"},
+            "signal": {"method": "threshold"},
+        },
+    }
+
+
 def test_runs_submit_enqueues_request(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("DB_SQLITE_PATH", str(tmp_path / "quant.db"))
     reset_settings_cache()
@@ -109,6 +142,30 @@ def test_runs_submit_enqueues_dca_request(tmp_path, monkeypatch) -> None:
     assert payload["reused"] is False
     assert isinstance(payload["run_id"], str)
     assert payload["run_id"]
+
+
+def test_runs_submit_enqueues_market_stats_symbols_only_request(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("DB_SQLITE_PATH", str(tmp_path / "quant.db"))
+    reset_settings_cache()
+    client = TestClient(api_app.fastapi_app)
+
+    response = client.post("/runs", json=_canonical_market_stats_payload_symbols_only())
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "QUEUED"
+
+
+def test_runs_submit_enqueues_seasonality_symbols_only_request(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("DB_SQLITE_PATH", str(tmp_path / "quant.db"))
+    reset_settings_cache()
+    client = TestClient(api_app.fastapi_app)
+
+    response = client.post("/runs", json=_canonical_seasonality_payload_symbols_only())
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "QUEUED"
 
 
 def test_runs_submit_reuses_existing_request_id(tmp_path, monkeypatch) -> None:

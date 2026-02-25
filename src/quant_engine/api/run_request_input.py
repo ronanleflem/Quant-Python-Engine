@@ -23,7 +23,7 @@ class DataRangeBlock(StrictModel):
 
 
 class MarketStatsDataBlock(StrictModel):
-    symbol: str
+    symbol: Optional[str] = None
     timeframe: str
     asset_class: Optional[str] = Field(default=None, validation_alias=AliasChoices("asset_class", "assetClass"))
     currency: Optional[str] = None
@@ -40,7 +40,7 @@ class MarketStatsDataBlock(StrictModel):
 
 
 class SeasonalityDataBlock(StrictModel):
-    symbol: str
+    symbol: Optional[str] = None
     timeframe: str
     asset_class: Optional[str] = Field(default=None, validation_alias=AliasChoices("asset_class", "assetClass"))
     currency: Optional[str] = None
@@ -195,11 +195,27 @@ class MarketStatsRunRequest(RunRequestCommon):
     data: MarketStatsDataBlock
     stats: MarketStatsBlock
 
+    @model_validator(mode="after")
+    def _validate_symbol_or_symbols(self) -> "MarketStatsRunRequest":
+        has_symbol = bool((self.data.symbol or "").strip()) if self.data is not None else False
+        has_symbols = bool(self.data.symbols) if self.data is not None else False
+        if not has_symbol and not has_symbols:
+            raise ValueError("market_stats requires data.symbol or data.symbols")
+        return self
+
 
 class SeasonalityRunRequest(RunRequestCommon):
     spec_type: Literal["seasonality"]
     data: SeasonalityDataBlock
     seasonality: SeasonalityBlock
+
+    @model_validator(mode="after")
+    def _validate_symbol_or_symbols(self) -> "SeasonalityRunRequest":
+        has_symbol = bool((self.data.symbol or "").strip()) if self.data is not None else False
+        has_symbols = bool(self.data.symbols) if self.data is not None else False
+        if not has_symbol and not has_symbols:
+            raise ValueError("seasonality requires data.symbol or data.symbols")
+        return self
 
 
 class StressTestsRunRequest(RunRequestCommon):

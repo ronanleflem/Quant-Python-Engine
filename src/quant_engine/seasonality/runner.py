@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import logging
 from pathlib import Path
 from typing import Any, Dict, List, Sequence
 
@@ -25,6 +26,8 @@ from ..persistence.repo import (
     SeasonalityRunsRepository,
 )
 from . import compute, profiles, spec
+
+logger = logging.getLogger(__name__)
 
 
 def _require_polars() -> None:
@@ -457,7 +460,18 @@ def run(spec_model: SeasonalitySpec) -> Dict[str, Any]:
 
     use_polars = pl is not None
     cfg = spec.normalise(spec_model)
+    logger.info(
+        "Seasonality run started | symbols=%s timeframe=%s source_path=%s mysql=%s use_polars=%s persistence=%s artifacts=%s",
+        list(spec_model.data.symbols or []),
+        cfg.timeframe,
+        spec_model.data.dataset_path,
+        bool(spec_model.data.mysql),
+        use_polars,
+        bool(cfg.persistence.enabled),
+        bool(cfg.artifacts.out_dir),
+    )
     df_source = load_ohlcv(spec_model.data)
+    logger.info("Seasonality data loaded | rows=%s", len(df_source))
     rows: List[Dict[str, Any]] = []
     for record in df_source.to_dict("records"):
         rec = dict(record)
@@ -472,6 +486,7 @@ def run(spec_model: SeasonalitySpec) -> Dict[str, Any]:
     if cfg.artifacts.out_dir:
         artifact_root = Path(cfg.artifacts.out_dir)
         artifact_root.mkdir(parents=True, exist_ok=True)
+        logger.info("Seasonality artifacts root prepared | out_dir=%s", artifact_root)
 
     run_id: str | None = None
     if cfg.persistence.enabled:
@@ -485,6 +500,7 @@ def run(spec_model: SeasonalitySpec) -> Dict[str, Any]:
                 out_dir=str(artifact_root) if artifact_root is not None else None,
                 status="running",
             )
+        logger.info("Seasonality persistence run created | run_id=%s", run_id)
 
     if cfg.validation.folds > 1:
         folds = splitter.generate_folds(
@@ -499,6 +515,7 @@ def run(spec_model: SeasonalitySpec) -> Dict[str, Any]:
 
     if not folds:
         folds = [{"train": rows, "test": rows}]
+    logger.info("Seasonality split plan | folds=%s", len(folds))
 
     best_result: FoldResult | None = None
     best_profiles_df: "pl.DataFrame" | None = None
@@ -577,6 +594,12 @@ def run(spec_model: SeasonalitySpec) -> Dict[str, Any]:
                     "rules": rules.to_serialisable(),
                 }
                 fold_summaries.append(fold_summary)
+                logger.info(
+                    "Seasonality fold computed | fold=%s trades=%s sharpe=%s",
+                    idx,
+                    metrics.get("n_trades", 0),
+                    metrics.get("sharpe"),
+                )
 
                 meets_min_trades = metrics["n_trades"] >= cfg.validation.min_trades
                 is_better = (
@@ -623,6 +646,7 @@ def run(spec_model: SeasonalitySpec) -> Dict[str, Any]:
                     )
 
             if best_result is None:
+                logger.info("Seasonality run completed without eligible best fold")
                 result_payload = {
                     "best_metrics": {},
                     "active_bins": {},
@@ -654,8 +678,10 @@ def run(spec_model: SeasonalitySpec) -> Dict[str, Any]:
                 best_summary_for_db = dict(result_payload)
                 if cfg.persistence.enabled and best_profiles_df is not None:
                     profiles_records = _profiles_to_records(best_profiles_df, cfg)
+                    logger.info("Seasonality profiles prepared for persistence | rows=%s", len(profiles_records))
     except Exception:
         run_status = "failed"
+        logger.exception("Seasonality run failed")
         raise
     finally:
         if cfg.persistence.enabled and run_id is not None:
@@ -669,9 +695,16 @@ def run(spec_model: SeasonalitySpec) -> Dict[str, Any]:
                 if run_status == "completed" and profiles_records:
                     profiles_repo = SeasonalityProfilesRepository(conn)
                     profiles_repo.bulk_upsert(profiles_records)
+            logger.info(
+                "Seasonality persistence finalized | run_id=%s status=%s profiles_rows=%s",
+                run_id,
+                run_status,
+                len(profiles_records),
+            )
 
     if run_id is not None:
         result_payload = dict(result_payload)
         result_payload["run_id"] = run_id
 
+    logger.info("Seasonality run completed | run_id=%s folds=%s", run_id, len(fold_summaries))
     return result_payload

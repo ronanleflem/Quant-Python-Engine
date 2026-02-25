@@ -93,7 +93,7 @@ def recover_stale_jobs(
         if (now - started_at).total_seconds() <= timeout_seconds:
             continue
         job_id = row["job_id"]
-        if row["cancel_requested"]:
+        if api_app._is_true_flag(row["cancel_requested"]):
             api_app._mark_canceled(job_id, message="Run canceled (stale)")
             recovered += 1
             continue
@@ -140,7 +140,7 @@ def process_next_job(
     job_id = str(job["job_id"])
     if on_started is not None:
         on_started(job_id)
-    if job.get("cancel_requested"):
+    if api_app._is_true_flag(job.get("cancel_requested")):
         api_app._mark_canceled(job_id)
         return None
     attempts = int(job.get("attempts") or 0)
@@ -176,7 +176,7 @@ def process_next_job(
         api_app._update_job_status(job_id, failure_status, error=error_message)
         api_app._update_job_error_result(job_id, result, status=failure_status)
         return None
-    if api_app._get_job(job_id).get("cancel_requested"):
+    if api_app._is_true_flag(api_app._get_job(job_id).get("cancel_requested")):
         api_app._mark_canceled(job_id)
         return None
     payload_out = api_app._build_job_result(job.get("job_type"), job_id, result)

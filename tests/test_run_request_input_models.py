@@ -132,3 +132,83 @@ def test_dca_rejects_when_symbol_and_universe_missing() -> None:
         validate_run_request_input(payload)
 
     assert "dca requires data.symbol or universe" in str(exc_info.value)
+
+
+def test_market_stats_accepts_symbols_without_symbol() -> None:
+    payload = {
+        "spec_type": "market_stats",
+        "catalog_version": "v1",
+        "data": {
+            "symbols": ["BTCUSDT", "ETHUSDT"],
+            "timeframe": "1h",
+        },
+        "stats": {
+            "event": {"id": "always_true"},
+            "condition": {"id": "day_of_week"},
+            "target": {"id": "up_next_bar"},
+        },
+    }
+
+    parsed = validate_run_request_input(payload)
+    assert parsed.spec_type == "market_stats"
+    assert parsed.data.symbol is None
+    assert parsed.data.symbols == ["BTCUSDT", "ETHUSDT"]
+
+
+def test_market_stats_rejects_when_symbol_and_symbols_missing() -> None:
+    payload = {
+        "spec_type": "market_stats",
+        "catalog_version": "v1",
+        "data": {
+            "timeframe": "1h",
+        },
+        "stats": {
+            "event": {"id": "always_true"},
+            "condition": {"id": "day_of_week"},
+            "target": {"id": "up_next_bar"},
+        },
+    }
+
+    with pytest.raises(ValidationError) as exc_info:
+        validate_run_request_input(payload)
+
+    assert "market_stats requires data.symbol or data.symbols" in str(exc_info.value)
+
+
+def test_seasonality_accepts_symbols_without_symbol() -> None:
+    payload = {
+        "spec_type": "seasonality",
+        "catalog_version": "v1",
+        "data": {
+            "symbols": ["SPY", "QQQ"],
+            "timeframe": "1d",
+        },
+        "seasonality": {
+            "profile": {"id": "by_hour"},
+            "signal": {"method": "threshold"},
+        },
+    }
+
+    parsed = validate_run_request_input(payload)
+    assert parsed.spec_type == "seasonality"
+    assert parsed.data.symbol is None
+    assert parsed.data.symbols == ["SPY", "QQQ"]
+
+
+def test_seasonality_rejects_when_symbol_and_symbols_missing() -> None:
+    payload = {
+        "spec_type": "seasonality",
+        "catalog_version": "v1",
+        "data": {
+            "timeframe": "1d",
+        },
+        "seasonality": {
+            "profile": {"id": "by_hour"},
+            "signal": {"method": "threshold"},
+        },
+    }
+
+    with pytest.raises(ValidationError) as exc_info:
+        validate_run_request_input(payload)
+
+    assert "seasonality requires data.symbol or data.symbols" in str(exc_info.value)

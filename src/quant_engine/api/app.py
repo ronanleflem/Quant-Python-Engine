@@ -10,6 +10,8 @@ import json
 import os
 import time
 import threading
+import re
+import logging
 from dataclasses import asdict, is_dataclass
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Sequence
@@ -28,7 +30,7 @@ from ..levels.repo import select_levels as repo_select_levels
 from ..levels.schemas import LevelsBuildSpec
 from ..optimize.runner import run as run_optimisation
 from ..io import ids
-from ..persistence import db
+from ..persistence import db, RunsRepository, MetricsRepository, TrialsRepository
 from ..stats import runner as stats_runner
 from ..stats import conditions as stats_conditions
 from ..stats.estimators import freq_with_wilson
@@ -45,6 +47,8 @@ from .validation_errors import (
     single_validation_error,
 )
 from .metrics import METRICS
+
+logger = logging.getLogger(__name__)
 
 JOB_TYPE_OPTIMIZATION = "optimization"
 JOB_TYPE_STATS = "stats"
@@ -114,6 +118,25 @@ def _decode_json(payload: Any) -> Any:
         except json.JSONDecodeError:
             return payload
     return payload
+
+
+def _is_true_flag(value: Any) -> bool:
+    """Normalize DB flags to boolean (supports MySQL BIT values as bytes)."""
+    if value is None:
+        return False
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value != 0
+    if isinstance(value, (bytes, bytearray)):
+        return any(b != 0 for b in value)
+    if isinstance(value, str):
+        text = value.strip().lower()
+        if text in {"1", "true", "t", "yes", "y", "on"}:
+            return True
+        if text in {"0", "false", "f", "no", "n", "off", ""}:
+            return False
+    return bool(value)
 
 
 def _init_job(
@@ -685,6 +708,296 @@ def _canonical_dca_to_strategy_spec(request: Dict[str, Any]) -> Dict[str, Any]:
     return spec
 
 
+def _timeframe_to_timedelta(timeframe: str) -> Optional[Any]:
+    raw = str(timeframe or "").strip().lower()
+    match = re.fullmatch(r"(\d+)\s*([mhdw])", raw)
+    if not match:
+        return None
+    amount = int(match.group(1))
+    unit = match.group(2)
+    if amount <= 0:
+        return None
+    import pandas as pd  # type: ignore
+
+    if unit == "m":
+        return pd.Timedelta(minutes=amount)
+    if unit == "h":
+        return pd.Timedelta(hours=amount)
+    if unit == "d":
+        return pd.Timedelta(days=amount)
+    if unit == "w":
+        return pd.Timedelta(weeks=amount)
+    return None
+
+
+def _resolve_canonical_symbols(data_block: Dict[str, Any], *, spec_type: str) -> List[str]:
+    symbols_raw = data_block.get("symbols")
+    if isinstance(symbols_raw, list):
+        resolved = [str(item).strip() for item in symbols_raw if str(item).strip()]
+        if resolved:
+            return resolved
+    symbol = str(data_block.get("symbol") or "").strip()
+    if symbol:
+        return [symbol]
+    raise ValueError(f"{spec_type} requires data.symbol or data.symbols")
+
+
+def _canonical_market_stats_to_spec(request: Dict[str, Any]) -> Dict[str, Any]:
+    import pandas as pd  # type: ignore
+
+    data_block = request.get("data") or {}
+    stats_block = request.get("stats") or {}
+
+    timeframe = str(data_block.get("timeframe") or "").strip()
+    symbols = _resolve_canonical_symbols(data_block, spec_type="market_stats")
+    if not timeframe:
+        raise ValueError("market_stats requires data.timeframe")
+
+    lookback_raw = data_block.get("lookback")
+    try:
+        lookback = int(lookback_raw) if lookback_raw is not None else 500
+    except Exception:
+        lookback = 500
+    lookback = max(1, lookback)
+
+    end_ts = pd.Timestamp.now(tz="UTC")
+    step = _timeframe_to_timedelta(timeframe) or pd.Timedelta(hours=1)
+    start_ts = end_ts - (step * lookback)
+
+    mapped_data: Dict[str, Any] = {
+        "symbols": symbols,
+        "timeframe": timeframe,
+        "start": start_ts.isoformat(),
+        "end": end_ts.isoformat(),
+    }
+    if isinstance(data_block.get("asset_class"), str) and data_block.get("asset_class").strip():
+        mapped_data["asset_class"] = data_block.get("asset_class").strip().upper()
+    if isinstance(data_block.get("currency"), str) and data_block.get("currency").strip():
+        currency = data_block.get("currency").strip().upper()
+        mapped_data["currency"] = currency
+        mapped_data["delta_quotes"] = currency
+    for key in (
+        "delta_base",
+        "delta_prefix",
+        "delta_exchange",
+        "delta_market_type",
+        "delta_quotes",
+        "delta_broker",
+        "delta_brokers",
+        "delta_asset_dir",
+        "delta_table",
+        "delta_symbol",
+        "delta_calendar",
+        "delta_min_coverage",
+    ):
+        if data_block.get(key) is not None:
+            mapped_data[key] = data_block.get(key)
+    data_path = data_block.get("path") or data_block.get("dataset_path")
+    if isinstance(data_path, str) and data_path.strip():
+        mapped_data["dataset_path"] = data_path.strip()
+    if isinstance(data_block.get("mysql"), dict):
+        mapped_data["mysql"] = data_block.get("mysql")
+
+    def _leaf_to_item(leaf: Any) -> Dict[str, Any]:
+        if not isinstance(leaf, dict):
+            return {}
+        return {
+            "name": leaf.get("id"),
+            "params": leaf.get("params", {}) if isinstance(leaf.get("params"), dict) else {},
+        }
+
+    mapped: Dict[str, Any] = {
+        "data": mapped_data,
+        "events": [_leaf_to_item(stats_block.get("event"))],
+        "conditions": [_leaf_to_item(stats_block.get("condition"))],
+        "targets": [_leaf_to_item(stats_block.get("target"))],
+    }
+
+    validation_block = stats_block.get("validation")
+    if isinstance(validation_block, dict):
+        mapped["validation"] = {
+            "train_months": validation_block.get("train_months"),
+            "test_months": validation_block.get("test_months"),
+            "folds": validation_block.get("folds"),
+            "embargo_days": validation_block.get("embargo_days"),
+        }
+
+    output_block = request.get("output")
+    if isinstance(output_block, dict):
+        out_dir = output_block.get("out_dir")
+        if isinstance(out_dir, str) and out_dir.strip():
+            mapped["artifacts"] = {"out_dir": out_dir.strip()}
+
+    persistence_block = request.get("persistence")
+    if isinstance(persistence_block, dict):
+        mapped["persistence"] = {
+            "enabled": bool(persistence_block.get("enabled", False)),
+            "spec_id": persistence_block.get("spec_id"),
+            "dataset_id": persistence_block.get("dataset_id"),
+        }
+
+    return mapped
+
+
+def _canonical_seasonality_method(method: Any) -> str:
+    raw = str(method or "").strip().lower()
+    if raw == "topk":
+        return "topk"
+    if raw in {"threshold", "zscore", "percentile"}:
+        return "threshold"
+    return "threshold"
+
+
+def _canonical_seasonality_combine(combine: Any) -> str:
+    raw = str(combine or "").strip().lower()
+    if raw in {"and", "or", "sum"}:
+        return raw
+    if raw == "vote":
+        return "or"
+    if raw in {"mean", "weighted"}:
+        return "sum"
+    return "and"
+
+
+def _canonical_seasonality_measure(measure: Any) -> str:
+    raw = str(measure or "").strip().lower()
+    if raw in {"direction", "hit_rate"}:
+        return "direction"
+    if raw in {"return", "avg_return", "median_return"}:
+        return "return"
+    return "direction"
+
+
+def _canonical_seasonality_profile_flags(profile_id: Any) -> Dict[str, bool]:
+    raw = str(profile_id or "").strip().lower()
+    flags = {
+        "by_hour": False,
+        "by_dow": False,
+        "by_month": False,
+        "by_session": False,
+        "by_month_start": False,
+        "by_month_end": False,
+    }
+    mapping = {
+        "by_hour": "by_hour",
+        "by_dow": "by_dow",
+        "by_month": "by_month",
+        "by_session": "by_session",
+        "by_month_start": "by_month_start",
+        "by_month_end": "by_month_end",
+    }
+    key = mapping.get(raw)
+    if key:
+        flags[key] = True
+    else:
+        flags["by_hour"] = True
+    return flags
+
+
+def _canonical_seasonality_to_spec(request: Dict[str, Any]) -> Dict[str, Any]:
+    data_block = request.get("data") or {}
+    seasonality_block = request.get("seasonality") or {}
+    profile_block = seasonality_block.get("profile") if isinstance(seasonality_block, dict) else {}
+    signal_block = seasonality_block.get("signal") if isinstance(seasonality_block, dict) else {}
+    compute_block = seasonality_block.get("compute") if isinstance(seasonality_block, dict) else {}
+
+    timeframe = str(data_block.get("timeframe") or "").strip()
+    symbols = _resolve_canonical_symbols(data_block, spec_type="seasonality")
+    if not timeframe:
+        raise ValueError("seasonality requires data.timeframe")
+
+    current_year = datetime.now(timezone.utc).year
+    try:
+        start_year = int(data_block.get("start_year")) if data_block.get("start_year") is not None else current_year - 5
+    except Exception:
+        start_year = current_year - 5
+    try:
+        end_year = int(data_block.get("end_year")) if data_block.get("end_year") is not None else current_year
+    except Exception:
+        end_year = current_year
+    if end_year < start_year:
+        start_year, end_year = end_year, start_year
+
+    mapped_data: Dict[str, Any] = {
+        "symbols": symbols,
+        "timeframe": timeframe,
+        "start": f"{start_year:04d}-01-01T00:00:00Z",
+        "end": f"{end_year:04d}-12-31T23:59:59Z",
+    }
+    if isinstance(data_block.get("asset_class"), str) and data_block.get("asset_class").strip():
+        mapped_data["asset_class"] = data_block.get("asset_class").strip().upper()
+    if isinstance(data_block.get("currency"), str) and data_block.get("currency").strip():
+        currency = data_block.get("currency").strip().upper()
+        mapped_data["currency"] = currency
+        mapped_data["delta_quotes"] = currency
+    for key in (
+        "delta_base",
+        "delta_prefix",
+        "delta_exchange",
+        "delta_market_type",
+        "delta_quotes",
+        "delta_broker",
+        "delta_brokers",
+        "delta_asset_dir",
+        "delta_table",
+        "delta_symbol",
+        "delta_calendar",
+        "delta_min_coverage",
+    ):
+        if data_block.get(key) is not None:
+            mapped_data[key] = data_block.get(key)
+    data_path = data_block.get("path") or data_block.get("dataset_path")
+    if isinstance(data_path, str) and data_path.strip():
+        mapped_data["dataset_path"] = data_path.strip()
+    if isinstance(data_block.get("mysql"), dict):
+        mapped_data["mysql"] = data_block.get("mysql")
+
+    profile_id = profile_block.get("id") if isinstance(profile_block, dict) else None
+    profile_flags = _canonical_seasonality_profile_flags(profile_id)
+    profile: Dict[str, Any] = {
+        **profile_flags,
+        "measure": _canonical_seasonality_measure(profile_block.get("measure") if isinstance(profile_block, dict) else None),
+        "ret_horizon": (profile_block.get("ret_horizon") if isinstance(profile_block, dict) else None) or 1,
+        "min_samples_bin": (profile_block.get("min_samples_bin") if isinstance(profile_block, dict) else None) or 300,
+    }
+
+    signal: Dict[str, Any] = {
+        "method": _canonical_seasonality_method(signal_block.get("method") if isinstance(signal_block, dict) else None),
+        "threshold": (signal_block.get("threshold") if isinstance(signal_block, dict) else None) or 0.54,
+        "topk": (signal_block.get("topk") if isinstance(signal_block, dict) else None) or 3,
+        "dims": (signal_block.get("dims") if isinstance(signal_block, dict) and isinstance(signal_block.get("dims"), list) else ["hour", "dow"]),
+        "combine": _canonical_seasonality_combine(signal_block.get("combine") if isinstance(signal_block, dict) else None),
+    }
+
+    compute: Dict[str, Any] = {
+        "max_trials": (compute_block.get("max_trials") if isinstance(compute_block, dict) else None) or 30,
+        "search_space": (compute_block.get("search_space") if isinstance(compute_block, dict) and isinstance(compute_block.get("search_space"), dict) else {}),
+    }
+
+    mapped: Dict[str, Any] = {
+        "data": mapped_data,
+        "profile": profile,
+        "signal": signal,
+        "compute": compute,
+    }
+
+    output_block = request.get("output")
+    if isinstance(output_block, dict):
+        out_dir = output_block.get("out_dir")
+        if isinstance(out_dir, str) and out_dir.strip():
+            mapped["artifacts"] = {"out_dir": out_dir.strip()}
+
+    persistence_block = request.get("persistence")
+    if isinstance(persistence_block, dict):
+        mapped["persistence"] = {
+            "enabled": bool(persistence_block.get("enabled", False)),
+            "spec_id": persistence_block.get("spec_id"),
+            "dataset_id": persistence_block.get("dataset_id"),
+        }
+
+    return mapped
+
+
 def _update_job_error_result(job_id: str, payload: Dict[str, Any], *, status: str) -> None:
     if status not in JOB_STATUSES:
         raise ValueError(f"Unknown job status: {status}")
@@ -829,6 +1142,24 @@ def _run_job_payload(job_type: str, payload: Any | None) -> Any:
                         "result": strategy_result.get("result"),
                         "payload": strategy_result.get("payload"),
                     }
+                if spec_type == "market_stats":
+                    mapped_spec = _canonical_market_stats_to_spec(request)
+                    spec_obj = schemas.StatsSpec.model_validate(mapped_spec)
+                    stats_df = stats_runner.run_stats(spec_obj)
+                    return {
+                        "accepted": True,
+                        "spec_type": request.get("spec_type"),
+                        "result": _stats_payload_from_df(stats_df),
+                    }
+                if spec_type == "seasonality":
+                    mapped_spec = _canonical_seasonality_to_spec(request)
+                    spec_obj = schemas.SeasonalitySpec.model_validate(mapped_spec)
+                    seasonality_result = seasonality_runner.run(spec_obj)
+                    return {
+                        "accepted": True,
+                        "spec_type": request.get("spec_type"),
+                        "result": seasonality_result,
+                    }
                 return {"accepted": True, "spec_type": request.get("spec_type")}
         return {"accepted": True}
     raise ValueError(f"Unknown job type: {job_type}")
@@ -848,12 +1179,98 @@ def _execute_job(
         _update_job_status(job_id, running_status)
     try:
         result = _run_job_payload(job_type, payload)
+        if job_type == JOB_TYPE_OPTIMIZATION:
+            _persist_optimization_result(job_id, payload, result)
     except Exception as exc:  # pragma: no cover - defensive
         _update_job_status(job_id, failure_status, error=str(exc))
         raise
     payload_out = _build_job_result(job_type, job_id, result)
     _update_job_result(job_id, payload_out, status=success_status)
     return payload_out
+
+
+def _first_numeric_metric(metrics: Dict[str, Any]) -> float | None:
+    for value in metrics.values():
+        if isinstance(value, (int, float)):
+            return float(value)
+    return None
+
+
+def _persist_optimization_result(job_id: str, payload: Any | None, result: Any) -> None:
+    if not isinstance(payload, dict):
+        return
+    spec_payload = payload.get("spec") if isinstance(payload.get("spec"), dict) else {}
+    strategy_payload = spec_payload.get("strategy") if isinstance(spec_payload.get("strategy"), dict) else {}
+    data_payload = spec_payload.get("data") if isinstance(spec_payload.get("data"), dict) else {}
+    objective = strategy_payload.get("objective") if isinstance(strategy_payload.get("objective"), str) else ""
+    spec_id = (
+        str(strategy_payload.get("strategy_id") or spec_payload.get("spec_id") or "")
+        if isinstance(strategy_payload, dict)
+        else ""
+    )
+    dataset_id = str(
+        spec_payload.get("dataset_id")
+        or data_payload.get("dataset_id")
+        or data_payload.get("dataset_path")
+        or ""
+    )
+    out_dir = ""
+    if isinstance(result, dict):
+        trials_path = result.get("trials_path")
+        if isinstance(trials_path, str) and trials_path.strip():
+            out_dir = os.path.dirname(trials_path) or ""
+    with db.session() as conn:
+        runs_repo = RunsRepository(conn)
+        metrics_repo = MetricsRepository(conn)
+        trials_repo = TrialsRepository(conn)
+        runs_repo.create_or_running(
+            run_id=job_id,
+            spec_id=spec_id,
+            dataset_id=dataset_id,
+            objective=str(objective or ""),
+            out_dir=out_dir,
+        )
+
+        if isinstance(result, dict):
+            best = result.get("best")
+            if isinstance(best, dict):
+                best_metrics = best.get("metrics")
+                if isinstance(best_metrics, dict) and best_metrics:
+                    metrics_repo.bulk_upsert_metrics(job_id, best_metrics, fold=None)
+
+            trials = result.get("trials")
+            mapped_trials: List[Dict[str, Any]] = []
+            if isinstance(trials, list):
+                for index, trial in enumerate(trials, start=1):
+                    if not isinstance(trial, dict):
+                        continue
+                    params = trial.get("params") if isinstance(trial.get("params"), dict) else {}
+                    metrics = trial.get("metrics") if isinstance(trial.get("metrics"), dict) else {}
+                    objective_value = None
+                    if objective and objective in metrics and isinstance(metrics.get(objective), (int, float)):
+                        objective_value = float(metrics.get(objective))
+                    elif metrics:
+                        objective_value = _first_numeric_metric(metrics)
+                    mapped_trials.append(
+                        {
+                            "trial_number": int(trial.get("trial_number") or index),
+                            "params": params,
+                            "objective_value": objective_value,
+                            "status": trial.get("status") or "COMPLETE",
+                            "n_trades": trial.get("n_trades") or metrics.get("n_trades") or metrics.get("trades"),
+                            "max_dd": trial.get("max_dd") or metrics.get("max_dd"),
+                            "sharpe": trial.get("sharpe") or metrics.get("sharpe"),
+                            "sortino": trial.get("sortino") or metrics.get("sortino"),
+                            "cagr": trial.get("cagr") or metrics.get("cagr"),
+                            "hit_rate": trial.get("hit_rate") or metrics.get("hit_rate"),
+                            "avg_r": trial.get("avg_r") or metrics.get("avg_r"),
+                        }
+                    )
+            if mapped_trials:
+                trials_repo.bulk_insert_trials(job_id, mapped_trials)
+                logger.info("Optimization persistence upserted trials | run_id=%s rows=%s", job_id, len(mapped_trials))
+
+        runs_repo.finish(job_id, "COMPLETED")
 
 
 def _run_job(job_type: str, payload: Any | None) -> tuple[str, Any]:
@@ -1103,13 +1520,17 @@ def _canonical_runs_capabilities(spec_type: str) -> Dict[str, Any]:
                     "catalog_version",
                     "request_id",
                     "data.symbol",
-                    "data.asset_class",
-                    "data.currency",
+                    "data.symbols",
                     "data.timeframe",
+                    "data.dataset_path",
+                    "data.path",
+                    "data.mysql",
                     "data.lookback",
                     "data.stats_pack",
                     "data.session",
                     "data.include_weekends",
+                    "data.asset_class",
+                    "data.currency",
                     "stats.event",
                     "stats.condition",
                     "stats.target",
@@ -1118,16 +1539,19 @@ def _canonical_runs_capabilities(spec_type: str) -> Dict[str, Any]:
                     "persistence",
                 ],
                 "accepted_but_not_wired": [
-                    "data.dataset_path",
-                    "data.path",
-                    "data.mysql",
-                    "output",
-                    "persistence",
+                    "data.lookback",
+                    "data.stats_pack",
+                    "data.session",
+                    "data.include_weekends",
+                    "data.asset_class",
+                    "data.currency",
                 ],
             },
             "runtime_rules": {
-                "execution_status": "accepted_not_wired",
-                "failure_mode": "worker currently acknowledges canonical market_stats without launching stats runner",
+                "execution_status": "partially_wired",
+                "failure_mode": "runtime executes stats runner; accepted_but_not_wired fields are validated but ignored",
+                "data_source_requirements": "data.path|data.dataset_path or data.mysql is required at runtime",
+                "symbol_resolution": "data.symbols has priority over data.symbol",
             },
         }
 
@@ -1140,12 +1564,16 @@ def _canonical_runs_capabilities(spec_type: str) -> Dict[str, Any]:
                     "catalog_version",
                     "request_id",
                     "data.symbol",
+                    "data.symbols",
                     "data.asset_class",
                     "data.currency",
                     "data.timeframe",
                     "data.window",
                     "data.start_year",
                     "data.end_year",
+                    "data.dataset_path",
+                    "data.path",
+                    "data.mysql",
                     "seasonality.profile",
                     "seasonality.signal",
                     "seasonality.compute",
@@ -1156,16 +1584,19 @@ def _canonical_runs_capabilities(spec_type: str) -> Dict[str, Any]:
                     "persistence",
                 ],
                 "accepted_but_not_wired": [
-                    "data.dataset_path",
-                    "data.path",
-                    "data.mysql",
-                    "output",
-                    "persistence",
+                    "data.asset_class",
+                    "data.currency",
+                    "data.window",
+                    "seasonality.execution",
+                    "seasonality.risk",
+                    "seasonality.tp_sl",
                 ],
             },
             "runtime_rules": {
-                "execution_status": "accepted_not_wired",
-                "failure_mode": "worker currently acknowledges canonical seasonality without launching seasonality runner",
+                "execution_status": "partially_wired",
+                "failure_mode": "runtime executes seasonality runner; accepted_but_not_wired fields are validated but ignored",
+                "data_source_requirements": "data.path|data.dataset_path or data.mysql is required at runtime",
+                "symbol_resolution": "data.symbols has priority over data.symbol",
             },
         }
 
@@ -2350,8 +2781,21 @@ def runs_submit_endpoint(payload: Dict[str, Any], request: Request) -> schemas.R
 
 
 @fastapi_app.post('/runs/{run_id}/cancel', response_model=schemas.StatusResponse)
-def runs_cancel_endpoint(run_id: str) -> schemas.StatusResponse:
+def runs_cancel_endpoint(run_id: str, request: Request) -> schemas.StatusResponse:
     """Request cancellation for a canonical run."""
+
+    client_host = request.client.host if request.client else None
+    user_agent = request.headers.get("user-agent")
+    _log_event(
+        {
+            "event": "runs_cancel_requested",
+            "path": "/runs/{run_id}/cancel",
+            "method": "POST",
+            "run_id": run_id,
+            "client_host": client_host,
+            "user_agent": user_agent,
+        }
+    )
 
     job = _get_job(run_id)
     if not job:
@@ -2362,6 +2806,17 @@ def runs_cancel_endpoint(run_id: str) -> schemas.StatusResponse:
     request_job_cancel(run_id)
     job = _get_job(run_id) or job
     status = _external_job_status(job.get("status", ""))
+    request.state.request_id = run_id
+    _log_event(
+        {
+            "event": "runs_cancel_applied",
+            "path": "/runs/{run_id}/cancel",
+            "method": "POST",
+            "run_id": run_id,
+            "status": status,
+            "client_host": client_host,
+        }
+    )
     return schemas.StatusResponse(status=status, id=run_id)
 
 

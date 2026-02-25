@@ -1,0 +1,32 @@
+{
+  "metrics": {
+    "sharpe": 0.0,
+    "sortino": 0.0,
+    "max_drawdown": 0.0,
+    "cagr": 0.0,
+    "hit_rate": 0.0,
+    "avg_R": 0.0,
+    "trades": 0.0,
+    "fold_index": 0,
+    "n_trades": 0,
+    "rules_counts": {
+      "hour": 0
+    }
+  },
+  "rules": {
+    "active_bins": {
+      "hour": []
+    },
+    "combine": "and",
+    "metadata": {
+      "thresholds": {
+        "hour": 0.5
+      },
+      "counts": {
+        "hour": 0
+      },
+      "method": "threshold",
+      "measure": "direction"
+    }
+  }
+}

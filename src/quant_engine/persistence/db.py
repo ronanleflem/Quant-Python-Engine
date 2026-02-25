@@ -1,14 +1,8 @@
-"""Light-weight persistence layer with SQLite fallback.
+"""Persistence layer supporting SQLite and MySQL.
 
-The original project targets SQLAlchemy with MySQL, however the execution
-environment does not provide SQLAlchemy. This module offers a minimal subset
-using ``sqlite3`` so that tests can exercise the persistence logic. The DSN is
-controlled through environment variables and mimics the structure expected by
-SQLAlchemy-based configurations.
-
-SQLite support is intended for tests and local development only. For production
-MySQL deployments, use the SQLAlchemy + Alembic stack and apply the MySQL
-migration statements captured alongside the SQLite migrations in this module.
+SQLite remains the default for local development/tests.
+When ``DB_DSN`` starts with ``mysql`` this module opens a PyMySQL connection and
+applies MySQL migration statements from ``MIGRATIONS``.
 """
 
 from __future__ import annotations
@@ -17,46 +11,214 @@ import sqlite3
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Iterator, Sequence
+import re
+from typing import Any, Callable, Iterator, Sequence
+
+import pymysql
+from pymysql.cursors import DictCursor
+from sqlalchemy.engine.url import make_url
 
 from ..config import get_settings
 
 
-def _effective_db_path() -> str:
-    """Resolve the database path from settings.
-
-    Only SQLite paths are supported in this lightweight implementation.  The
-    DSN form ``sqlite:///path`` or ``sqlite:///:memory:`` is understood.  When no
-    DSN is provided the default path from settings is used.
-    """
-
+def _effective_dsn() -> str:
     settings = get_settings()
     dsn = settings.db_dsn
     if not dsn:
         dsn = f"sqlite:///{settings.db_sqlite_path}"
+    return dsn
+
+
+def _dsn_dialect(dsn: str) -> str:
+    if dsn.startswith("sqlite"):
+        return "sqlite"
+    if dsn.startswith("mysql"):
+        return "mysql"
+    raise RuntimeError(f"Unsupported DB_DSN dialect: {dsn}")
+
+
+def _effective_db_path() -> str:
+    dsn = _effective_dsn()
     if not dsn.startswith("sqlite"):
-        raise RuntimeError(
-            "Only sqlite DSNs are supported in this environment. "
-            "Use SQLAlchemy + Alembic with MySQL in production."
+        raise RuntimeError("DB path requested for non-sqlite DSN")
+    return dsn.split("sqlite:///")[1]
+
+
+def _convert_placeholders_mysql(sql: str) -> str:
+    return sql.replace("?", "%s")
+
+
+def _rewrite_insert_or_replace_mysql(sql: str) -> str:
+    pattern = re.compile(
+        r"INSERT\s+OR\s+REPLACE\s+INTO\s+([a-zA-Z0-9_]+)\s*\((.*?)\)\s*VALUES\s*\((.*?)\)",
+        re.IGNORECASE | re.DOTALL,
+    )
+    m = pattern.search(sql)
+    if not m:
+        return sql
+    table = m.group(1)
+    cols = [c.strip() for c in m.group(2).split(",") if c.strip()]
+    values = m.group(3).strip()
+    updates = ", ".join([f"{c}=VALUES({c})" for c in cols])
+    return f"INSERT INTO {table} ({', '.join(cols)}) VALUES ({values}) ON DUPLICATE KEY UPDATE {updates}"
+
+
+def _rewrite_on_conflict_mysql(sql: str) -> str:
+    normalized = sql
+    do_nothing = re.search(
+        r"ON\s+CONFLICT\s*\((.*?)\)\s*DO\s+NOTHING\s*$",
+        normalized,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    if do_nothing:
+        base = normalized[: do_nothing.start()].rstrip()
+        base = re.sub(r"INSERT\s+INTO", "INSERT IGNORE INTO", base, flags=re.IGNORECASE, count=1)
+        return base
+
+    do_update = re.search(
+        r"ON\s+CONFLICT\s*\((.*?)\)\s*DO\s+UPDATE\s+SET\s*(.*)$",
+        normalized,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    if do_update:
+        base = normalized[: do_update.start()].rstrip()
+        set_clause = do_update.group(2).strip()
+        set_clause = re.sub(
+            r"excluded\.([a-zA-Z0-9_]+)",
+            r"VALUES(\1)",
+            set_clause,
+            flags=re.IGNORECASE,
         )
-    path = dsn.split("sqlite:///")[1]
-    return path
+        return f"{base} ON DUPLICATE KEY UPDATE {set_clause}"
+    return normalized
 
 
-def connect() -> sqlite3.Connection:
-    path = _effective_db_path()
-    if path != ":memory:":
-        Path(path).parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(path)
-    conn.row_factory = sqlite3.Row
-    return conn
+def _prepare_sql_for_mysql(sql: str) -> str:
+    out = sql
+    if re.search(r"^\s*BEGIN\s+IMMEDIATE\s*$", out, flags=re.IGNORECASE):
+        return "START TRANSACTION"
+    if re.search(r"INSERT\s+OR\s+REPLACE", out, flags=re.IGNORECASE):
+        out = _rewrite_insert_or_replace_mysql(out)
+    if re.search(r"ON\s+CONFLICT", out, flags=re.IGNORECASE):
+        out = _rewrite_on_conflict_mysql(out)
+    out = _convert_placeholders_mysql(out)
+    return out
+
+
+_ISO_UTC_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$")
+_ISO_OFFSET_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?[+-]\d{2}:\d{2}$")
+
+
+def _normalize_mysql_param_value(value: Any) -> Any:
+    if not isinstance(value, str):
+        return value
+    if _ISO_UTC_RE.match(value):
+        return value[:-1].replace("T", " ")
+    if _ISO_OFFSET_RE.match(value):
+        # Drop timezone offset for TIMESTAMP columns.
+        return value[:19].replace("T", " ")
+    return value
+
+
+def _normalize_mysql_params(params: Any) -> Any:
+    if params is None:
+        return None
+    if isinstance(params, (list, tuple)):
+        return tuple(_normalize_mysql_param_value(v) for v in params)
+    if isinstance(params, dict):
+        return {k: _normalize_mysql_param_value(v) for k, v in params.items()}
+    return params
+
+
+class _CompatCursor:
+    def __init__(self, raw_cursor: Any, *, dialect: str):
+        self._raw = raw_cursor
+        self._dialect = dialect
+
+    def execute(self, sql: str, params: Any = None) -> "_CompatCursor":
+        stmt = _prepare_sql_for_mysql(sql) if self._dialect == "mysql" else sql
+        exec_params = _normalize_mysql_params(params) if self._dialect == "mysql" else params
+        if params is None:
+            self._raw.execute(stmt)
+            return self
+        self._raw.execute(stmt, exec_params)
+        return self
+
+    def executemany(self, sql: str, seq_params: Sequence[Any]) -> "_CompatCursor":
+        stmt = _prepare_sql_for_mysql(sql) if self._dialect == "mysql" else sql
+        exec_params = [_normalize_mysql_params(p) for p in seq_params] if self._dialect == "mysql" else seq_params
+        self._raw.executemany(stmt, exec_params)
+        return self
+
+    def fetchone(self) -> Any:
+        return self._raw.fetchone()
+
+    def fetchall(self) -> Any:
+        return self._raw.fetchall()
+
+    @property
+    def rowcount(self) -> int:
+        return int(getattr(self._raw, "rowcount", 0))
+
+
+class _CompatConnection:
+    def __init__(self, raw_conn: Any, *, dialect: str):
+        self._raw = raw_conn
+        self.dialect = dialect
+
+    def cursor(self) -> _CompatCursor:
+        return _CompatCursor(self._raw.cursor(), dialect=self.dialect)
+
+    def execute(self, sql: str, params: Any = None) -> _CompatCursor:
+        cur = self.cursor()
+        cur.execute(sql, params)
+        return cur
+
+    def commit(self) -> None:
+        self._raw.commit()
+
+    def rollback(self) -> None:
+        self._raw.rollback()
+
+    def close(self) -> None:
+        self._raw.close()
+
+    def __getattr__(self, item: str) -> Any:
+        return getattr(self._raw, item)
+
+
+def connect() -> _CompatConnection:
+    dsn = _effective_dsn()
+    dialect = _dsn_dialect(dsn)
+    if dialect == "sqlite":
+        path = _effective_db_path()
+        if path != ":memory:":
+            Path(path).parent.mkdir(parents=True, exist_ok=True)
+        raw_conn = sqlite3.connect(path)
+        raw_conn.row_factory = sqlite3.Row
+        return _CompatConnection(raw_conn, dialect="sqlite")
+
+    url = make_url(dsn)
+    query = dict(url.query or {})
+    charset = str(query.get("charset") or "utf8mb4")
+    raw_conn = pymysql.connect(
+        host=url.host or "127.0.0.1",
+        user=url.username or "",
+        password=url.password or "",
+        database=url.database or "",
+        port=int(url.port or 3306),
+        charset=charset,
+        autocommit=False,
+        cursorclass=DictCursor,
+    )
+    return _CompatConnection(raw_conn, dialect="mysql")
 
 
 @dataclass(frozen=True)
 class Migration:
     version: int
     name: str
-    sqlite_apply: Callable[[sqlite3.Connection], None]
+    sqlite_apply: Callable[[Any], None]
     mysql_statements: Sequence[str]
 
 
@@ -357,22 +519,22 @@ MYSQL_MIGRATION_1 = (
         UNIQUE KEY ux_market_stats (
             symbol,
             timeframe,
-            event,
-            condition_name,
-            condition_value,
-            target,
+            event(64),
+            condition_name(64),
+            condition_value(64),
+            target(64),
             split,
-            start,
-            end,
-            spec_id
+            start(32),
+            end(32),
+            spec_id(64)
         ),
         INDEX ix_market_stats_lookup (
             symbol,
             timeframe,
-            event,
-            condition_name,
-            condition_value,
-            target,
+            event(64),
+            condition_name(64),
+            condition_value(64),
+            target(64),
             split
         )
     )
@@ -397,15 +559,15 @@ MYSQL_MIGRATION_1 = (
         UNIQUE KEY ux_seasonality_profiles (
             symbol,
             timeframe,
-            dim,
+            dim(64),
             bin,
-            measure,
-            start,
-            end,
-            spec_id,
-            dataset_id
+            measure(64),
+            start(32),
+            end(32),
+            spec_id(64),
+            dataset_id(64)
         ),
-        INDEX ix_seasonality_profiles_lookup (symbol, timeframe, dim, measure)
+        INDEX ix_seasonality_profiles_lookup (symbol, timeframe, dim(64), measure(64))
     )
     """,
     """
@@ -467,20 +629,31 @@ MIGRATIONS = [
 ]
 
 
-def _ensure_migrations_table(conn: sqlite3.Connection) -> None:
+def _ensure_migrations_table(conn: Any) -> None:
     cur = conn.cursor()
-    cur.execute(
-        """
-        CREATE TABLE IF NOT EXISTS schema_migrations (
-            version INTEGER PRIMARY KEY,
-            name TEXT NOT NULL,
-            applied_at TEXT DEFAULT CURRENT_TIMESTAMP
+    if getattr(conn, "dialect", "sqlite") == "mysql":
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS schema_migrations (
+                version INTEGER PRIMARY KEY,
+                name VARCHAR(255) NOT NULL,
+                applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """
         )
-        """
-    )
+    else:
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS schema_migrations (
+                version INTEGER PRIMARY KEY,
+                name TEXT NOT NULL,
+                applied_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
 
 
-def migrate(conn: sqlite3.Connection) -> None:
+def migrate(conn: Any) -> None:
     _ensure_migrations_table(conn)
     cur = conn.cursor()
     applied = {
@@ -490,25 +663,36 @@ def migrate(conn: sqlite3.Connection) -> None:
     for migration in MIGRATIONS:
         if migration.version in applied:
             continue
-        migration.sqlite_apply(conn)
-        cur.execute(
-            "INSERT INTO schema_migrations(version, name) VALUES (?, ?)",
-            (migration.version, migration.name),
-        )
+        if getattr(conn, "dialect", "sqlite") == "mysql":
+            for statement in migration.mysql_statements:
+                cur.execute(statement)
+            cur.execute(
+                "INSERT INTO schema_migrations(version, name) VALUES (?, ?)",
+                (migration.version, migration.name),
+            )
+        else:
+            migration.sqlite_apply(conn)
+            cur.execute(
+                "INSERT INTO schema_migrations(version, name) VALUES (?, ?)",
+                (migration.version, migration.name),
+            )
     conn.commit()
 
 
-def init_db(conn: sqlite3.Connection) -> None:
+def init_db(conn: Any) -> None:
     migrate(conn)
 
 
 @contextmanager
-def session() -> Iterator[sqlite3.Connection]:
+def session() -> Iterator[Any]:
     conn = connect()
     try:
         init_db(conn)
         yield conn
         conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
     finally:
         conn.close()
 

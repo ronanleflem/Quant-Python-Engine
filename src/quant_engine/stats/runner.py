@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
@@ -23,6 +24,7 @@ from .estimators import (
 )
 
 N_MIN = 300
+logger = logging.getLogger(__name__)
 
 
 def _build_data_frame(dataset: List[Dict[str, Any]]) -> pd.DataFrame:
@@ -255,7 +257,17 @@ def _aggregate(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def run_stats(spec: StatsSpec) -> pd.DataFrame:
+    logger.info(
+        "MarketStats run started | symbols=%s timeframe=%s source_path=%s mysql=%s persistence=%s artifacts=%s",
+        list(spec.data.symbols or []),
+        spec.data.timeframe,
+        spec.data.dataset_path,
+        bool(spec.data.mysql),
+        bool(spec.persistence and getattr(spec.persistence, "enabled", False)),
+        bool(spec.artifacts and spec.artifacts.out_dir),
+    )
     df_source = load_ohlcv(spec.data)
+    logger.info("MarketStats data loaded | rows=%s", len(df_source))
     dataset: List[Dict[str, Any]] = []
     for row in df_source.to_dict("records"):
         rec = dict(row)
@@ -280,6 +292,7 @@ def run_stats(spec: StatsSpec) -> pd.DataFrame:
                 splits.append(("test", fold["test"]))
     else:
         splits.append(("test", dataset))
+    logger.info("MarketStats split plan | splits=%s validation_enabled=%s", len(splits), spec.validation is not None)
 
     results: List[pd.DataFrame] = []
     for split_name, split_data in splits:
@@ -347,6 +360,7 @@ def run_stats(spec: StatsSpec) -> pd.DataFrame:
         out_dir.mkdir(parents=True, exist_ok=True)
         artifacts.write_stats_summary(out_dir / "stats_summary.parquet", out)
         artifacts.write_stats_details(out_dir / "stats_details.parquet", pd.DataFrame())
+        logger.info("MarketStats artifacts written | out_dir=%s", out_dir)
 
     if spec.persistence and getattr(spec.persistence, "enabled", False):
         rows: List[Dict[str, Any]] = []
@@ -409,7 +423,11 @@ def run_stats(spec: StatsSpec) -> pd.DataFrame:
             with db.session() as conn:
                 repo = MarketStatsRepository(conn)
                 repo.bulk_upsert(rows)
+            logger.info("MarketStats persistence upserted | rows=%s", len(rows))
+        else:
+            logger.info("MarketStats persistence skipped | reason=no_rows")
 
+    logger.info("MarketStats run completed | output_rows=%s", len(out))
     return out
 
 

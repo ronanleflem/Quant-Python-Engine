@@ -53,6 +53,71 @@ def _canonical_dca_payload_universe() -> dict:
     return payload
 
 
+def _canonical_market_stats_payload() -> dict:
+    return {
+        "spec_type": "market_stats",
+        "catalog_version": "v1",
+        "data": {
+            "symbol": "BTCUSDT",
+            "timeframe": "1h",
+            "path": "tests/data/ohlcv_ts.csv",
+            "lookback": 200,
+            "stats_pack": "Volatility",
+            "session": "Full",
+            "include_weekends": True,
+            "asset_class": "CRYPTO",
+            "currency": "USDT",
+        },
+        "stats": {
+            "event": {"id": "always_true", "params": {}},
+            "condition": {"id": "day_of_week", "params": {}},
+            "target": {"id": "up_next_bar", "params": {}},
+            "validation": {"train_months": 6, "test_months": 2, "folds": 2, "embargo_days": 0},
+        },
+        "output": {"out_dir": "runs/stats_canonical"},
+        "persistence": {"enabled": False},
+    }
+
+
+def _canonical_market_stats_payload_with_symbols_priority() -> dict:
+    payload = _canonical_market_stats_payload()
+    payload["data"]["symbol"] = "BTCUSDT"
+    payload["data"]["symbols"] = ["ETHUSDT", "BTCUSDT"]
+    return payload
+
+
+def _canonical_seasonality_payload() -> dict:
+    return {
+        "spec_type": "seasonality",
+        "catalog_version": "v1",
+        "data": {
+            "symbol": "SPY",
+            "timeframe": "1d",
+            "path": "tests/data/ohlcv_ts.csv",
+            "window": "Monthly",
+            "start_year": 2022,
+            "end_year": 2024,
+            "asset_class": "EQUITY",
+            "currency": "USD",
+        },
+        "seasonality": {
+            "profile": {"id": "by_hour", "measure": "avg_return", "ret_horizon": 5, "min_samples_bin": 50, "params": {}},
+            "signal": {"method": "zscore", "threshold": 1.2, "topk": 5, "dims": ["hour"], "combine": "mean"},
+            "compute": {"max_trials": 20, "search_space": {}},
+            "execution": {"risk_model": "fixed_fraction", "tp_sl": "tp_2_sl_1"},
+        },
+        "output": {"out_dir": "runs/seasonality_canonical"},
+        "persistence": {"enabled": False},
+    }
+
+
+def _canonical_seasonality_payload_with_symbols_priority() -> dict:
+    payload = _canonical_seasonality_payload()
+    payload["data"]["symbol"] = "SPY"
+    payload["data"]["symbols"] = ["QQQ", "SPY"]
+    return payload
+
+
 def test_worker_processes_job_success(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("DB_SQLITE_PATH", str(tmp_path / "quant.db"))
     reset_settings_cache()
@@ -287,6 +352,132 @@ def test_worker_processes_canonical_dca_with_strategy_runner(tmp_path, monkeypat
     assert job["result"]["accepted"] is True
     assert job["result"]["spec_type"] == "dca"
     assert job["result"]["result"]["counts"]["BTCUSD"] == 3
+
+
+def test_worker_processes_canonical_market_stats_with_runner(tmp_path, monkeypatch) -> None:
+    import pandas as pd
+
+    monkeypatch.setenv("DB_SQLITE_PATH", str(tmp_path / "quant.db"))
+    reset_settings_cache()
+
+    observed = {}
+
+    def _fake_run_stats(spec):
+        observed["spec"] = spec
+        return pd.DataFrame(
+            [
+                {
+                    "symbol": "BTCUSDT",
+                    "event": "always_true",
+                    "condition_name": "day_of_week",
+                    "condition_value": "1",
+                    "target": "up_next_bar",
+                    "n": 10,
+                    "successes": 6,
+                    "p_hat": 0.6,
+                }
+            ]
+        )
+
+    monkeypatch.setattr(api_app.stats_runner, "run_stats", _fake_run_stats)
+
+    response = api_app.enqueue_run_request(_canonical_market_stats_payload())
+    result = worker_module.process_next_job()
+
+    assert result is not None
+    job = api_app._get_job(response.run_id)
+    assert job["status"] == api_app.JOB_STATUS_SUCCEEDED
+    assert job["result"]["accepted"] is True
+    assert job["result"]["spec_type"] == "market_stats"
+    assert job["result"]["result"]["columns"]
+    assert job["result"]["result"]["rows"]
+    assert observed["spec"].data.symbols == ["BTCUSDT"]
+    assert observed["spec"].data.dataset_path == "tests/data/ohlcv_ts.csv"
+    assert observed["spec"].validation is not None
+    assert observed["spec"].validation.train_months == 6
+
+
+def test_worker_processes_canonical_seasonality_with_runner(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("DB_SQLITE_PATH", str(tmp_path / "quant.db"))
+    reset_settings_cache()
+
+    observed = {}
+
+    def _fake_run_seasonality(spec):
+        observed["spec"] = spec
+        return {"summary": {"n_profiles": 2}, "profiles": []}
+
+    monkeypatch.setattr(api_app.seasonality_runner, "run", _fake_run_seasonality)
+
+    response = api_app.enqueue_run_request(_canonical_seasonality_payload())
+    result = worker_module.process_next_job()
+
+    assert result is not None
+    job = api_app._get_job(response.run_id)
+    assert job["status"] == api_app.JOB_STATUS_SUCCEEDED
+    assert job["result"]["accepted"] is True
+    assert job["result"]["spec_type"] == "seasonality"
+    assert job["result"]["result"]["summary"]["n_profiles"] == 2
+    assert observed["spec"].data.symbols == ["SPY"]
+    assert observed["spec"].data.dataset_path == "tests/data/ohlcv_ts.csv"
+    assert observed["spec"].profile.by_hour is True
+    assert observed["spec"].signal.method == "threshold"
+    assert observed["spec"].signal.combine == "sum"
+
+
+def test_worker_uses_symbols_over_symbol_for_canonical_market_stats(tmp_path, monkeypatch) -> None:
+    import pandas as pd
+
+    monkeypatch.setenv("DB_SQLITE_PATH", str(tmp_path / "quant.db"))
+    reset_settings_cache()
+    observed = {}
+
+    def _fake_run_stats(spec):
+        observed["spec"] = spec
+        return pd.DataFrame(
+            [
+                {
+                    "symbol": "ETHUSDT",
+                    "event": "always_true",
+                    "condition_name": "day_of_week",
+                    "condition_value": "1",
+                    "target": "up_next_bar",
+                    "n": 10,
+                    "successes": 6,
+                    "p_hat": 0.6,
+                }
+            ]
+        )
+
+    monkeypatch.setattr(api_app.stats_runner, "run_stats", _fake_run_stats)
+
+    response = api_app.enqueue_run_request(_canonical_market_stats_payload_with_symbols_priority())
+    result = worker_module.process_next_job()
+
+    assert result is not None
+    job = api_app._get_job(response.run_id)
+    assert job["status"] == api_app.JOB_STATUS_SUCCEEDED
+    assert observed["spec"].data.symbols == ["ETHUSDT", "BTCUSDT"]
+
+
+def test_worker_uses_symbols_over_symbol_for_canonical_seasonality(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("DB_SQLITE_PATH", str(tmp_path / "quant.db"))
+    reset_settings_cache()
+    observed = {}
+
+    def _fake_run_seasonality(spec):
+        observed["spec"] = spec
+        return {"summary": {"n_profiles": 2}, "profiles": []}
+
+    monkeypatch.setattr(api_app.seasonality_runner, "run", _fake_run_seasonality)
+
+    response = api_app.enqueue_run_request(_canonical_seasonality_payload_with_symbols_priority())
+    result = worker_module.process_next_job()
+
+    assert result is not None
+    job = api_app._get_job(response.run_id)
+    assert job["status"] == api_app.JOB_STATUS_SUCCEEDED
+    assert observed["spec"].data.symbols == ["QQQ", "SPY"]
 
 
 def test_worker_uses_universe_over_data_symbol_for_canonical_dca(tmp_path, monkeypatch) -> None:

@@ -774,9 +774,18 @@ Endpoints lifecycle (canonical runs):
 `GET /runs/{id}/result` -> non terminal: { run_id, status, message }
 `POST /runs/{id}/cancel` -> 200 idempotent, 409 si d??j?? terminal
 `GET /runs/capabilities?spec_type=dca` -> runtime capabilities matrix (supported vs accepted-but-not-wired)
+`GET /runs/capabilities?spec_type=backtest` -> runtime capabilities matrix
+`GET /runs/capabilities?spec_type=market_stats` -> runtime capabilities matrix
+`GET /runs/capabilities?spec_type=seasonality` -> runtime capabilities matrix
 
 Canonical DCA source of truth (support matrix + payload rules):
 `docs/canonical_runs_dca_source_of_truth_2026-02-20.md`
+Canonical Backtest source of truth:
+`docs/canonical_runs_backtest_source_of_truth_2026-02-20.md`
+Canonical Market Stats source of truth:
+`docs/canonical_runs_market_stats_source_of_truth_2026-02-25.md`
+Canonical Seasonality source of truth:
+`docs/canonical_runs_seasonality_source_of_truth_2026-02-25.md`
 
 Delta troubleshooting (`Delta source skipped ... base_uri_present=False`):
 - Provide `data.delta_base` in spec or export `DELTA_BASE_URI`.
@@ -794,6 +803,8 @@ Capabilities example:
 
 ```bash
 curl.exe "http://127.0.0.1:8000/runs/capabilities?spec_type=dca" | python -m json.tool
+curl.exe "http://127.0.0.1:8000/runs/capabilities?spec_type=market_stats" | python -m json.tool
+curl.exe "http://127.0.0.1:8000/runs/capabilities?spec_type=seasonality" | python -m json.tool
 ```
 
 
