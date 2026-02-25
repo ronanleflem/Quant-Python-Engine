@@ -346,6 +346,10 @@ def _canonical_backtest_to_spec(request: Dict[str, Any]) -> Dict[str, Any]:
         "start": data_block.get("start_date"),
         "end": data_block.get("end_date"),
     }
+    if isinstance(data_block.get("currency"), str) and data_block.get("currency").strip():
+        currency = data_block.get("currency").strip().upper()
+        mapped_data["currency"] = currency
+        mapped_data["delta_quotes"] = currency
     data_path = data_block.get("path") or data_block.get("dataset_path")
     if isinstance(data_path, str) and data_path.strip():
         mapped_data["source"] = "csv"
@@ -556,6 +560,11 @@ def _canonical_dca_to_strategy_spec(request: Dict[str, Any]) -> Dict[str, Any]:
         "start": data_block.get("start_date"),
         "end": data_block.get("end_date"),
     }
+    data_currency = None
+    if isinstance(data_block.get("currency"), str) and data_block.get("currency").strip():
+        data_currency = data_block.get("currency").strip().upper()
+        data_spec["currency"] = data_currency
+        data_spec["delta_quotes"] = data_currency
     data_path = data_block.get("path") or data_block.get("dataset_path")
     if isinstance(data_path, str) and data_path.strip():
         data_spec["source"] = "csv"
@@ -595,7 +604,12 @@ def _canonical_dca_to_strategy_spec(request: Dict[str, Any]) -> Dict[str, Any]:
             for key in ("name", "exchange", "currency", "broker", "market_type", "marketType"):
                 if item.get(key) is not None:
                     target_key = "market_type" if key == "marketType" else key
-                    universe_item[target_key] = item.get(key)
+                    value = item.get(key)
+                    if target_key == "currency" and isinstance(value, str):
+                        value = value.strip().upper()
+                    universe_item[target_key] = value
+            if "currency" not in universe_item and data_currency:
+                universe_item["currency"] = data_currency
             universe_items.append(universe_item)
     elif data_block.get("symbol"):
         # Compatibility path kept for current clients.
@@ -608,7 +622,10 @@ def _canonical_dca_to_strategy_spec(request: Dict[str, Any]) -> Dict[str, Any]:
                 "request_id": request.get("request_id"),
             }
         )
-        universe_items = [{"symbol": data_block.get("symbol"), "asset_class": asset_class}]
+        fallback_item: Dict[str, Any] = {"symbol": data_block.get("symbol"), "asset_class": asset_class}
+        if data_currency:
+            fallback_item["currency"] = data_currency
+        universe_items = [fallback_item]
 
     if not universe_items:
         raise ValueError("dca requires data.symbol or universe")
@@ -1077,6 +1094,81 @@ def _canonical_job_defaults() -> tuple[int | None, int | None]:
 
 def _canonical_runs_capabilities(spec_type: str) -> Dict[str, Any]:
     normalized = str(spec_type or "").strip().lower()
+    if normalized == "market_stats":
+        return {
+            "spec_type": "market_stats",
+            "catalog_version": CANONICAL_CAPABILITIES_CATALOG_VERSION,
+            "fields": {
+                "supported": [
+                    "catalog_version",
+                    "request_id",
+                    "data.symbol",
+                    "data.asset_class",
+                    "data.currency",
+                    "data.timeframe",
+                    "data.lookback",
+                    "data.stats_pack",
+                    "data.session",
+                    "data.include_weekends",
+                    "stats.event",
+                    "stats.condition",
+                    "stats.target",
+                    "stats.validation",
+                    "output",
+                    "persistence",
+                ],
+                "accepted_but_not_wired": [
+                    "data.dataset_path",
+                    "data.path",
+                    "data.mysql",
+                    "output",
+                    "persistence",
+                ],
+            },
+            "runtime_rules": {
+                "execution_status": "accepted_not_wired",
+                "failure_mode": "worker currently acknowledges canonical market_stats without launching stats runner",
+            },
+        }
+
+    if normalized == "seasonality":
+        return {
+            "spec_type": "seasonality",
+            "catalog_version": CANONICAL_CAPABILITIES_CATALOG_VERSION,
+            "fields": {
+                "supported": [
+                    "catalog_version",
+                    "request_id",
+                    "data.symbol",
+                    "data.asset_class",
+                    "data.currency",
+                    "data.timeframe",
+                    "data.window",
+                    "data.start_year",
+                    "data.end_year",
+                    "seasonality.profile",
+                    "seasonality.signal",
+                    "seasonality.compute",
+                    "seasonality.execution",
+                    "seasonality.risk",
+                    "seasonality.tp_sl",
+                    "output",
+                    "persistence",
+                ],
+                "accepted_but_not_wired": [
+                    "data.dataset_path",
+                    "data.path",
+                    "data.mysql",
+                    "output",
+                    "persistence",
+                ],
+            },
+            "runtime_rules": {
+                "execution_status": "accepted_not_wired",
+                "failure_mode": "worker currently acknowledges canonical seasonality without launching seasonality runner",
+            },
+        }
+
     if normalized == "backtest":
         return {
             "spec_type": "backtest",
@@ -1086,6 +1178,7 @@ def _canonical_runs_capabilities(spec_type: str) -> Dict[str, Any]:
                     "catalog_version",
                     "request_id",
                     "data.symbol",
+                    "data.currency",
                     "data.timeframe",
                     "data.start_date",
                     "data.end_date",
@@ -1137,11 +1230,12 @@ def _canonical_runs_capabilities(spec_type: str) -> Dict[str, Any]:
         "spec_type": "dca",
         "catalog_version": CANONICAL_CAPABILITIES_CATALOG_VERSION,
         "fields": {
-            "supported": [
-                "catalog_version",
-                "request_id",
-                "data.symbol",
-                "data.timeframe",
+                "supported": [
+                    "catalog_version",
+                    "request_id",
+                    "data.symbol",
+                    "data.currency",
+                    "data.timeframe",
                 "data.start_date",
                 "data.end_date",
                 "data.dataset_path",

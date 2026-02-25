@@ -476,6 +476,8 @@ def _fetch_from_delta(symbol: str, asset_class: Optional[str], spec: Mapping[str
     quotes: List[str] = []
     if "delta_quotes" in spec:
         quotes = [q.strip() for q in str(spec["delta_quotes"]).split(",") if q.strip()]
+    elif spec.get("currency") or spec.get("delta_quote"):
+        quotes = [q.strip() for q in str(spec.get("currency") or spec.get("delta_quote")).split(",") if q.strip()]
     elif os.getenv("DELTA_QUOTES"):
         quotes = [q.strip() for q in os.getenv("DELTA_QUOTES", "").split(",") if q.strip()]
     else:

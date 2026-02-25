@@ -13,6 +13,7 @@ class StrictModel(BaseModel):
 class DataRangeBlock(StrictModel):
     symbol: str
     timeframe: str
+    currency: Optional[str] = None
     start_date: str = Field(validation_alias=AliasChoices("start_date", "startDate"))
     end_date: str = Field(validation_alias=AliasChoices("end_date", "endDate"))
     dataset_path: Optional[str] = None
@@ -24,6 +25,8 @@ class DataRangeBlock(StrictModel):
 class MarketStatsDataBlock(StrictModel):
     symbol: str
     timeframe: str
+    asset_class: Optional[str] = Field(default=None, validation_alias=AliasChoices("asset_class", "assetClass"))
+    currency: Optional[str] = None
     lookback: Optional[int] = None
     stats_pack: Optional[str] = Field(default=None, validation_alias=AliasChoices("stats_pack", "statsPack"))
     session: Optional[str] = None
@@ -39,6 +42,8 @@ class MarketStatsDataBlock(StrictModel):
 class SeasonalityDataBlock(StrictModel):
     symbol: str
     timeframe: str
+    asset_class: Optional[str] = Field(default=None, validation_alias=AliasChoices("asset_class", "assetClass"))
+    currency: Optional[str] = None
     window: Optional[str] = None
     start_year: Optional[int] = Field(default=None, validation_alias=AliasChoices("start_year", "startYear"))
     end_year: Optional[int] = Field(default=None, validation_alias=AliasChoices("end_year", "endYear"))
@@ -97,6 +102,7 @@ class DcaStrategyBlock(StrictModel):
 class DcaDataBlock(StrictModel):
     symbol: Optional[str] = None
     timeframe: str
+    currency: Optional[str] = None
     start_date: str = Field(validation_alias=AliasChoices("start_date", "startDate"))
     end_date: str = Field(validation_alias=AliasChoices("end_date", "endDate"))
     dataset_path: Optional[str] = None

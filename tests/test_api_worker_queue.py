@@ -13,6 +13,7 @@ def _canonical_payload() -> dict:
         "data": {
             "symbol": "EURUSD",
             "timeframe": "M1",
+            "currency": "USD",
             "start_date": "2025-01-01",
             "end_date": "2025-01-02",
         },
@@ -27,6 +28,7 @@ def _canonical_dca_payload() -> dict:
         "data": {
             "symbol": "BTCUSD",
             "timeframe": "H1",
+            "currency": "USDT",
             "start_date": "2025-01-01",
             "end_date": "2025-01-02",
         },
@@ -46,7 +48,7 @@ def _canonical_dca_payload_universe() -> dict:
     payload = _canonical_dca_payload()
     payload["universe"] = [
         {"symbol": "ETHUSDT", "asset_class": "CRYPTO"},
-        {"symbol": "BTCUSDT", "asset_class": "CRYPTO"},
+        {"symbol": "BTCUSDT", "asset_class": "CRYPTO", "currency": "USDC"},
     ]
     return payload
 
@@ -196,6 +198,8 @@ def test_worker_processes_canonical_backtest_with_runner(tmp_path, monkeypatch) 
     assert observed["spec"]["signal"]["type"] == "ema_cross"
     assert observed["spec"]["signal"]["params"]["fast"] == 9
     assert observed["spec"]["signal"]["params"]["slow"] == 21
+    assert observed["spec"]["data"]["currency"] == "USD"
+    assert observed["spec"]["data"]["delta_quotes"] == "USD"
     assert observed["spec"]["data"]["mysql_env"] == "QE_MARKETDATA_MYSQL_URL"
 
 
@@ -306,6 +310,11 @@ def test_worker_uses_universe_over_data_symbol_for_canonical_dca(tmp_path, monke
     symbols = [item["symbol"] for item in observed["spec"]["universe"]]
     assert symbols == ["ETHUSDT", "BTCUSDT"]
     assert "BTCUSD" not in symbols
+    by_symbol = {item["symbol"]: item for item in observed["spec"]["universe"]}
+    assert by_symbol["ETHUSDT"]["currency"] == "USDT"
+    assert by_symbol["BTCUSDT"]["currency"] == "USDC"
+    assert observed["spec"]["data"]["currency"] == "USDT"
+    assert observed["spec"]["data"]["delta_quotes"] == "USDT"
 
 
 def test_worker_logs_deprecation_warning_when_using_data_symbol_fallback(tmp_path, monkeypatch, capsys) -> None:

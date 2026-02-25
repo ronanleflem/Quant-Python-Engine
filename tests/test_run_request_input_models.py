@@ -36,7 +36,13 @@ def test_accepts_backtest_payload_with_java_aliases() -> None:
         {
             "spec_type": "market_stats",
             "catalog_version": "v1",
-            "data": {"symbol": "EURUSD", "timeframe": "M5", "lookback": 2000},
+            "data": {
+                "symbol": "EURUSD",
+                "timeframe": "M5",
+                "asset_class": "FOREX",
+                "currency": "USD",
+                "lookback": 2000,
+            },
             "stats": {
                 "event": {"id": "ema_cross"},
                 "condition": {"id": "session", "params": {"session": "london"}},
@@ -46,7 +52,7 @@ def test_accepts_backtest_payload_with_java_aliases() -> None:
         {
             "spec_type": "seasonality",
             "catalog_version": "v1",
-            "data": {"symbol": "EURUSD", "timeframe": "H1"},
+            "data": {"symbol": "EURUSD", "timeframe": "H1", "asset_class": "FOREX", "currency": "USD"},
             "seasonality": {"profile": {"id": "intraday"}, "signal": {"method": "threshold"}},
         },
         {
@@ -102,7 +108,7 @@ def test_dca_accepts_universe_without_data_symbol() -> None:
     payload = {
         "spec_type": "dca",
         "catalog_version": "v1",
-        "data": {"timeframe": "D1", "start_date": "2020-01-01", "end_date": "2025-01-01"},
+        "data": {"timeframe": "D1", "currency": "USDT", "start_date": "2020-01-01", "end_date": "2025-01-01"},
         "universe": [{"symbol": "BTCUSDT", "asset_class": "CRYPTO"}],
         "strategy": {"type": "dca_equity", "params": {"grid": [{"dd": -5, "weight": 1}]}},
     }

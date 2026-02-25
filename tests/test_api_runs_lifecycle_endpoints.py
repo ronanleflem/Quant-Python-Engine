@@ -261,6 +261,7 @@ def test_runs_capabilities_returns_dca_runtime_matrix(tmp_path, monkeypatch) -> 
     assert "supported" in body["fields"]
     assert "accepted_but_not_wired" in body["fields"]
     assert "universe" in body["fields"]["supported"]
+    assert "data.currency" in body["fields"]["supported"]
     assert "strategy.params.asset_class" in body["fields"]["supported"]
     assert "strategy.params.tp_sl" in body["fields"]["supported"]
     assert "performance.stress_tests" in body["fields"]["accepted_but_not_wired"]
@@ -289,12 +290,40 @@ def test_runs_capabilities_returns_dca_runtime_matrix(tmp_path, monkeypatch) -> 
 def test_runs_capabilities_rejects_unknown_spec_type(tmp_path, monkeypatch) -> None:
     client = _setup_db(tmp_path, monkeypatch)
 
-    resp = client.get("/runs/capabilities", params={"spec_type": "market_stats"})
+    resp = client.get("/runs/capabilities", params={"spec_type": "unknown_type"})
 
     assert resp.status_code == 422
     body = resp.json()
     assert body["errors"][0]["field"] == "spec_type"
     assert body["errors"][0]["code"] == "unsupported_spec_type"
+
+
+def test_runs_capabilities_returns_market_stats_runtime_matrix(tmp_path, monkeypatch) -> None:
+    client = _setup_db(tmp_path, monkeypatch)
+
+    resp = client.get("/runs/capabilities", params={"spec_type": "market_stats"})
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["spec_type"] == "market_stats"
+    assert "data.asset_class" in body["fields"]["supported"]
+    assert "data.currency" in body["fields"]["supported"]
+    assert "stats.validation" in body["fields"]["supported"]
+    assert body["runtime_rules"]["execution_status"] == "accepted_not_wired"
+
+
+def test_runs_capabilities_returns_seasonality_runtime_matrix(tmp_path, monkeypatch) -> None:
+    client = _setup_db(tmp_path, monkeypatch)
+
+    resp = client.get("/runs/capabilities", params={"spec_type": "seasonality"})
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["spec_type"] == "seasonality"
+    assert "data.asset_class" in body["fields"]["supported"]
+    assert "data.currency" in body["fields"]["supported"]
+    assert "seasonality.profile" in body["fields"]["supported"]
+    assert body["runtime_rules"]["execution_status"] == "accepted_not_wired"
 
 
 def test_runs_capabilities_returns_backtest_runtime_matrix(tmp_path, monkeypatch) -> None:
@@ -307,6 +336,7 @@ def test_runs_capabilities_returns_backtest_runtime_matrix(tmp_path, monkeypatch
     assert body["spec_type"] == "backtest"
     assert body["catalog_version"] == "2026-02-02"
     assert "signal" in body["fields"]["supported"]
+    assert "data.currency" in body["fields"]["supported"]
     assert "filters.rules" in body["fields"]["supported"]
     assert "strategy.params.tp_sl" in body["fields"]["supported"]
     assert "strategy.name" in body["fields"]["accepted_but_not_wired"]
