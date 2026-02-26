@@ -325,9 +325,18 @@ def test_runs_capabilities_returns_seasonality_runtime_matrix(tmp_path, monkeypa
     assert "data.asset_class" in body["fields"]["supported"]
     assert "data.currency" in body["fields"]["supported"]
     assert "data.symbols" in body["fields"]["supported"]
+    assert "data.start_date" in body["fields"]["supported"]
+    assert "data.end_date" in body["fields"]["supported"]
     assert "seasonality.profile" in body["fields"]["supported"]
+    assert "seasonality.execution" in body["fields"]["supported"]
+    assert "seasonality.risk" in body["fields"]["supported"]
+    assert "seasonality.tp_sl" in body["fields"]["supported"]
+    assert "seasonality.execution" in body["fields"]["accepted_but_not_wired"]
+    assert "seasonality.risk" in body["fields"]["accepted_but_not_wired"]
+    assert "seasonality.tp_sl" in body["fields"]["accepted_but_not_wired"]
     assert body["runtime_rules"]["symbol_resolution"] == "data.symbols has priority over data.symbol"
     assert body["runtime_rules"]["execution_status"] == "partially_wired"
+    assert "accepted_but_not_wired" in body["runtime_rules"]["failure_mode"]
 
 
 def test_runs_capabilities_returns_backtest_runtime_matrix(tmp_path, monkeypatch) -> None:

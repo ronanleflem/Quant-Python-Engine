@@ -86,6 +86,23 @@ def _canonical_market_stats_payload_symbols_only() -> dict:
     }
 
 
+def _canonical_market_stats_payload_k_consecutive() -> dict:
+    return {
+        "spec_type": "market_stats",
+        "catalog_version": "v1",
+        "data": {
+            "symbols": ["BTCUSDT"],
+            "timeframe": "1d",
+            "path": "tests/data/ohlcv_ts.csv",
+        },
+        "stats": {
+            "event": {"id": "k_consecutive", "params": {"k": 2, "direction": "up"}},
+            "condition": {"id": "day_of_week", "params": {}},
+            "target": {"id": "up_next_bar", "params": {}},
+        },
+    }
+
+
 def _canonical_seasonality_payload_symbols_only() -> dict:
     return {
         "spec_type": "seasonality",
@@ -213,3 +230,36 @@ def test_runs_submit_rejects_top_level_screening_field(tmp_path, monkeypatch) ->
     assert response.status_code == 422
     errors = response.json()["errors"]
     assert any(err["field"] == "backtest.screening" for err in errors)
+
+
+def test_runs_submit_rejects_market_stats_missing_k_consecutive_params(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("DB_SQLITE_PATH", str(tmp_path / "quant.db"))
+    reset_settings_cache()
+    client = TestClient(api_app.fastapi_app)
+    payload = _canonical_market_stats_payload_k_consecutive()
+    payload["stats"]["event"]["params"] = {"k": 2}
+
+    response = client.post("/runs", json=payload)
+
+    assert response.status_code == 422
+    errors = response.json()["errors"]
+    assert any(err["field"] == "market_stats.stats.event.params.direction" for err in errors)
+
+
+def test_runs_submit_rejects_market_stats_invalid_htf_trend_params(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("DB_SQLITE_PATH", str(tmp_path / "quant.db"))
+    reset_settings_cache()
+    client = TestClient(api_app.fastapi_app)
+    payload = _canonical_market_stats_payload_k_consecutive()
+    payload["stats"]["condition"] = {
+        "id": "htf_trend",
+        "params": {"tf_multiplier": 0, "ema_period": 0},
+    }
+
+    response = client.post("/runs", json=payload)
+
+    assert response.status_code == 422
+    errors = response.json()["errors"]
+    fields = {err["field"] for err in errors}
+    assert "market_stats.stats.condition.params.tf_multiplier" in fields
+    assert "market_stats.stats.condition.params.ema_period" in fields

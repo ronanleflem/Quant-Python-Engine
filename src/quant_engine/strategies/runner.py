@@ -844,12 +844,23 @@ def _coverage_stats(
             expected = pd.date_range(start_dt.normalize(), end_dt.normalize(), freq=expected_freq, tz="UTC")
         observed = ts.dt.floor("D")
     elif freq.upper().endswith("W"):
-        expected = pd.date_range(start_dt.normalize(), end_dt.normalize(), freq=freq)
-        observed = ts.dt.to_period("W").dt.start_time
+        expected = pd.date_range(start_dt.normalize(), end_dt.normalize(), freq=freq, tz="UTC")
+        observed = ts.dt.to_period("W").dt.start_time.dt.tz_localize("UTC")
     else:
         expected = _expected_from_market_calendar(cal, start_dt, end_dt, freq) if cal else None
         if expected is None:
-            expected = pd.date_range(start_dt, end_dt, freq=freq)
+            # Align expected bins to timeframe boundaries so they match observed floor(freq).
+            try:
+                start_aligned = start_dt.floor(freq)
+                end_aligned = end_dt.floor(freq)
+            except Exception:
+                start_aligned = start_dt
+                end_aligned = end_dt
+            expected = pd.date_range(start_aligned, end_aligned, freq=freq)
+        if expected.tz is None:
+            expected = expected.tz_localize("UTC")
+        else:
+            expected = expected.tz_convert("UTC")
         if is_fx_calendar:
             expected = expected[expected.weekday < 5]
         observed = ts.dt.floor(freq)

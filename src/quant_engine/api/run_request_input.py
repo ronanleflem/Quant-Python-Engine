@@ -25,6 +25,8 @@ class DataRangeBlock(StrictModel):
 class MarketStatsDataBlock(StrictModel):
     symbol: Optional[str] = None
     timeframe: str
+    start_date: Optional[str] = Field(default=None, validation_alias=AliasChoices("start_date", "startDate"))
+    end_date: Optional[str] = Field(default=None, validation_alias=AliasChoices("end_date", "endDate"))
     asset_class: Optional[str] = Field(default=None, validation_alias=AliasChoices("asset_class", "assetClass"))
     currency: Optional[str] = None
     lookback: Optional[int] = None
@@ -42,6 +44,8 @@ class MarketStatsDataBlock(StrictModel):
 class SeasonalityDataBlock(StrictModel):
     symbol: Optional[str] = None
     timeframe: str
+    start_date: Optional[str] = Field(default=None, validation_alias=AliasChoices("start_date", "startDate"))
+    end_date: Optional[str] = Field(default=None, validation_alias=AliasChoices("end_date", "endDate"))
     asset_class: Optional[str] = Field(default=None, validation_alias=AliasChoices("asset_class", "assetClass"))
     currency: Optional[str] = None
     window: Optional[str] = None

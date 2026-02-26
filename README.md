@@ -1,6 +1,13 @@
 ![CI](https://github.com/<OWNER>/<REPO>/actions/workflows/ci.yml/badge.svg)
 
 # Quant Engine
+## Variables minimales (PowerShell)
+```powershell
+$env:DB_DSN="mysql+pymysql://restadmin:ronanronan77@127.0.0.1:3306/restdb?charset=utf8mb4"
+$env:DB_SQLITE_PATH="C:\Users\ronan\Desktop\Quant-Engine-Python\Quant-Python-Engine\.db\quant.db"
+$env:QE_MARKETDATA_MYSQL_URL="mysql+pymysql://restadmin:ronanronan77@127.0.0.1:3306/restdb?charset=utf8mb4"
+$env:DELTA_BASE_URI="s3://quant-delta-dev"
+```
 
 ## Présentation
 Moteur d’optimisation et de backtest basé sur une spécification JSON, prenant en charge EMA/VWAP, TP/SL, Walk Forward Analysis, Optuna, MySQL et MLflow.
@@ -1143,3 +1150,4 @@ Outre `month` / `month_of_year`, vous pouvez analyser `quarter` (1–4) et les f
 
 - [Architecture & Récap Fonctionnel](docs/architecture_overview.md)
 - [Market Stats – Notes & Garde-fous](docs/market_stats_guidelines.md)
+

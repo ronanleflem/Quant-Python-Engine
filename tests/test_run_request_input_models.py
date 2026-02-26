@@ -155,6 +155,28 @@ def test_market_stats_accepts_symbols_without_symbol() -> None:
     assert parsed.data.symbols == ["BTCUSDT", "ETHUSDT"]
 
 
+def test_market_stats_accepts_explicit_start_end_dates() -> None:
+    payload = {
+        "spec_type": "market_stats",
+        "catalog_version": "v1",
+        "data": {
+            "symbol": "BTCUSDT",
+            "timeframe": "1d",
+            "start_date": "2022-01-01T00:00:00.000Z",
+            "end_date": "2024-12-31T00:00:00.000Z",
+        },
+        "stats": {
+            "event": {"id": "always_true"},
+            "condition": {"id": "day_of_week"},
+            "target": {"id": "up_next_bar"},
+        },
+    }
+
+    parsed = validate_run_request_input(payload)
+    assert parsed.data.start_date == "2022-01-01T00:00:00.000Z"
+    assert parsed.data.end_date == "2024-12-31T00:00:00.000Z"
+
+
 def test_market_stats_rejects_when_symbol_and_symbols_missing() -> None:
     payload = {
         "spec_type": "market_stats",
@@ -193,6 +215,27 @@ def test_seasonality_accepts_symbols_without_symbol() -> None:
     assert parsed.spec_type == "seasonality"
     assert parsed.data.symbol is None
     assert parsed.data.symbols == ["SPY", "QQQ"]
+
+
+def test_seasonality_accepts_explicit_start_end_dates() -> None:
+    payload = {
+        "spec_type": "seasonality",
+        "catalog_version": "v1",
+        "data": {
+            "symbol": "SPY",
+            "timeframe": "1d",
+            "start_date": "2022-01-01T00:00:00.000Z",
+            "end_date": "2024-12-31T00:00:00.000Z",
+        },
+        "seasonality": {
+            "profile": {"id": "by_hour"},
+            "signal": {"method": "threshold"},
+        },
+    }
+
+    parsed = validate_run_request_input(payload)
+    assert parsed.data.start_date == "2022-01-01T00:00:00.000Z"
+    assert parsed.data.end_date == "2024-12-31T00:00:00.000Z"
 
 
 def test_seasonality_rejects_when_symbol_and_symbols_missing() -> None:

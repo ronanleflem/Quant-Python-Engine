@@ -1,0 +1,37 @@
+{
+  "metrics": {
+    "sharpe": -0.15932913464247556,
+    "sortino": -0.21657330388233065,
+    "max_drawdown": 17908.969999999983,
+    "cagr": {
+      "real": 1.135059558856343,
+      "imag": 0.6824387298704447
+    },
+    "hit_rate": 0.3184713375796178,
+    "avg_R": -0.02070425589595265,
+    "trades": 314.0,
+    "fold_index": 0,
+    "n_trades": 314,
+    "rules_counts": {
+      "session": 1
+    }
+  },
+  "rules": {
+    "active_bins": {
+      "session": [
+        "Asia"
+      ]
+    },
+    "combine": "sum",
+    "metadata": {
+      "thresholds": {
+        "session": 0.00011999999999999999
+      },
+      "counts": {
+        "session": 1
+      },
+      "method": "threshold",
+      "measure": "return"
+    }
+  }
+}

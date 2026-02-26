@@ -460,6 +460,45 @@ def test_worker_uses_symbols_over_symbol_for_canonical_market_stats(tmp_path, mo
     assert observed["spec"].data.symbols == ["ETHUSDT", "BTCUSDT"]
 
 
+def test_worker_uses_explicit_dates_over_lookback_for_canonical_market_stats(tmp_path, monkeypatch) -> None:
+    import pandas as pd
+
+    monkeypatch.setenv("DB_SQLITE_PATH", str(tmp_path / "quant.db"))
+    reset_settings_cache()
+    observed = {}
+    payload = _canonical_market_stats_payload()
+    payload["data"]["start_date"] = "2022-01-01T00:00:00.000Z"
+    payload["data"]["end_date"] = "2024-12-31T00:00:00.000Z"
+
+    def _fake_run_stats(spec):
+        observed["spec"] = spec
+        return pd.DataFrame(
+            [
+                {
+                    "symbol": "BTCUSDT",
+                    "event": "always_true",
+                    "condition_name": "day_of_week",
+                    "condition_value": "1",
+                    "target": "up_next_bar",
+                    "n": 10,
+                    "successes": 6,
+                    "p_hat": 0.6,
+                }
+            ]
+        )
+
+    monkeypatch.setattr(api_app.stats_runner, "run_stats", _fake_run_stats)
+
+    response = api_app.enqueue_run_request(payload)
+    result = worker_module.process_next_job()
+
+    assert result is not None
+    job = api_app._get_job(response.run_id)
+    assert job["status"] == api_app.JOB_STATUS_SUCCEEDED
+    assert observed["spec"].data.start == "2022-01-01T00:00:00+00:00"
+    assert observed["spec"].data.end == "2024-12-31T00:00:00+00:00"
+
+
 def test_worker_uses_symbols_over_symbol_for_canonical_seasonality(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("DB_SQLITE_PATH", str(tmp_path / "quant.db"))
     reset_settings_cache()
@@ -478,6 +517,32 @@ def test_worker_uses_symbols_over_symbol_for_canonical_seasonality(tmp_path, mon
     job = api_app._get_job(response.run_id)
     assert job["status"] == api_app.JOB_STATUS_SUCCEEDED
     assert observed["spec"].data.symbols == ["QQQ", "SPY"]
+
+
+def test_worker_uses_explicit_dates_over_years_for_canonical_seasonality(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("DB_SQLITE_PATH", str(tmp_path / "quant.db"))
+    reset_settings_cache()
+    observed = {}
+    payload = _canonical_seasonality_payload()
+    payload["data"]["start_year"] = 2010
+    payload["data"]["end_year"] = 2011
+    payload["data"]["start_date"] = "2022-01-01T00:00:00.000Z"
+    payload["data"]["end_date"] = "2024-12-31T00:00:00.000Z"
+
+    def _fake_run_seasonality(spec):
+        observed["spec"] = spec
+        return {"summary": {"n_profiles": 2}, "profiles": []}
+
+    monkeypatch.setattr(api_app.seasonality_runner, "run", _fake_run_seasonality)
+
+    response = api_app.enqueue_run_request(payload)
+    result = worker_module.process_next_job()
+
+    assert result is not None
+    job = api_app._get_job(response.run_id)
+    assert job["status"] == api_app.JOB_STATUS_SUCCEEDED
+    assert observed["spec"].data.start == "2022-01-01T00:00:00+00:00"
+    assert observed["spec"].data.end == "2024-12-31T00:00:00+00:00"
 
 
 def test_worker_uses_universe_over_data_symbol_for_canonical_dca(tmp_path, monkeypatch) -> None:
