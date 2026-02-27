@@ -14,7 +14,7 @@ import re
 import logging
 from dataclasses import asdict, is_dataclass
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Mapping, Optional, Sequence
 
 from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi.exceptions import RequestValidationError
@@ -37,6 +37,7 @@ from ..stats.estimators import freq_with_wilson
 from ..seasonality import runner as seasonality_runner
 from ..seasonality.optimize import run_optimization as seasonality_run_optimization
 from ..strategies import runner as strategies_runner
+from ..performance import stress_tests as stress_tests_runner
 from ..filters import list_filter_types
 from . import schemas
 from .run_request_input import validate_run_request_input
@@ -463,6 +464,127 @@ def _canonical_performance_to_internal(performance_block: Dict[str, Any]) -> Dic
     if isinstance(stress_block, dict):
         performance_spec["stress_tests"] = _canonical_stress_tests_to_internal(stress_block)
     return performance_spec
+
+
+def _extract_trades_from_canonical_result(result_payload: Any) -> List[Dict[str, Any]]:
+    if not isinstance(result_payload, dict):
+        return []
+
+    candidates: List[Dict[str, Any]] = [result_payload]
+    payload_block = result_payload.get("payload")
+    if isinstance(payload_block, dict):
+        candidates.append(payload_block)
+
+    result_block = result_payload.get("result")
+    if isinstance(result_block, dict):
+        candidates.append(result_block)
+        nested_payload = result_block.get("payload")
+        if isinstance(nested_payload, dict):
+            candidates.append(nested_payload)
+
+    for candidate in candidates:
+        for key in ("trades", "completed_trades"):
+            value = candidate.get(key)
+            if isinstance(value, list):
+                return [item for item in value if isinstance(item, dict)]
+    return []
+
+
+def _normalize_stress_source_trades(trades: Sequence[Mapping[str, Any]]) -> List[Dict[str, Any]]:
+    normalized: List[Dict[str, Any]] = []
+    for trade in trades:
+        pnl = trade.get("pnl")
+        if pnl is None:
+            pnl = trade.get("gross_pnl")
+        if pnl is None:
+            pnl = trade.get("grossPnl")
+        if pnl is None:
+            pnl = trade.get("profit_or_loss")
+        if pnl is None:
+            continue
+
+        entry_time = (
+            trade.get("entry_time")
+            or trade.get("entryTimeUtc")
+            or trade.get("entry_timestamp")
+            or trade.get("ts_entry")
+        )
+        exit_time = (
+            trade.get("exit_time")
+            or trade.get("exitTimeUtc")
+            or trade.get("exit_timestamp")
+            or trade.get("ts_exit")
+        )
+
+        r_multiple = trade.get("r_multiple")
+        if r_multiple is None:
+            meta = trade.get("meta")
+            if isinstance(meta, dict):
+                r_multiple = meta.get("r_multiple")
+            meta_json = trade.get("meta_json")
+            if r_multiple is None and isinstance(meta_json, str):
+                try:
+                    decoded = json.loads(meta_json)
+                    if isinstance(decoded, dict):
+                        r_multiple = decoded.get("r_multiple")
+                except Exception:
+                    pass
+
+        normalized.append(
+            {
+                "symbol": trade.get("symbol"),
+                "pnl": pnl,
+                "r_multiple": r_multiple,
+                "entry_time": entry_time,
+                "exit_time": exit_time,
+            }
+        )
+    return normalized
+
+
+def _load_stress_source_trades(base_run_id: str) -> List[Dict[str, Any]]:
+    trades_rows: List[Dict[str, Any]] = []
+
+    try:
+        with db.session() as conn:
+            rows = conn.execute(
+                """
+                SELECT symbol, entry_timestamp, exit_timestamp, profit_or_loss, pnl_pct, meta_json
+                FROM trades_completed
+                WHERE run_id = ?
+                ORDER BY exit_timestamp, entry_timestamp
+                """,
+                (base_run_id,),
+            ).fetchall()
+            for row in rows:
+                trades_rows.append(dict(row))
+    except Exception:
+        trades_rows = []
+
+    normalized = _normalize_stress_source_trades(trades_rows)
+    if normalized:
+        return normalized
+
+    try:
+        with db.session() as conn:
+            row = conn.execute(
+                """
+                SELECT result_json
+                FROM api_jobs
+                WHERE job_id = ?
+                LIMIT 1
+                """,
+                (base_run_id,),
+            ).fetchone()
+    except Exception:
+        row = None
+
+    if row is None:
+        return []
+
+    raw_result = _decode_json(dict(row).get("result_json"))
+    extracted = _extract_trades_from_canonical_result(raw_result)
+    return _normalize_stress_source_trades(extracted)
 
 
 def _canonical_backtest_to_spec(request: Dict[str, Any]) -> Dict[str, Any]:
@@ -1295,6 +1417,82 @@ def _run_job_payload(job_type: str, payload: Any | None) -> Any:
                         "spec_type": request.get("spec_type"),
                         "result": seasonality_result,
                     }
+                if spec_type == "stress_tests":
+                    data_block = request.get("data") if isinstance(request.get("data"), dict) else {}
+                    base_run_id = str(data_block.get("base_run_id") or "").strip()
+                    if not base_run_id:
+                        return _job_error_payload(
+                            "validation_error",
+                            "Missing required field: data.base_run_id",
+                        )
+
+                    performance_block = request.get("performance") if isinstance(request.get("performance"), dict) else {}
+                    stress_block = performance_block.get("stress_tests")
+                    if not isinstance(stress_block, dict):
+                        return _job_error_payload(
+                            "validation_error",
+                            "Missing required block: performance.stress_tests",
+                        )
+
+                    source_trades = _load_stress_source_trades(base_run_id)
+                    if not source_trades:
+                        return _job_error_payload(
+                            "execution_error",
+                            f"No completed trades found for base run '{base_run_id}'",
+                        )
+
+                    stress_internal = _canonical_stress_tests_to_internal(stress_block)
+                    monte_carlo_cfg = stress_internal.get("monte_carlo", {})
+                    scenario_cfg = stress_internal.get("scenarios")
+
+                    stress_result: Dict[str, Any] = {}
+                    metadata = {"base_run_id": base_run_id}
+
+                    if not isinstance(monte_carlo_cfg, dict):
+                        monte_carlo_cfg = {}
+                    if monte_carlo_cfg.get("enabled") is not False:
+                        stress_result["monte_carlo"] = stress_tests_runner.run_monte_carlo_on_trades(
+                            source_trades,
+                            metadata=metadata,
+                            parameters=monte_carlo_cfg,
+                        )
+
+                    if scenario_cfg is not None:
+                        scenario_params: Dict[str, Any] = {}
+                        if isinstance(scenario_cfg, list):
+                            scenario_params["scenarios"] = scenario_cfg
+                        elif isinstance(scenario_cfg, dict):
+                            if isinstance(scenario_cfg.get("scenarios"), list):
+                                scenario_params.update(scenario_cfg)
+                            else:
+                                scenario_params["scenarios"] = [scenario_cfg]
+
+                        for key in ("multi_asset", "aggregation", "weights", "timestamp_alignment"):
+                            if key in monte_carlo_cfg and key not in scenario_params:
+                                scenario_params[key] = monte_carlo_cfg.get(key)
+
+                        if scenario_params.get("scenarios"):
+                            stress_result["scenarios"] = stress_tests_runner.run_scenarios_on_trades(
+                                source_trades,
+                                metadata=metadata,
+                                parameters=scenario_params,
+                            )
+
+                    if not stress_result:
+                        return _job_error_payload(
+                            "validation_error",
+                            "No stress test mode enabled (monte_carlo/scenarios)",
+                        )
+
+                    return {
+                        "accepted": True,
+                        "spec_type": request.get("spec_type"),
+                        "base_run_id": base_run_id,
+                        "result": {
+                            "source": {"base_run_id": base_run_id, "trades_count": len(source_trades)},
+                            "stress_tests": stress_result,
+                        },
+                    }
                 return {"accepted": True, "spec_type": request.get("spec_type")}
         return {"accepted": True}
     raise ValueError(f"Unknown job type: {job_type}")
@@ -1898,6 +2096,47 @@ def _canonical_runs_capabilities(spec_type: str) -> Dict[str, Any]:
                     "order": ["delta", "mysql", "java"],
                     "explicit_source_priority": ["data.path|data.dataset_path", "data.mysql"],
                 },
+            },
+        }
+
+    if normalized == "stress_tests":
+        return {
+            "spec_type": "stress_tests",
+            "catalog_version": CANONICAL_CAPABILITIES_CATALOG_VERSION,
+            "fields": {
+                "supported": [
+                    "catalog_version",
+                    "request_id",
+                    "data.base_run_id",
+                    "performance.stress_tests",
+                    "performance.stress_tests.enabled",
+                    "performance.stress_tests.source",
+                    "performance.stress_tests.method",
+                    "performance.stress_tests.n_sims",
+                    "performance.stress_tests.seed",
+                    "performance.stress_tests.block_size",
+                    "performance.stress_tests.overlapping",
+                    "performance.stress_tests.time_distribution",
+                    "performance.stress_tests.param_drift",
+                    "performance.stress_tests.sizing",
+                    "performance.stress_tests.output",
+                    "performance.stress_tests.scenarios",
+                    "performance.stress_tests.multi_asset",
+                    "performance.stress_tests.aggregation",
+                    "performance.stress_tests.weights",
+                    "performance.stress_tests.timestamp_alignment",
+                    "output",
+                    "persistence",
+                ],
+                "accepted_but_not_wired": [
+                    "output",
+                    "persistence",
+                ],
+            },
+            "runtime_rules": {
+                "execution_status": "wired",
+                "source_run_requirements": "data.base_run_id must reference an existing canonical DCA/backtest run with completed trades",
+                "trade_source_priority": ["trades_completed table", "api_jobs.result.payload.trades"],
             },
         }
 

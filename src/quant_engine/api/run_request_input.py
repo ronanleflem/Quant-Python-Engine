@@ -247,10 +247,31 @@ class SeasonalityRunRequest(RunRequestCommon):
         return self
 
 
+class StressTestsDataBlock(StrictModel):
+    base_run_id: str = Field(
+        validation_alias=AliasChoices(
+            "base_run_id",
+            "baseRunId",
+            "source_run_id",
+            "sourceRunId",
+        )
+    )
+
+
 class StressTestsRunRequest(RunRequestCommon):
     spec_type: Literal["stress_tests"]
-    data: DataRangeBlock
+    data: StressTestsDataBlock
     strategy: Optional[Dict[str, Any]] = None
+
+    @model_validator(mode="after")
+    def _validate_stress_tests_block(self) -> "StressTestsRunRequest":
+        base_run_id = (self.data.base_run_id or "").strip() if self.data is not None else ""
+        if not base_run_id:
+            raise ValueError("stress_tests requires data.base_run_id")
+        stress_block = self.performance.stress_tests if self.performance is not None else None
+        if stress_block is None:
+            raise ValueError("stress_tests requires performance.stress_tests")
+        return self
 
 
 RunRequestInput = Annotated[

@@ -58,7 +58,8 @@ def test_accepts_backtest_payload_with_java_aliases() -> None:
         {
             "spec_type": "stress_tests",
             "catalog_version": "v1",
-            "data": {"symbol": "EURUSD", "timeframe": "M1", "start_date": "2024-01-01", "end_date": "2024-06-01"},
+            "data": {"base_run_id": "run_123"},
+            "performance": {"stress_tests": {"enabled": True, "n_sims": 100}},
         },
     ],
 )
@@ -87,6 +88,19 @@ def test_rejects_missing_required_branch_block() -> None:
         validate_run_request_input(payload)
 
     assert "stats" in str(exc_info.value)
+
+
+def test_stress_tests_rejects_missing_performance_stress_tests() -> None:
+    payload = {
+        "spec_type": "stress_tests",
+        "catalog_version": "v1",
+        "data": {"base_run_id": "run_123"},
+    }
+
+    with pytest.raises(ValidationError) as exc_info:
+        validate_run_request_input(payload)
+
+    assert "stress_tests requires performance.stress_tests" in str(exc_info.value)
 
 
 def test_rejects_unknown_top_level_field() -> None:

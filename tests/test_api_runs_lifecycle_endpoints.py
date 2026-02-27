@@ -393,6 +393,83 @@ def test_runs_capabilities_returns_backtest_runtime_matrix(tmp_path, monkeypatch
     assert body["runtime_rules"]["data_source_resolution"]["order"] == ["delta", "mysql", "java"]
 
 
+def test_runs_capabilities_returns_stress_tests_runtime_matrix(tmp_path, monkeypatch) -> None:
+    client = _setup_db(tmp_path, monkeypatch)
+
+    resp = client.get("/runs/capabilities", params={"spec_type": "stress_tests"})
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["spec_type"] == "stress_tests"
+    assert "data.base_run_id" in body["fields"]["supported"]
+    assert "performance.stress_tests" in body["fields"]["supported"]
+    assert body["runtime_rules"]["execution_status"] == "wired"
+    assert "trades_completed table" in body["runtime_rules"]["trade_source_priority"]
+
+
+def test_run_result_returns_canonical_stress_tests_success_payload(tmp_path, monkeypatch) -> None:
+    client = _setup_db(tmp_path, monkeypatch)
+    base_run_id = "base_run_1"
+
+    base_result = {
+        "accepted": True,
+        "spec_type": "dca",
+        "payload": {
+            "trades": [
+                {
+                    "symbol": "BTC",
+                    "entryTimeUtc": "2024-01-01T00:00:00Z",
+                    "exitTimeUtc": "2024-01-02T00:00:00Z",
+                    "grossPnl": 10.0,
+                    "meta": {"r_multiple": 1.2},
+                },
+                {
+                    "symbol": "BTC",
+                    "entryTimeUtc": "2024-01-03T00:00:00Z",
+                    "exitTimeUtc": "2024-01-04T00:00:00Z",
+                    "grossPnl": -5.0,
+                    "meta": {"r_multiple": -0.8},
+                },
+                {
+                    "symbol": "BTC",
+                    "entryTimeUtc": "2024-01-05T00:00:00Z",
+                    "exitTimeUtc": "2024-01-06T00:00:00Z",
+                    "grossPnl": 8.0,
+                    "meta": {"r_multiple": 0.7},
+                },
+            ]
+        },
+    }
+    api_app._init_job(base_run_id, api_app.JOB_TYPE_CANONICAL_RUN, payload={"request": {"spec_type": "dca"}})
+    api_app._update_job_result(base_run_id, base_result, status=api_app.JOB_STATUS_SUCCEEDED)
+
+    payload = {
+        "spec_type": "stress_tests",
+        "catalog_version": "v1",
+        "data": {"base_run_id": base_run_id},
+        "performance": {
+            "stress_tests": {
+                "enabled": True,
+                "method": "bootstrap",
+                "n_sims": 12,
+                "seed": 42,
+            }
+        },
+    }
+    response = api_app.enqueue_run_request(payload)
+    worker_module.process_next_job()
+
+    resp = client.get(f"/runs/{response.run_id}/result")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == api_app.JOB_STATUS_SUCCEEDED
+    assert body["result"]["accepted"] is True
+    assert body["result"]["spec_type"] == "stress_tests"
+    assert body["result"]["base_run_id"] == base_run_id
+    assert body["result"]["result"]["source"]["trades_count"] == 3
+    assert "monte_carlo" in body["result"]["result"]["stress_tests"]
+
+
 def test_run_result_returns_canonical_backtest_unwired_tp_sl_error(tmp_path, monkeypatch) -> None:
     client = _setup_db(tmp_path, monkeypatch)
     payload = _canonical_payload()
