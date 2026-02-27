@@ -119,6 +119,22 @@ def _canonical_seasonality_payload_symbols_only() -> dict:
     }
 
 
+def _canonical_optimize_backtest_payload() -> dict:
+    return {
+        "spec_type": "optimize_backtest",
+        "catalog_version": "v1",
+        "optimization": {
+            "base_spec": _canonical_backtest_payload(),
+            "search_space": {
+                "signal.fast": {"type": "int", "min": 5, "max": 20},
+                "signal.slow": {"type": "int", "min": 21, "max": 80},
+            },
+            "objective": {"metric": "sharpe", "direction": "max"},
+            "budget": {"max_trials": 10, "seed": 7},
+        },
+    }
+
+
 def test_runs_submit_enqueues_request(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("DB_SQLITE_PATH", str(tmp_path / "quant.db"))
     reset_settings_cache()
@@ -179,6 +195,18 @@ def test_runs_submit_enqueues_seasonality_symbols_only_request(tmp_path, monkeyp
     client = TestClient(api_app.fastapi_app)
 
     response = client.post("/runs", json=_canonical_seasonality_payload_symbols_only())
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "QUEUED"
+
+
+def test_runs_submit_enqueues_optimize_backtest_request(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("DB_SQLITE_PATH", str(tmp_path / "quant.db"))
+    reset_settings_cache()
+    client = TestClient(api_app.fastapi_app)
+
+    response = client.post("/runs", json=_canonical_optimize_backtest_payload())
 
     assert response.status_code == 200
     payload = response.json()
@@ -263,3 +291,17 @@ def test_runs_submit_rejects_market_stats_invalid_htf_trend_params(tmp_path, mon
     fields = {err["field"] for err in errors}
     assert "market_stats.stats.condition.params.tf_multiplier" in fields
     assert "market_stats.stats.condition.params.ema_period" in fields
+
+
+def test_runs_submit_rejects_optimize_backtest_empty_search_space(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("DB_SQLITE_PATH", str(tmp_path / "quant.db"))
+    reset_settings_cache()
+    client = TestClient(api_app.fastapi_app)
+    payload = _canonical_optimize_backtest_payload()
+    payload["optimization"]["search_space"] = {}
+
+    response = client.post("/runs", json=payload)
+
+    assert response.status_code == 422
+    errors = response.json()["errors"]
+    assert errors

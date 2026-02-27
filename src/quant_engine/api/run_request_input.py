@@ -274,6 +274,79 @@ class StressTestsRunRequest(RunRequestCommon):
         return self
 
 
+class OptimizationObjectiveBlock(StrictModel):
+    metric: str
+    direction: Literal["max", "min"]
+
+
+class OptimizationBudgetBlock(StrictModel):
+    max_trials: int = Field(validation_alias=AliasChoices("max_trials", "maxTrials"))
+    timeout_seconds: Optional[int] = Field(
+        default=None,
+        validation_alias=AliasChoices("timeout_seconds", "timeoutSeconds"),
+    )
+    seed: Optional[int] = None
+
+    @model_validator(mode="after")
+    def _validate_budget_bounds(self) -> "OptimizationBudgetBlock":
+        if int(self.max_trials) < 1:
+            raise ValueError("optimization.budget.max_trials must be >= 1")
+        if self.timeout_seconds is not None and int(self.timeout_seconds) < 1:
+            raise ValueError("optimization.budget.timeout_seconds must be >= 1")
+        if self.seed is not None and int(self.seed) < 0:
+            raise ValueError("optimization.budget.seed must be >= 0")
+        return self
+
+
+class OptimizationBlock(StrictModel):
+    base_run_id: Optional[str] = Field(
+        default=None,
+        validation_alias=AliasChoices("base_run_id", "baseRunId"),
+    )
+    base_spec: Optional[Dict[str, Any]] = None
+    search_space: Dict[str, Any] = Field(validation_alias=AliasChoices("search_space", "searchSpace"))
+    objective: OptimizationObjectiveBlock
+    budget: OptimizationBudgetBlock
+
+    @model_validator(mode="after")
+    def _validate_base_and_search_space(self) -> "OptimizationBlock":
+        base_run_id = (self.base_run_id or "").strip()
+        base_spec = self.base_spec if isinstance(self.base_spec, dict) else None
+        if not base_run_id and not base_spec:
+            raise ValueError("optimization requires optimization.base_run_id or optimization.base_spec")
+        if not isinstance(self.search_space, dict) or len(self.search_space) == 0:
+            raise ValueError("optimization.search_space must be a non-empty object")
+        return self
+
+
+class OptimizeBacktestRunRequest(RunRequestCommon):
+    spec_type: Literal["optimize_backtest"]
+    optimization: OptimizationBlock
+
+    @model_validator(mode="after")
+    def _validate_base_spec_type(self) -> "OptimizeBacktestRunRequest":
+        base_spec = self.optimization.base_spec if self.optimization is not None else None
+        if isinstance(base_spec, dict):
+            base_spec_type = str(base_spec.get("spec_type") or "").strip().lower()
+            if base_spec_type and base_spec_type != "backtest":
+                raise ValueError("optimize_backtest requires optimization.base_spec.spec_type=backtest")
+        return self
+
+
+class OptimizeDcaRunRequest(RunRequestCommon):
+    spec_type: Literal["optimize_dca"]
+    optimization: OptimizationBlock
+
+    @model_validator(mode="after")
+    def _validate_base_spec_type(self) -> "OptimizeDcaRunRequest":
+        base_spec = self.optimization.base_spec if self.optimization is not None else None
+        if isinstance(base_spec, dict):
+            base_spec_type = str(base_spec.get("spec_type") or "").strip().lower()
+            if base_spec_type and base_spec_type != "dca":
+                raise ValueError("optimize_dca requires optimization.base_spec.spec_type=dca")
+        return self
+
+
 RunRequestInput = Annotated[
     Union[
         BacktestRunRequest,
@@ -281,6 +354,8 @@ RunRequestInput = Annotated[
         MarketStatsRunRequest,
         SeasonalityRunRequest,
         StressTestsRunRequest,
+        OptimizeBacktestRunRequest,
+        OptimizeDcaRunRequest,
     ],
     Field(discriminator="spec_type"),
 ]

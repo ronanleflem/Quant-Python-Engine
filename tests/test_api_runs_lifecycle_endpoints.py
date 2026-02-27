@@ -407,6 +407,34 @@ def test_runs_capabilities_returns_stress_tests_runtime_matrix(tmp_path, monkeyp
     assert "trades_completed table" in body["runtime_rules"]["trade_source_priority"]
 
 
+@pytest.mark.parametrize(
+    ("spec_type", "target_spec_type"),
+    [
+        ("optimize_backtest", "backtest"),
+        ("optimize_dca", "dca"),
+    ],
+)
+def test_runs_capabilities_returns_optimization_runtime_matrix(
+    tmp_path,
+    monkeypatch,
+    spec_type: str,
+    target_spec_type: str,
+) -> None:
+    client = _setup_db(tmp_path, monkeypatch)
+
+    resp = client.get("/runs/capabilities", params={"spec_type": spec_type})
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["spec_type"] == spec_type
+    assert "optimization.search_space" in body["fields"]["supported"]
+    assert "optimization.objective.metric" in body["fields"]["supported"]
+    assert "optimization.budget.max_trials" in body["fields"]["supported"]
+    assert "output" in body["fields"]["accepted_but_not_wired"]
+    assert body["runtime_rules"]["execution_status"] == "wired"
+    assert body["runtime_rules"]["target_spec_type"] == target_spec_type
+
+
 def test_run_result_returns_canonical_stress_tests_success_payload(tmp_path, monkeypatch) -> None:
     client = _setup_db(tmp_path, monkeypatch)
     base_run_id = "base_run_1"
@@ -468,6 +496,122 @@ def test_run_result_returns_canonical_stress_tests_success_payload(tmp_path, mon
     assert body["result"]["base_run_id"] == base_run_id
     assert body["result"]["result"]["source"]["trades_count"] == 3
     assert "monte_carlo" in body["result"]["result"]["stress_tests"]
+
+
+def test_run_result_returns_canonical_optimization_success_payload(tmp_path, monkeypatch) -> None:
+    client = _setup_db(tmp_path, monkeypatch)
+    observed = {}
+
+    def _fake_optimize_backtest(spec):
+        observed["spec"] = spec
+        return {
+            "trials_path": "",
+            "summary": "",
+            "best": {"params": {"signal.fast": 10}, "objective": 1.23},
+            "total_trials": 2,
+        }
+
+    monkeypatch.setattr(api_app.optimize_variants, "run_backtest_optimization", _fake_optimize_backtest)
+
+    payload = {
+        "spec_type": "optimize_backtest",
+        "catalog_version": "v1",
+        "optimization": {
+            "base_spec": _canonical_payload(),
+            "search_space": {"signal.fast": {"type": "int", "min": 5, "max": 20}},
+            "objective": {"metric": "sharpe", "direction": "max"},
+            "budget": {"max_trials": 3},
+        },
+    }
+    response = api_app.enqueue_run_request(payload)
+
+    worker_module.process_next_job()
+
+    resp = client.get(f"/runs/{response.run_id}/result")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == api_app.JOB_STATUS_SUCCEEDED
+    assert body["result"]["accepted"] is True
+    assert body["result"]["spec_type"] == "optimize_backtest"
+    assert body["result"]["result"]["objective"]["metric"] == "sharpe"
+    assert body["result"]["result"]["best"]["score"] == 1.23
+    assert body["result"]["result"]["summary"]["total_trials"] == 0
+    assert observed["spec"]["optimization"]["method"] == "random"
+    assert observed["spec"]["optimization"]["max_trials"] == 3
+    assert observed["spec"]["optimization"]["search_space"]["signal.fast"]["step"] == 1
+
+
+def test_run_result_returns_canonical_optimization_mixed_trials_payload(tmp_path, monkeypatch) -> None:
+    client = _setup_db(tmp_path, monkeypatch)
+
+    def _fake_optimize_dca(_spec):
+        return {
+            "trials_path": "trials.json",
+            "summary": "summary.json",
+            "best": {"params": {"strategy.params.grid[0].dd": -10}, "objective": 0.42},
+            "total_trials": 3,
+        }
+
+    monkeypatch.setattr(api_app.optimize_variants, "run_strategy_optimization", _fake_optimize_dca)
+    monkeypatch.setattr(
+        api_app,
+        "_canonical_optimization_trials",
+        lambda _result: [
+            {"trial_id": 1, "score": 0.42, "status": "SUCCEEDED", "params": {"a": 1}},
+            {"trial_id": 2, "score": None, "status": "FAILED", "params": {"a": 2}},
+            {"trial_id": 3, "score": 0.11, "status": "SUCCEEDED", "params": {"a": 3}},
+        ],
+    )
+
+    payload = {
+        "spec_type": "optimize_dca",
+        "catalog_version": "v1",
+        "optimization": {
+            "base_spec": _canonical_dca_payload(),
+            "search_space": {"strategy.params.grid[0].dd": {"type": "int", "min": -15, "max": -5}},
+            "objective": {"metric": "sharpe", "direction": "max"},
+            "budget": {"max_trials": 3},
+        },
+    }
+    response = api_app.enqueue_run_request(payload)
+    worker_module.process_next_job()
+
+    resp = client.get(f"/runs/{response.run_id}/result")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == api_app.JOB_STATUS_SUCCEEDED
+    summary = body["result"]["result"]["summary"]
+    assert summary["total_trials"] == 3
+    assert summary["succeeded_trials"] == 2
+    assert summary["failed_trials"] == 1
+
+
+def test_run_result_returns_validation_error_for_canonical_optimization_base_run_mismatch(tmp_path, monkeypatch) -> None:
+    client = _setup_db(tmp_path, monkeypatch)
+    base_run_id = "base_backtest_1"
+    base_request = _canonical_payload()
+    api_app._init_job(base_run_id, api_app.JOB_TYPE_CANONICAL_RUN, payload={"request": base_request})
+    api_app._update_job_result(base_run_id, {"accepted": True}, status=api_app.JOB_STATUS_SUCCEEDED)
+
+    payload = {
+        "spec_type": "optimize_dca",
+        "catalog_version": "v1",
+        "optimization": {
+            "base_run_id": base_run_id,
+            "search_space": {"strategy.params.grid[0].dd": {"type": "int", "min": -15, "max": -5}},
+            "objective": {"metric": "sharpe", "direction": "max"},
+            "budget": {"max_trials": 3},
+        },
+    }
+    response = api_app.enqueue_run_request(payload)
+    worker_module.process_next_job()
+
+    resp = client.get(f"/runs/{response.run_id}/result")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == api_app.JOB_STATUS_FAILED_CANONICAL
+    assert body["error"]["code"] == "validation_error"
+    assert "requires base spec_type=dca" in body["error"]["message"]
 
 
 def test_run_result_returns_canonical_backtest_unwired_tp_sl_error(tmp_path, monkeypatch) -> None:

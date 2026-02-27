@@ -29,6 +29,7 @@ from ..levels.runner import run_levels_build, run_levels_fill
 from ..levels.repo import select_levels as repo_select_levels
 from ..levels.schemas import LevelsBuildSpec
 from ..optimize.runner import run as run_optimisation
+from ..optimize import variants as optimize_variants
 from ..io import ids
 from ..persistence import db, RunsRepository, MetricsRepository, TrialsRepository
 from ..stats import runner as stats_runner
@@ -585,6 +586,241 @@ def _load_stress_source_trades(base_run_id: str) -> List[Dict[str, Any]]:
     raw_result = _decode_json(dict(row).get("result_json"))
     extracted = _extract_trades_from_canonical_result(raw_result)
     return _normalize_stress_source_trades(extracted)
+
+
+def _load_canonical_run_request(base_run_id: str) -> Dict[str, Any]:
+    with db.session() as conn:
+        row = conn.execute(
+            """
+            SELECT status, payload_json
+            FROM api_jobs
+            WHERE job_id = ?
+            LIMIT 1
+            """,
+            (base_run_id,),
+        ).fetchone()
+    if row is None:
+        raise ValueError(f"Base run '{base_run_id}' not found")
+    payload = _decode_json(dict(row).get("payload_json"))
+    request = payload.get("request") if isinstance(payload, dict) else None
+    if not isinstance(request, dict):
+        raise ValueError(f"Base run '{base_run_id}' does not contain a canonical request payload")
+    status = str(dict(row).get("status") or "")
+    if status != JOB_STATUS_SUCCEEDED:
+        raise ValueError(f"Base run '{base_run_id}' is not SUCCEEDED (status={status})")
+    return request
+
+
+def _normalize_optimization_search_space(raw_space: Mapping[str, Any]) -> Dict[str, Any]:
+    normalized: Dict[str, Any] = {}
+    for key, raw_cfg in raw_space.items():
+        if not isinstance(key, str) or not key.strip():
+            raise ValueError("optimization.search_space keys must be non-empty strings")
+        path = key.strip()
+        if isinstance(raw_cfg, list):
+            if not raw_cfg:
+                raise ValueError(f"optimization.search_space.{path} must not be an empty list")
+            normalized[path] = list(raw_cfg)
+            continue
+        if not isinstance(raw_cfg, dict):
+            raise ValueError(f"optimization.search_space.{path} must be a list or object")
+        if isinstance(raw_cfg.get("values"), list):
+            values = list(raw_cfg.get("values") or [])
+            if not values:
+                raise ValueError(f"optimization.search_space.{path}.values must not be empty")
+            normalized[path] = {"values": values}
+            continue
+        if isinstance(raw_cfg.get("domain"), list):
+            values = list(raw_cfg.get("domain") or [])
+            if not values:
+                raise ValueError(f"optimization.search_space.{path}.domain must not be empty")
+            normalized[path] = {"values": values}
+            continue
+        if "min" in raw_cfg and "max" in raw_cfg:
+            try:
+                min_v = float(raw_cfg.get("min"))
+                max_v = float(raw_cfg.get("max"))
+            except Exception as exc:
+                raise ValueError(f"optimization.search_space.{path} min/max must be numeric") from exc
+            if max_v < min_v:
+                raise ValueError(f"optimization.search_space.{path} must satisfy max >= min")
+            step = raw_cfg.get("step")
+            if step is None:
+                raw_type = str(raw_cfg.get("type") or "").strip().lower()
+                if raw_type in {"int", "integer"} or (float(min_v).is_integer() and float(max_v).is_integer()):
+                    step = 1
+                else:
+                    span = max_v - min_v
+                    step = span / 10.0 if span > 0 else 1.0
+            try:
+                step_v = float(step)
+            except Exception as exc:
+                raise ValueError(f"optimization.search_space.{path}.step must be numeric") from exc
+            if step_v <= 0:
+                raise ValueError(f"optimization.search_space.{path}.step must be > 0")
+            if str(raw_cfg.get("type") or "").strip().lower() in {"int", "integer"}:
+                normalized[path] = {"min": int(round(min_v)), "max": int(round(max_v)), "step": int(round(step_v))}
+            else:
+                normalized[path] = {"min": min_v, "max": max_v, "step": step_v}
+            continue
+        raise ValueError(
+            f"optimization.search_space.{path} must provide one of: list, values[], domain[], or min/max(/step)"
+        )
+    return normalized
+
+
+def _canonical_optimization_objective(metric: str, direction: str) -> Any:
+    metric_clean = str(metric or "").strip()
+    if not metric_clean:
+        raise ValueError("optimization.objective.metric must be a non-empty string")
+    direction_clean = str(direction or "").strip().lower()
+    if direction_clean not in {"max", "min"}:
+        raise ValueError("optimization.objective.direction must be 'max' or 'min'")
+    if direction_clean == "max":
+        return metric_clean
+    return {"weights": {metric_clean: -1.0}}
+
+
+def _canonical_optimization_trials(result: Mapping[str, Any]) -> List[Dict[str, Any]]:
+    trials_path = result.get("trials_path")
+    if not isinstance(trials_path, str) or not trials_path.strip():
+        return []
+    try:
+        with open(trials_path, "r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+    except Exception:
+        return []
+    if not isinstance(payload, list):
+        return []
+    normalized: List[Dict[str, Any]] = []
+    for item in payload:
+        if not isinstance(item, dict):
+            continue
+        raw_score = item.get("objective")
+        score = None
+        status = "FAILED"
+        if isinstance(raw_score, (int, float)) and float(raw_score) != float("-inf"):
+            score = float(raw_score)
+            status = "SUCCEEDED"
+        trial_id = item.get("trial_id")
+        if not isinstance(trial_id, int):
+            trial_id = len(normalized) + 1
+        normalized.append(
+            {
+                "trial_id": int(trial_id),
+                "score": score,
+                "status": status,
+                "params": item.get("params") if isinstance(item.get("params"), dict) else {},
+            }
+        )
+    normalized.sort(key=lambda it: int(it.get("trial_id") or 0))
+    return normalized
+
+
+def _canonical_optimization_from_request(request: Dict[str, Any]) -> Dict[str, Any]:
+    spec_type = str(request.get("spec_type") or "").strip().lower()
+    if spec_type not in {"optimize_backtest", "optimize_dca"}:
+        raise ValueError("Unsupported optimization spec_type")
+
+    optimization = request.get("optimization")
+    if not isinstance(optimization, dict):
+        raise ValueError("Missing optimization block")
+
+    target_spec_type = "backtest" if spec_type == "optimize_backtest" else "dca"
+    base_run_id = str(optimization.get("base_run_id") or "").strip()
+    base_spec = optimization.get("base_spec")
+    base_request = base_spec if isinstance(base_spec, dict) else None
+    if base_request is None:
+        if not base_run_id:
+            raise ValueError("optimization requires optimization.base_run_id or optimization.base_spec")
+        base_request = _load_canonical_run_request(base_run_id)
+
+    base_spec_type = str(base_request.get("spec_type") or "").strip().lower()
+    if base_spec_type != target_spec_type:
+        raise ValueError(
+            f"{spec_type} requires base spec_type={target_spec_type} (got '{base_spec_type or 'unknown'}')"
+        )
+
+    if target_spec_type == "backtest":
+        runner_spec = _canonical_backtest_to_spec(base_request)
+        runner_fn = optimize_variants.run_backtest_optimization
+    else:
+        runner_spec = _canonical_dca_to_strategy_spec(base_request)
+        runner_fn = optimize_variants.run_strategy_optimization
+
+    search_space = optimization.get("search_space")
+    if not isinstance(search_space, dict) or not search_space:
+        raise ValueError("optimization.search_space must be a non-empty object")
+    objective_block = optimization.get("objective")
+    budget_block = optimization.get("budget")
+    if not isinstance(objective_block, dict) or not isinstance(budget_block, dict):
+        raise ValueError("optimization.objective and optimization.budget are required")
+
+    objective_metric = str(objective_block.get("metric") or "").strip()
+    objective_direction = str(objective_block.get("direction") or "max").strip().lower()
+    objective_internal = _canonical_optimization_objective(objective_metric, objective_direction)
+
+    try:
+        max_trials = int(budget_block.get("max_trials"))
+    except Exception as exc:
+        raise ValueError("optimization.budget.max_trials must be an integer >= 1") from exc
+    if max_trials < 1:
+        raise ValueError("optimization.budget.max_trials must be >= 1")
+    seed = budget_block.get("seed")
+    if seed is not None:
+        try:
+            seed = int(seed)
+        except Exception as exc:
+            raise ValueError("optimization.budget.seed must be an integer >= 0") from exc
+        if seed < 0:
+            raise ValueError("optimization.budget.seed must be >= 0")
+
+    runner_spec = dict(runner_spec)
+    runner_spec["optimization"] = {
+        "method": "random",
+        "max_trials": max_trials,
+        "seed": seed,
+        "search_space": _normalize_optimization_search_space(search_space),
+        "objective": objective_internal,
+    }
+
+    raw_result = runner_fn(runner_spec)
+    trials = _canonical_optimization_trials(raw_result if isinstance(raw_result, dict) else {})
+    succeeded = sum(1 for trial in trials if trial.get("status") == "SUCCEEDED")
+    failed = len(trials) - succeeded
+    raw_best = raw_result.get("best") if isinstance(raw_result, dict) else None
+    best: Dict[str, Any] | None = None
+    if isinstance(raw_best, dict):
+        raw_score = raw_best.get("objective")
+        score = float(raw_score) if isinstance(raw_score, (int, float)) and float(raw_score) != float("-inf") else None
+        best = {
+            "score": score,
+            "params": raw_best.get("params") if isinstance(raw_best.get("params"), dict) else {},
+            "run_id": base_run_id or None,
+        }
+
+    return {
+        "accepted": True,
+        "spec_type": request.get("spec_type"),
+        "result": {
+            "objective": {"metric": objective_metric, "direction": objective_direction},
+            "best": best,
+            "trials": trials,
+            "summary": {
+                "total_trials": len(trials),
+                "succeeded_trials": succeeded,
+                "failed_trials": failed,
+            },
+            "source": {
+                "base_run_id": base_run_id or None,
+                "base_spec_type": base_spec_type,
+            },
+            "artifacts": {
+                "trials_path": raw_result.get("trials_path") if isinstance(raw_result, dict) else None,
+                "summary_path": raw_result.get("summary") if isinstance(raw_result, dict) else None,
+            },
+        },
+    }
 
 
 def _canonical_backtest_to_spec(request: Dict[str, Any]) -> Dict[str, Any]:
@@ -1493,6 +1729,11 @@ def _run_job_payload(job_type: str, payload: Any | None) -> Any:
                             "stress_tests": stress_result,
                         },
                     }
+                if spec_type in {"optimize_backtest", "optimize_dca"}:
+                    try:
+                        return _canonical_optimization_from_request(request)
+                    except ValueError as exc:
+                        return _job_error_payload("validation_error", str(exc))
                 return {"accepted": True, "spec_type": request.get("spec_type")}
         return {"accepted": True}
     raise ValueError(f"Unknown job type: {job_type}")
@@ -2137,6 +2378,42 @@ def _canonical_runs_capabilities(spec_type: str) -> Dict[str, Any]:
                 "execution_status": "wired",
                 "source_run_requirements": "data.base_run_id must reference an existing canonical DCA/backtest run with completed trades",
                 "trade_source_priority": ["trades_completed table", "api_jobs.result.payload.trades"],
+            },
+        }
+
+    if normalized in {"optimize_backtest", "optimize_dca"}:
+        target_spec_type = "backtest" if normalized == "optimize_backtest" else "dca"
+        return {
+            "spec_type": normalized,
+            "catalog_version": CANONICAL_CAPABILITIES_CATALOG_VERSION,
+            "fields": {
+                "supported": [
+                    "catalog_version",
+                    "request_id",
+                    "optimization",
+                    "optimization.base_run_id",
+                    "optimization.base_spec",
+                    "optimization.search_space",
+                    "optimization.objective.metric",
+                    "optimization.objective.direction",
+                    "optimization.budget.max_trials",
+                    "optimization.budget.timeout_seconds",
+                    "optimization.budget.seed",
+                    "output",
+                    "persistence",
+                ],
+                "accepted_but_not_wired": [
+                    "output",
+                    "persistence",
+                ],
+            },
+            "runtime_rules": {
+                "execution_status": "wired",
+                "failure_mode": "returns validation_error/execution_error when base reference or search space cannot be resolved",
+                "target_spec_type": target_spec_type,
+                "base_reference_rules": "provide optimization.base_run_id or optimization.base_spec",
+                "search_space_rules": "optimization.search_space must be a non-empty object",
+                "budget_rules": "optimization.budget.max_trials must be >= 1",
             },
         }
 
