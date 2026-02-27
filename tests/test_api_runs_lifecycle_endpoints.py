@@ -144,12 +144,27 @@ def test_run_result_returns_not_implemented_error_details(tmp_path, monkeypatch)
 
 def test_run_result_returns_canonical_backtest_success_payload(tmp_path, monkeypatch) -> None:
     client = _setup_db(tmp_path, monkeypatch)
+    captured_spec = {}
 
     def _fake_run_backtest(spec):
+        captured_spec.update(spec)
         return {"trades": [], "metrics": {"n_trades": 0}, "symbol": spec["data"]["symbol"]}
 
     monkeypatch.setattr(api_app.backtest_runner, "run_backtest_from_spec", _fake_run_backtest)
-    response = api_app.enqueue_run_request(_canonical_payload())
+    payload = _canonical_payload()
+    payload["performance"] = {
+        "initial_capital": 25_000,
+        "risk_free_rate_pct": 2.0,
+        "stress_tests": {
+            "enabled": True,
+            "source": "returns",
+            "method": "block_bootstrap",
+            "n_sims": 250,
+            "block_size": 8,
+            "overlapping": True,
+        },
+    }
+    response = api_app.enqueue_run_request(payload)
     worker_module.process_next_job()
 
     resp = client.get(f"/runs/{response.run_id}/result")
@@ -159,16 +174,33 @@ def test_run_result_returns_canonical_backtest_success_payload(tmp_path, monkeyp
     assert body["result"]["accepted"] is True
     assert body["result"]["spec_type"] == "backtest"
     assert body["result"]["result"]["symbol"] == "EURUSD"
+    assert captured_spec.get("performance", {}).get("initial_capital") == 25_000
+    assert captured_spec.get("performance", {}).get("risk_free_pct") == 2.0
+    assert captured_spec.get("performance", {}).get("stress_tests", {}).get("monte_carlo", {}).get("n_sims") == 250
 
 
 def test_run_result_returns_canonical_dca_success_payload(tmp_path, monkeypatch) -> None:
     client = _setup_db(tmp_path, monkeypatch)
+    captured_spec = {}
 
     def _fake_backtest(spec):
+        captured_spec.update(spec)
         return {"result": {"counts": {"BTCUSD": 2}}, "payload": {"run": {"status": "ok"}}}
 
     monkeypatch.setattr(api_app.strategies_runner, "run_backtest_with_payload", _fake_backtest)
-    response = api_app.enqueue_run_request(_canonical_dca_payload())
+    payload = _canonical_dca_payload()
+    payload["performance"] = {
+        "initial_capital": 11_000,
+        "capital_per_unit": 125,
+        "stress_tests": {
+            "enabled": True,
+            "method": "bootstrap",
+            "n_sims": 120,
+            "block_size": 5,
+            "output": {"mode": "summary"},
+        },
+    }
+    response = api_app.enqueue_run_request(payload)
     worker_module.process_next_job()
 
     resp = client.get(f"/runs/{response.run_id}/result")
@@ -178,6 +210,9 @@ def test_run_result_returns_canonical_dca_success_payload(tmp_path, monkeypatch)
     assert payload["result"]["accepted"] is True
     assert payload["result"]["spec_type"] == "dca"
     assert payload["result"]["result"]["counts"]["BTCUSD"] == 2
+    assert captured_spec.get("performance", {}).get("initial_capital") == 11_000
+    assert captured_spec.get("performance", {}).get("capital_per_unit") == 125
+    assert captured_spec.get("performance", {}).get("stress_tests", {}).get("monte_carlo", {}).get("n_sims") == 120
 
 
 def test_run_result_returns_canonical_dca_unwired_tp_sl_error(tmp_path, monkeypatch) -> None:
@@ -264,7 +299,7 @@ def test_runs_capabilities_returns_dca_runtime_matrix(tmp_path, monkeypatch) -> 
     assert "data.currency" in body["fields"]["supported"]
     assert "strategy.params.asset_class" in body["fields"]["supported"]
     assert "strategy.params.tp_sl" in body["fields"]["supported"]
-    assert "performance.stress_tests" in body["fields"]["accepted_but_not_wired"]
+    assert "performance.stress_tests" in body["fields"]["supported"]
     assert body["presets"]["supported"]["strategy.grid"] == ["grid_balanced"]
     assert "grid_conservative" in body["presets"]["not_supported"]["strategy.grid"]
     assert "grid_aggressive" in body["presets"]["not_supported"]["strategy.grid"]

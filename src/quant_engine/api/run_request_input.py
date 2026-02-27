@@ -148,15 +148,40 @@ class SeasonalityBlock(StrictModel):
 
 class StressTestsBlock(StrictModel):
     enabled: Optional[bool] = None
+    source: Optional[str] = None
     method: Optional[str] = None
     n_sims: Optional[int] = Field(default=None, validation_alias=AliasChoices("n_sims", "nSims"))
     seed: Optional[int] = None
     block_size: Optional[int] = Field(default=None, validation_alias=AliasChoices("block_size", "blockSize"))
+    overlapping: Optional[bool] = None
+    time_distribution: Optional[Dict[str, Any]] = Field(
+        default=None, validation_alias=AliasChoices("time_distribution", "timeDistribution", "time_dist")
+    )
+    param_drift: Optional[Dict[str, Any]] = Field(default=None, validation_alias=AliasChoices("param_drift", "paramDrift"))
+    sizing: Optional[Dict[str, Any]] = None
+    output: Optional[Dict[str, Any]] = None
+    scenarios: Optional[List[Dict[str, Any]] | Dict[str, Any]] = None
+    multi_asset: Optional[Dict[str, Any]] = Field(default=None, validation_alias=AliasChoices("multi_asset", "multiAsset"))
+    aggregation: Optional[str] = None
+    weights: Optional[List[float] | str] = None
+    timestamp_alignment: Optional[str] = Field(
+        default=None, validation_alias=AliasChoices("timestamp_alignment", "timestampAlignment")
+    )
 
 
 class PerformanceBlock(StrictModel):
     initial_capital: Optional[float] = Field(
         default=None, validation_alias=AliasChoices("initial_capital", "initialCapital")
+    )
+    capital_per_unit: Optional[float] = Field(
+        default=None, validation_alias=AliasChoices("capital_per_unit", "capitalPerUnit")
+    )
+    max_capital_per_trade: Optional[float] = Field(
+        default=None, validation_alias=AliasChoices("max_capital_per_trade", "maxCapitalPerTrade")
+    )
+    risk_pct: Optional[float] = Field(default=None, validation_alias=AliasChoices("risk_pct", "riskPct"))
+    risk_free_rate_pct: Optional[float] = Field(
+        default=None, validation_alias=AliasChoices("risk_free_rate_pct", "riskFreeRatePct")
     )
     stress_tests: Optional[StressTestsBlock] = Field(
         default=None, validation_alias=AliasChoices("stress_tests", "stressTests")

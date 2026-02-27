@@ -358,6 +358,113 @@ def _canonical_backtest_tp_sl_to_internal(params: Dict[str, Any]) -> tuple[Any, 
     return dict(tp_sl_raw), True
 
 
+def _coerce_stress_weights(raw: Any) -> List[float] | None:
+    if isinstance(raw, list):
+        parsed: List[float] = []
+        for item in raw:
+            try:
+                parsed.append(float(item))
+            except Exception:
+                return None
+        return parsed if parsed else None
+    if isinstance(raw, str):
+        chunks = [chunk.strip() for chunk in raw.split(",") if chunk.strip()]
+        if not chunks:
+            return None
+        parsed: List[float] = []
+        for chunk in chunks:
+            try:
+                parsed.append(float(chunk))
+            except Exception:
+                return None
+        return parsed if parsed else None
+    return None
+
+
+def _canonical_stress_tests_to_internal(stress_block: Dict[str, Any]) -> Dict[str, Any]:
+    monte_carlo: Dict[str, Any] = {}
+    for key in ("enabled", "source", "method", "seed", "overlapping", "aggregation"):
+        if stress_block.get(key) is not None:
+            monte_carlo[key] = stress_block.get(key)
+
+    n_sims = stress_block.get("n_sims", stress_block.get("nSims"))
+    if n_sims is not None:
+        monte_carlo["n_sims"] = n_sims
+
+    block_size = stress_block.get("block_size", stress_block.get("blockSize"))
+    if block_size is not None:
+        monte_carlo["block_size"] = block_size
+
+    for src, dst in (
+        ("time_distribution", "time_distribution"),
+        ("timeDistribution", "time_distribution"),
+        ("time_dist", "time_distribution"),
+        ("param_drift", "param_drift"),
+        ("paramDrift", "param_drift"),
+        ("sizing", "sizing"),
+        ("output", "output"),
+    ):
+        value = stress_block.get(src)
+        if isinstance(value, dict):
+            monte_carlo[dst] = dict(value)
+
+    timestamp_alignment = stress_block.get("timestamp_alignment", stress_block.get("timestampAlignment"))
+    if isinstance(timestamp_alignment, str) and timestamp_alignment.strip():
+        monte_carlo["timestamp_alignment"] = timestamp_alignment.strip()
+
+    weights = _coerce_stress_weights(stress_block.get("weights"))
+    if weights:
+        monte_carlo["weights"] = weights
+
+    multi_asset = stress_block.get("multi_asset", stress_block.get("multiAsset"))
+    if isinstance(multi_asset, dict):
+        multi_copy = dict(multi_asset)
+        if isinstance(multi_copy.get("timestampAlignment"), str) and not multi_copy.get("timestamp_alignment"):
+            multi_copy["timestamp_alignment"] = multi_copy.get("timestampAlignment")
+        if "weights" in multi_copy:
+            coerced = _coerce_stress_weights(multi_copy.get("weights"))
+            if coerced:
+                multi_copy["weights"] = coerced
+        monte_carlo["multi_asset"] = multi_copy
+        if multi_copy.get("aggregation") is not None and monte_carlo.get("aggregation") is None:
+            monte_carlo["aggregation"] = multi_copy.get("aggregation")
+        if multi_copy.get("timestamp_alignment") is not None and monte_carlo.get("timestamp_alignment") is None:
+            monte_carlo["timestamp_alignment"] = multi_copy.get("timestamp_alignment")
+        if multi_copy.get("weights") is not None and monte_carlo.get("weights") is None:
+            monte_carlo["weights"] = multi_copy.get("weights")
+
+    scenarios = stress_block.get("scenarios")
+    out: Dict[str, Any] = {"monte_carlo": monte_carlo}
+    if isinstance(scenarios, list):
+        out["scenarios"] = scenarios
+    elif isinstance(scenarios, dict):
+        out["scenarios"] = scenarios
+    return out
+
+
+def _canonical_performance_to_internal(performance_block: Dict[str, Any]) -> Dict[str, Any]:
+    performance_spec: Dict[str, Any] = {}
+    for key in (
+        "initial_capital",
+        "capital_per_unit",
+        "max_capital_per_trade",
+        "risk_pct",
+    ):
+        if performance_block.get(key) is not None:
+            performance_spec[key] = performance_block.get(key)
+
+    risk_free_rate_pct = performance_block.get("risk_free_rate_pct")
+    if risk_free_rate_pct is not None:
+        performance_spec["risk_free_rate_pct"] = risk_free_rate_pct
+        # backtest_builder currently consumes risk_free_pct.
+        performance_spec["risk_free_pct"] = risk_free_rate_pct
+
+    stress_block = performance_block.get("stress_tests")
+    if isinstance(stress_block, dict):
+        performance_spec["stress_tests"] = _canonical_stress_tests_to_internal(stress_block)
+    return performance_spec
+
+
 def _canonical_backtest_to_spec(request: Dict[str, Any]) -> Dict[str, Any]:
     data_block = request.get("data") or {}
     signal_block = request.get("signal") or {}
@@ -432,9 +539,7 @@ def _canonical_backtest_to_spec(request: Dict[str, Any]) -> Dict[str, Any]:
 
     performance_block = request.get("performance")
     if isinstance(performance_block, dict):
-        performance_spec: Dict[str, Any] = {}
-        if performance_block.get("initial_capital") is not None:
-            performance_spec["initial_capital"] = performance_block.get("initial_capital")
+        performance_spec = _canonical_performance_to_internal(performance_block)
         if performance_spec:
             mapped["performance"] = performance_spec
 
@@ -699,9 +804,7 @@ def _canonical_dca_to_strategy_spec(request: Dict[str, Any]) -> Dict[str, Any]:
 
     performance_block = request.get("performance")
     if isinstance(performance_block, dict):
-        performance_spec: Dict[str, Any] = {}
-        if performance_block.get("initial_capital") is not None:
-            performance_spec["initial_capital"] = performance_block.get("initial_capital")
+        performance_spec = _canonical_performance_to_internal(performance_block)
         if performance_spec:
             spec["performance"] = performance_spec
 
@@ -1750,13 +1853,32 @@ def _canonical_runs_capabilities(spec_type: str) -> Dict[str, Any]:
                     "strategy.name",
                     "strategy.params.tp_sl",
                     "performance.initial_capital",
+                    "performance.capital_per_unit",
+                    "performance.max_capital_per_trade",
+                    "performance.risk_pct",
+                    "performance.risk_free_rate_pct",
                     "performance.stress_tests",
+                    "performance.stress_tests.enabled",
+                    "performance.stress_tests.source",
+                    "performance.stress_tests.method",
+                    "performance.stress_tests.n_sims",
+                    "performance.stress_tests.seed",
+                    "performance.stress_tests.block_size",
+                    "performance.stress_tests.overlapping",
+                    "performance.stress_tests.time_distribution",
+                    "performance.stress_tests.param_drift",
+                    "performance.stress_tests.sizing",
+                    "performance.stress_tests.output",
+                    "performance.stress_tests.scenarios",
+                    "performance.stress_tests.multi_asset",
+                    "performance.stress_tests.aggregation",
+                    "performance.stress_tests.weights",
+                    "performance.stress_tests.timestamp_alignment",
                     "output",
                     "persistence",
                 ],
                 "accepted_but_not_wired": [
                     "strategy.name",
-                    "performance.stress_tests",
                 ],
             },
             "presets": {
@@ -1810,9 +1932,29 @@ def _canonical_runs_capabilities(spec_type: str) -> Dict[str, Any]:
                 "filters.rules",
                 "filters.rules_config",
                 "performance.initial_capital",
-            ],
-            "accepted_but_not_wired": [
+                "performance.capital_per_unit",
+                "performance.max_capital_per_trade",
+                "performance.risk_pct",
+                "performance.risk_free_rate_pct",
                 "performance.stress_tests",
+                "performance.stress_tests.enabled",
+                "performance.stress_tests.source",
+                "performance.stress_tests.method",
+                "performance.stress_tests.n_sims",
+                "performance.stress_tests.seed",
+                "performance.stress_tests.block_size",
+                "performance.stress_tests.overlapping",
+                "performance.stress_tests.time_distribution",
+                "performance.stress_tests.param_drift",
+                "performance.stress_tests.sizing",
+                "performance.stress_tests.output",
+                "performance.stress_tests.scenarios",
+                "performance.stress_tests.multi_asset",
+                "performance.stress_tests.aggregation",
+                "performance.stress_tests.weights",
+                "performance.stress_tests.timestamp_alignment",
+                ],
+            "accepted_but_not_wired": [
                 "output",
                 "persistence",
             ],
