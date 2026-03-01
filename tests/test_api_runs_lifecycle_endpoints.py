@@ -301,6 +301,7 @@ def test_runs_capabilities_returns_dca_runtime_matrix(tmp_path, monkeypatch) -> 
     assert "strategy.params.tp_sl" in body["fields"]["supported"]
     assert "performance.stress_tests" in body["fields"]["supported"]
     assert body["presets"]["supported"]["strategy.grid"] == ["grid_balanced"]
+    assert "tp_sl.trailing(percent)" in body["presets"]["supported"]["strategy.params.tp_sl"]
     assert "grid_conservative" in body["presets"]["not_supported"]["strategy.grid"]
     assert "grid_aggressive" in body["presets"]["not_supported"]["strategy.grid"]
     assert "filters" in body

@@ -26,6 +26,8 @@ class _CycleState:
     last_processed_ts: Optional[pd.Timestamp] = None
     tp_emitted: bool = False
     be_armed: bool = False
+    trailing_armed: bool = False
+    trailing_peak: Optional[float] = None
     position_qty: float = 0.0
     position_cost: float = 0.0  # somme prix*qty pour prix moyen
 
@@ -38,6 +40,8 @@ class _CycleState:
         self.prev_dd = None
         self.tp_emitted = False
         self.be_armed = False
+        self.trailing_armed = False
+        self.trailing_peak = None
         self.position_qty = 0.0
         self.position_cost = 0.0
 
@@ -254,7 +258,7 @@ class DcaEquityStrategy(Strategy):
                         results.append(sig)
                 for sig in sells:
                     action = (sig.meta or {}).get("action") if hasattr(sig, "meta") else None
-                    if action in {"take_profit", "break_even", "stop_loss"}:
+                    if action in {"take_profit", "break_even", "stop_loss", "trailing_stop"}:
                         trade_count += 1
                         if max_trades is not None and max_trades > 0 and trade_count >= max_trades:
                             return results
@@ -401,12 +405,40 @@ class DcaEquityStrategy(Strategy):
         tp_pct = tp_rule.get("tp_pct") if tp_rule else None
         be_pct = tp_rule.get("be_pct") if tp_rule else None
         sl_dd = cfg.get("sl_dd")
+        trailing_cfg = self._resolve_trailing_cfg()
         if state.position_qty <= 0:
             return signals
 
         avg_entry = state.position_cost / state.position_qty if state.position_qty > 0 else close
         if avg_entry == 0:
             return signals
+
+        should_trailing_exit = False
+        trailing_stop_price: Optional[float] = None
+        trailing_trigger_price: Optional[float] = None
+        trailing_peak: Optional[float] = None
+
+        if trailing_cfg is not None:
+            trigger_pct = trailing_cfg["trigger_pct"]
+            trail_pct = trailing_cfg["trail_pct"]
+            trailing_trigger_price = avg_entry * (1.0 + trigger_pct / 100.0)
+            if self.execution_mode == "intracandle":
+                if high >= trailing_trigger_price:
+                    state.trailing_armed = True
+                if state.trailing_armed:
+                    state.trailing_peak = max(state.trailing_peak or high, high)
+                    trailing_peak = state.trailing_peak
+                    trailing_stop_price = trailing_peak * (1.0 - trail_pct / 100.0)
+                    should_trailing_exit = low <= trailing_stop_price
+            else:
+                if close >= trailing_trigger_price:
+                    state.trailing_armed = True
+                if state.trailing_armed:
+                    state.trailing_peak = max(state.trailing_peak or close, close)
+                    trailing_peak = state.trailing_peak
+                    trailing_stop_price = trailing_peak * (1.0 - trail_pct / 100.0)
+                    should_trailing_exit = close <= trailing_stop_price
+
         if self.execution_mode == "intracandle":
             tp_price = avg_entry * (1.0 + float(tp_pct) / 100.0) if tp_pct is not None else None
             be_arm_price = avg_entry * (1.0 + float(be_pct) / 100.0) if be_pct is not None else None
@@ -424,17 +456,11 @@ class DcaEquityStrategy(Strategy):
             should_be_exit = state.be_armed and pnl_pct <= 0.0
             should_sl = sl_dd is not None and dd <= float(sl_dd)
 
-        # Debug trace for TP/BE decisions (muted; re-enable for troubleshooting)
-        # print(
-        #     f"[TP_CHECK] cycle={state.cycle_id} sym={symbol} ts={ts} "
-        #     f"avg_entry={avg_entry:.4f} price={price:.4f} pnl_pct={pnl_pct:.2f} "
-        #     f"tp_pct={tp_pct} be_pct={be_pct} should_tp={should_tp} should_be={should_be} "
-        #     f"pos_qty={state.position_qty:.4f}"
-        # )
-
         action = None
         if should_sl and not state.tp_emitted:
             action = "stop_loss"
+        elif should_trailing_exit and not state.tp_emitted:
+            action = "trailing_stop"
         elif should_tp and not state.tp_emitted:
             action = "take_profit"
         elif should_be_exit and not state.tp_emitted:
@@ -444,6 +470,8 @@ class DcaEquityStrategy(Strategy):
             if self.execution_mode == "intracandle":
                 if action == "stop_loss":
                     exit_price = sl_price
+                elif action == "trailing_stop":
+                    exit_price = trailing_stop_price
                 elif action == "take_profit":
                     exit_price = tp_price
                 else:
@@ -460,6 +488,11 @@ class DcaEquityStrategy(Strategy):
                 "tp_pct": tp_pct,
                 "be_pct": be_pct,
                 "sl_dd": sl_dd,
+                "trailing": trailing_cfg,
+                "trailing_armed": state.trailing_armed,
+                "trailing_peak": trailing_peak,
+                "trailing_stop_price": trailing_stop_price,
+                "trailing_trigger_price": trailing_trigger_price,
                 "max_dd_reached": state.max_dd,
                 "drawdown_pct": state.max_dd,
                 "cycle_id": state.cycle_id,
@@ -531,6 +564,32 @@ class DcaEquityStrategy(Strategy):
                 selected = rule
         return selected
 
+
+    def _resolve_trailing_cfg(self) -> Optional[Dict[str, float]]:
+        cfg = self.tp_sl_config or {}
+        trailing_raw = cfg.get("trailing")
+        if not isinstance(trailing_raw, dict):
+            return None
+        if trailing_raw.get("enabled", True) is False:
+            return None
+        trailing_type = str(trailing_raw.get("type", "percent")).strip().lower()
+        if trailing_type != "percent":
+            return None
+        try:
+            trail_pct = float(trailing_raw.get("value"))
+            trigger_pct = float(trailing_raw.get("trigger_pct", trail_pct))
+        except Exception:
+            return None
+        if trail_pct <= 0 or trigger_pct < 0:
+            return None
+        return {
+            "enabled": True,
+            "type": "percent",
+            "value": trail_pct,
+            "trigger_pct": trigger_pct,
+            "trail_pct": trail_pct,
+        }
+
     def _normalize_ohlc(self, ohlc: pd.DataFrame) -> pd.DataFrame:
         if ohlc.empty:
             return ohlc
@@ -586,6 +645,10 @@ class DcaEquityStrategy(Strategy):
         )
         state.tp_emitted = bool(data.get("tp_emitted", False))
         state.be_armed = bool(data.get("be_armed", False))
+        state.trailing_armed = bool(data.get("trailing_armed", False))
+        state.trailing_peak = (
+            float(data.get("trailing_peak")) if data.get("trailing_peak") is not None else None
+        )
         state.position_qty = float(data.get("position_qty", 0.0))
         state.position_cost = float(data.get("position_cost", 0.0))
         state.current_price = float(data.get("current_price", 0.0))
@@ -607,6 +670,8 @@ class DcaEquityStrategy(Strategy):
                 else None,
                 "tp_emitted": state.tp_emitted,
                 "be_armed": state.be_armed,
+                "trailing_armed": state.trailing_armed,
+                "trailing_peak": state.trailing_peak,
                 "position_qty": state.position_qty,
                 "position_cost": state.position_cost,
                 "current_price": state.current_price,

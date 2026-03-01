@@ -36,3 +36,13 @@ def test_strategy_dca_equity_stop_loss_bar_close(monkeypatch) -> None:
     spec = _load_spec("strategy_dca_equity_stop_loss_bar_close.json")
     result = strategies_runner.run_backtest_with_payload(spec)
     _assert_stop_loss(result)
+
+
+def test_strategy_dca_equity_trailing_stop_bar_close(monkeypatch) -> None:
+    monkeypatch.delenv("DB_DSN", raising=False)
+    _reset_cache()
+    spec = _load_spec("strategy_dca_equity_trailing_stop_bar_close.json")
+    result = strategies_runner.run_backtest_with_payload(spec)
+    trades = result.get("payload", {}).get("trades", [])
+    assert trades
+    assert any(t.get("meta", {}).get("action") == "trailing_stop" for t in trades)
