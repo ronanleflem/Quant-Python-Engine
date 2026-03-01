@@ -982,14 +982,18 @@ def _canonical_dca_tp_sl_to_internal(params: Dict[str, Any]) -> tuple[Any, bool]
     if isinstance(tp_sl_raw, dict):
         # Already internal-compatible shape used by the strategy runtime.
         if "rules" in tp_sl_raw or "sl_dd" in tp_sl_raw:
+            trailing_cfg = tp_sl_raw.get("trailing")
+            if trailing_cfg is not None and not _canonical_dca_trailing_supported(trailing_cfg):
+                return None, False
             return tp_sl_raw, True
 
-        # Canonical explicit shape: tp/sl/break_even.
+        # Canonical explicit shape: tp/sl/break_even[/trailing].
         if not (isinstance(tp_sl_raw.get("tp"), dict) and isinstance(tp_sl_raw.get("sl"), dict)):
             return None, False
         tp_cfg = tp_sl_raw.get("tp", {})
         sl_cfg = tp_sl_raw.get("sl", {})
         be_cfg = tp_sl_raw.get("break_even", {})
+        trailing_cfg = tp_sl_raw.get("trailing")
         if str(tp_cfg.get("type", "")).strip().lower() != "percent":
             return None, False
         if str(sl_cfg.get("type", "")).strip().lower() != "percent":
@@ -1007,12 +1011,21 @@ def _canonical_dca_tp_sl_to_internal(params: Dict[str, Any]) -> tuple[Any, bool]
                 be_value = float(be_cfg.get("trigger_pct"))
             except Exception:
                 return None, False
+
+        trailing_internal = None
+        if trailing_cfg is not None:
+            trailing_internal, trailing_supported = _canonical_dca_trailing_to_internal(trailing_cfg)
+            if not trailing_supported:
+                return None, False
+
         converted = {
             "enabled": bool(tp_sl_raw.get("enabled", True)),
             "mode": "per_grid_max_dd",
             "sl_dd": -abs(sl_value),
             "rules": [{"max_dd_reached": 0.0, "tp_pct": tp_value, "be_pct": be_value}],
         }
+        if trailing_internal is not None:
+            converted["trailing"] = trailing_internal
         return converted, True
 
     if isinstance(tp_sl_raw, str):
@@ -1034,6 +1047,42 @@ def _canonical_dca_tp_sl_to_internal(params: Dict[str, Any]) -> tuple[Any, bool]
         }, True
 
     return None, False
+
+
+def _canonical_dca_trailing_supported(trailing_cfg: Any) -> bool:
+    _internal, supported = _canonical_dca_trailing_to_internal(trailing_cfg)
+    return supported
+
+
+def _canonical_dca_trailing_to_internal(trailing_cfg: Any) -> tuple[Any, bool]:
+    if trailing_cfg is None:
+        return None, True
+    if not isinstance(trailing_cfg, dict):
+        return None, False
+    if trailing_cfg.get("enabled", True) is False:
+        return {"enabled": False}, True
+    trailing_type = str(trailing_cfg.get("type", "percent")).strip().lower()
+    if trailing_type != "percent":
+        return None, False
+    try:
+        value = float(trailing_cfg.get("value"))
+    except Exception:
+        return None, False
+    if value <= 0:
+        return None, False
+    trigger_raw = trailing_cfg.get("trigger_pct", trailing_cfg.get("triggerPct", value))
+    try:
+        trigger_pct = float(trigger_raw)
+    except Exception:
+        return None, False
+    if trigger_pct < 0:
+        return None, False
+    return {
+        "enabled": True,
+        "type": "percent",
+        "value": value,
+        "trigger_pct": trigger_pct,
+    }, True
 
 
 def _canonical_dca_to_strategy_spec(request: Dict[str, Any]) -> Dict[str, Any]:
@@ -2478,7 +2527,7 @@ def _canonical_runs_capabilities(spec_type: str) -> Dict[str, Any]:
         "presets": {
             "supported": {
                 "strategy.grid": ["grid_balanced"],
-                "strategy.params.tp_sl": ["tp_X_sl_Y"],
+                "strategy.params.tp_sl": ["tp_X_sl_Y", "tp_sl.trailing(percent)"],
             },
             "not_supported": {
                 "strategy.grid": ["grid_conservative", "grid_aggressive"],

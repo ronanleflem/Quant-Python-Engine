@@ -88,6 +88,19 @@ Supported shapes:
 
 3. Preset string format: `tp_<X>_sl_<Y>` (example: `tp_2_sl_1`)
 
+4. Optional trailing stop (explicit object only):
+
+```json
+{
+  "trailing": {"enabled": true, "type": "percent", "value": 1.0, "trigger_pct": 1.2}
+}
+```
+
+Trailing rules:
+- `type` must be `percent`
+- `value` must be > 0
+- `trigger_pct` is optional (defaults to `value`) and must be >= 0
+
 Not wired:
 
 - string presets outside `tp_<X>_sl_<Y>` format

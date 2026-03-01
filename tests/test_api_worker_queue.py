@@ -690,6 +690,61 @@ def test_worker_processes_canonical_dca_with_explicit_tp_sl_object(tmp_path, mon
     assert tp_sl["sl_dd"] == -1.5
 
 
+def test_worker_processes_canonical_dca_with_explicit_tp_sl_trailing_object(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("DB_SQLITE_PATH", str(tmp_path / "quant.db"))
+    reset_settings_cache()
+    payload = _canonical_dca_payload()
+    payload["strategy"]["params"]["tp_sl"] = {
+        "enabled": True,
+        "mode": "rule_based",
+        "tp": {"type": "percent", "value": 2.5},
+        "sl": {"type": "percent", "value": 1.5},
+        "trailing": {"enabled": True, "type": "percent", "value": 1.0, "trigger_pct": 1.2},
+    }
+    observed = {}
+
+    def _fake_backtest(spec):
+        observed["spec"] = spec
+        return {"result": {"counts": {"BTCUSD": 1}}, "payload": {"run": {"status": "ok"}}}
+
+    monkeypatch.setattr(api_app.strategies_runner, "run_backtest_with_payload", _fake_backtest)
+
+    response = api_app.enqueue_run_request(payload)
+    result = worker_module.process_next_job()
+
+    assert result is not None
+    job = api_app._get_job(response.run_id)
+    assert job["status"] == api_app.JOB_STATUS_SUCCEEDED
+    tp_sl = observed["spec"]["strategy"]["params"]["tp_sl"]
+    assert tp_sl["trailing"]["type"] == "percent"
+    assert tp_sl["trailing"]["value"] == 1.0
+    assert tp_sl["trailing"]["trigger_pct"] == 1.2
+
+
+def test_worker_marks_canonical_dca_not_implemented_for_invalid_trailing_tp_sl(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("DB_SQLITE_PATH", str(tmp_path / "quant.db"))
+    reset_settings_cache()
+    payload = _canonical_dca_payload()
+    payload["strategy"]["params"]["tp_sl"] = {
+        "enabled": True,
+        "mode": "rule_based",
+        "tp": {"type": "percent", "value": 2.5},
+        "sl": {"type": "percent", "value": 1.5},
+        "trailing": {"enabled": True, "type": "atr", "value": 1.0},
+    }
+
+    response = api_app.enqueue_run_request(payload)
+    result = worker_module.process_next_job()
+
+    assert result is not None
+    job = api_app._get_job(response.run_id)
+    assert job["status"] == api_app.JOB_STATUS_FAILED
+    error = job["result"]["error"]
+    assert error["code"] == "not_implemented_feature"
+    fields = [item["field"] for item in error["details"]]
+    assert "strategy.params.tp_sl" in fields
+
+
 def test_worker_processes_canonical_dca_with_grid_preset_and_rolling_high(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("DB_SQLITE_PATH", str(tmp_path / "quant.db"))
     reset_settings_cache()
