@@ -51,3 +51,24 @@ def test_run_artifacts_endpoint_lists_files(api_db, tmp_path):
     assert payload["out_dir"] == str(out_dir)
     names = {item["name"] for item in payload["files"]}
     assert {"metrics.json", "metrics.parquet"}.issubset(names)
+
+
+def test_canonical_market_stats_mapping_includes_performance_universe_rules_version(api_db):
+    mapped = api_app._canonical_market_stats_to_spec(
+        {
+            "data": {
+                "symbol": "AAPL",
+                "timeframe": "1D",
+                "start_date": "2025-01-01",
+                "end_date": "2025-01-31",
+            },
+            "stats": {
+                "event": {"id": "k_consecutive", "params": {"k": 2}},
+                "condition": {"id": "session", "params": {}},
+                "target": {"id": "up_next_bar", "params": {}},
+            },
+            "performance": {"universe_rules_version": "asset-universe-rules-v3"},
+        }
+    )
+
+    assert mapped["performance"]["universe_rules_version"] == "asset-universe-rules-v3"

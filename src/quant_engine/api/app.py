@@ -1362,6 +1362,10 @@ def _canonical_market_stats_to_spec(request: Dict[str, Any]) -> Dict[str, Any]:
             "dataset_id": persistence_block.get("dataset_id"),
         }
 
+    performance_block = request.get("performance")
+    if isinstance(performance_block, dict):
+        mapped["performance"] = dict(performance_block)
+
     return mapped
 
 
@@ -1538,6 +1542,10 @@ def _canonical_seasonality_to_spec(request: Dict[str, Any]) -> Dict[str, Any]:
             "spec_id": persistence_block.get("spec_id"),
             "dataset_id": persistence_block.get("dataset_id"),
         }
+
+    performance_block = request.get("performance")
+    if isinstance(performance_block, dict):
+        mapped["performance"] = dict(performance_block)
 
     return mapped
 

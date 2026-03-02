@@ -3,7 +3,12 @@ from datetime import datetime, timezone
 
 import pandas as pd
 
-from quant_engine.io.dca_artifacts import SCHEMA_VERSION, ArtifactEnvelope, write_dca_contract_artifacts
+from quant_engine.io.dca_artifacts import (
+    DEFAULT_UNIVERSE_RULES_VERSION,
+    SCHEMA_VERSION,
+    ArtifactEnvelope,
+    write_dca_contract_artifacts,
+)
 
 
 def test_dca_artifact_contract_writes_json_and_parquet(tmp_path):
@@ -33,6 +38,7 @@ def test_dca_artifact_contract_writes_json_and_parquet(tmp_path):
         seed=7,
         dataset_rows=dataset,
         config_version=SCHEMA_VERSION,
+        universe_rules_version="asset-universe-rules-v2",
         stats_summary=summary,
         robustness=robustness,
     )
@@ -45,5 +51,27 @@ def test_dca_artifact_contract_writes_json_and_parquet(tmp_path):
         parsed = ArtifactEnvelope.model_validate(payload)
         assert parsed.metadata.schema_version == SCHEMA_VERSION
         assert parsed.metadata.reproducibility.seed == 7
+        assert parsed.metadata.universe_rules_version == "asset-universe-rules-v2"
         assert paths["json"].endswith(f"{name}.json")
         assert paths["parquet"].endswith(f"{name}.parquet")
+
+
+def test_artifact_envelope_back_compat_without_universe_rules_version():
+    payload = {
+        "artifact": "metrics",
+        "metadata": {
+            "schema_version": SCHEMA_VERSION,
+            "contract_version": "1.0.0",
+            "generated_at": "2026-01-01T00:00:00+00:00",
+            "reproducibility": {
+                "seed": 42,
+                "dataset_hash": "abc",
+                "config_version": SCHEMA_VERSION,
+            },
+        },
+        "rows": [],
+    }
+
+    parsed = ArtifactEnvelope.model_validate(payload)
+
+    assert parsed.metadata.universe_rules_version == DEFAULT_UNIVERSE_RULES_VERSION
