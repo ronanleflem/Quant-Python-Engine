@@ -453,12 +453,18 @@ def run_stats(spec: StatsSpec) -> pd.DataFrame:
     if spec.artifacts and spec.artifacts.out_dir:
         out_dir = Path(spec.artifacts.out_dir)
         out_dir.mkdir(parents=True, exist_ok=True)
-        artifacts.write_stats_summary(out_dir / "stats_summary.parquet", out)
-        artifacts.write_stats_details(out_dir / "stats_details.parquet", pd.DataFrame())
+
+        stats_summary_path = out_dir / "stats_summary.parquet"
+        stats_details_path = out_dir / "stats_details.parquet"
+        robustness_json_path = out_dir / "dca_robustness_v1.json"
+        robustness_parquet_path = out_dir / "dca_robustness_v1.parquet"
+
+        artifacts.write_stats_summary(stats_summary_path, out)
+        artifacts.write_stats_details(stats_details_path, pd.DataFrame())
         seed = 42
         robustness = _compute_robustness_artifacts(out, seed=seed)
-        (out_dir / "dca_robustness_v1.json").write_text(json.dumps(robustness, indent=2))
-        pd.DataFrame([robustness]).to_parquet(out_dir / "dca_robustness_v1.parquet", index=False)
+        robustness_json_path.write_text(json.dumps(robustness, indent=2))
+        pd.DataFrame([robustness]).to_parquet(robustness_parquet_path, index=False)
         contract_written = write_dca_contract_artifacts(
             out_dir,
             generated_at=datetime.now(timezone.utc).isoformat(),
@@ -469,7 +475,36 @@ def run_stats(spec: StatsSpec) -> pd.DataFrame:
             stats_summary=out,
             robustness=robustness,
         )
-        logger.info("MarketStats artifacts written | out_dir=%s contract_artifacts=%s", out_dir, sorted(contract_written.keys()))
+
+        run_manifest_path = out_dir / "run_manifest.json"
+        checksums_path = out_dir / "checksums.txt"
+        manifest = {
+            "schema_version": SCHEMA_VERSION,
+            "seed": int(seed),
+            "commit": artifacts.get_git_commit(),
+            "spec_hash": artifacts.compute_spec_hash(spec),
+            "dataset_hash": artifacts.compute_dataset_hash(dataset),
+            "runtime_versions": artifacts.get_runtime_versions(),
+        }
+        artifacts.write_run_manifest(run_manifest_path, manifest)
+
+        checksum_targets = [
+            stats_summary_path,
+            stats_details_path,
+            robustness_json_path,
+            robustness_parquet_path,
+            run_manifest_path,
+        ]
+        for outputs in contract_written.values():
+            checksum_targets.extend(Path(path) for path in outputs.values())
+        artifacts.write_checksums(checksums_path, checksum_targets)
+
+        logger.info(
+            "MarketStats artifacts written | out_dir=%s contract_artifacts=%s audit_artifacts=%s",
+            out_dir,
+            sorted(contract_written.keys()),
+            [run_manifest_path.name, checksums_path.name],
+        )
 
     if spec.persistence and getattr(spec.persistence, "enabled", False):
         rows: List[Dict[str, Any]] = []
