@@ -146,6 +146,20 @@ No hard duplication found. Some intentional overlaps:
 3. Comparer les sorties au baseline canonique (`docs/canonical_runs_dca_source_of_truth_2026-02-20.md`).
 4. Classer le run: `REPRODUCIBLE` / `DRIFT_MINEUR` / `NON_CONFORME`.
 
+
+### Gate d'exécution canonique automatisé (EPIC-7 / P0.2)
+
+- Test d'intégration de rejeu: `tests/integration/test_dca_canonical_rerun_reproducibility.py`.
+- Baseline minimale: `tests/fixtures/dca_canonical_baseline/` avec `baseline.json` + `checksums.txt`.
+- Le test exécute un run canonique DCA (pipeline robustesse), recharge `run_manifest.json`, `checksums.txt` et `dca_robustness_v1.json`, puis calcule un verdict machine:
+  - `REPRODUCIBLE`: artefacts clés et métriques dans la tolérance numérique explicite.
+  - `DRIFT_MINEUR`: conformité fonctionnelle, dérive limitée aux métadonnées d'environnement non bloquantes.
+  - `NON_CONFORME`: mismatch d'artefacts clés, de checksums fixture, ou hors tolérance numérique.
+- Statut sérialisé pendant le test dans `canonical_repro_status.json` puis asserté contre la baseline attendue.
+
+Commande dédiée:
+- `poetry run pytest -q tests/integration/test_dca_canonical_rerun_reproducibility.py`
+
 ### Commande de validation
 
 - `poetry run qe run-local --spec specs/examples/strategy_dca_etf_delta_2024_2026.json`

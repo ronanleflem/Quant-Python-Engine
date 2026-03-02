@@ -1,0 +1,21 @@
+{
+  "artifact_sha256": {
+    "dca_robustness_v1.json": "699dbc004f366d42a8e1ecda632594518ac1ad3b6e73514ee529f79b97927573"
+  },
+  "checksums": {
+    "dca_robustness_v1.json": "699dbc004f366d42a8e1ecda632594518ac1ad3b6e73514ee529f79b97927573"
+  },
+  "expected_status": "REPRODUCIBLE",
+  "manifest": {
+    "schema_version": "dca-grid-process-v1",
+    "seed": 42
+  },
+  "numeric_tolerance": {
+    "abs": 1e-12
+  },
+  "robustness": {
+    "n_runs": 200,
+    "percentile": 0.0,
+    "seed": 42
+  }
+}
