@@ -1,0 +1,32 @@
+{
+  "data": {
+    "source": "csv",
+    "path": "tests/data/ohlcv_dca_benchmark_daily.csv",
+    "timeframe": "1D",
+    "start": "2024-01-01",
+    "end": "2024-04-30"
+  },
+  "universe": [
+    {
+      "symbol": "SPY",
+      "asset_class": "EQUITY"
+    }
+  ],
+  "output": {
+    "path": "runs/dca_benchmark_mid_month.json",
+    "format": "json"
+  },
+  "strategy": {
+    "strategy_id": "DCA_BENCH_MID_MONTH",
+    "type": "dca_benchmark",
+    "params": {
+      "asset_class": "EQUITY",
+      "variant": "mid_month",
+      "amount": 100.0,
+      "start_day": 10,
+      "end_day": 20,
+      "day_of_month": 16,
+      "timezone": "UTC"
+    }
+  }
+}

@@ -7,10 +7,12 @@ from .base import Strategy, StrategySignal
 from .crypto_grid import CryptoGridStrategy
 from .dca_equity import DcaEquityStrategy
 from .dca_etf import DcaEtfStrategy
+from .dca_benchmark import DcaBenchmarkStrategy
 
 STRATEGY_REGISTRY: Dict[str, Type[Strategy]] = {
     "dca_equity": DcaEquityStrategy,
     "dca_etf": DcaEtfStrategy,
+    "dca_benchmark": DcaBenchmarkStrategy,
     "crypto_grid": CryptoGridStrategy,
 }
 
@@ -34,4 +36,5 @@ __all__ = [
     "CryptoGridStrategy",
     "DcaEquityStrategy",
     "DcaEtfStrategy",
+    "DcaBenchmarkStrategy",
 ]
