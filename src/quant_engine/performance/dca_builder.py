@@ -65,6 +65,109 @@ def _extract_buy_cashflows(trade: CompletedTrade) -> List[Tuple[datetime, float]
     return out
 
 
+
+
+def _label_market_regime(return_pct: float) -> str:
+    """Label market regime from window return.
+
+    Rules:
+    - return >= 20%: ``bull``
+    - return <= -20%: ``bear``
+    - otherwise: ``sideways``
+    """
+    if return_pct >= 20.0:
+        return "bull"
+    if return_pct <= -20.0:
+        return "bear"
+    return "sideways"
+
+
+def _rolling_window_analytics(
+    ohlc_by_symbol: Dict[str, "pd.DataFrame"],
+    *,
+    window_years: List[int],
+    step_months: int,
+) -> Dict[str, Any]:
+    """Compute rolling return/xirr series, regime labels and structural underperformance."""
+    if not ohlc_by_symbol:
+        return {"series": [], "underperformance": {"duration_windows": 0, "severity_pct_points": 0.0}}
+
+    returns_by_symbol: Dict[str, pd.Series] = {}
+    for symbol, df in ohlc_by_symbol.items():
+        if df is None or df.empty or "ts" not in df.columns or "close" not in df.columns:
+            continue
+        local = df[["ts", "close"]].copy()
+        local["ts"] = pd.to_datetime(local["ts"], utc=True, errors="coerce")
+        local = local.dropna(subset=["ts", "close"]).sort_values("ts")
+        if local.empty:
+            continue
+        close = pd.to_numeric(local["close"], errors="coerce")
+        ret = close.pct_change().fillna(0.0)
+        returns_by_symbol[symbol] = pd.Series(ret.to_numpy(), index=local["ts"].dt.tz_convert(None))
+
+    if not returns_by_symbol:
+        return {"series": [], "underperformance": {"duration_windows": 0, "severity_pct_points": 0.0}}
+
+    combined = pd.concat(returns_by_symbol.values(), axis=1).fillna(0.0)
+    avg_returns = combined.mean(axis=1)
+    synthetic_dataset = [{"timestamp": ts.isoformat()} for ts in avg_returns.index.to_pydatetime()]
+
+    from ..validate.splitter import generate_dca_rolling_windows
+
+    windows = generate_dca_rolling_windows(
+        synthetic_dataset,
+        window_years=window_years,
+        step_months=step_months,
+    )
+    series: List[Dict[str, Any]] = []
+    rolling_returns: List[float] = []
+    for window in windows:
+        start = pd.to_datetime(window["start"])
+        end = pd.to_datetime(window["end"])
+        sl = avg_returns[(avg_returns.index >= start) & (avg_returns.index < end)]
+        if sl.empty:
+            continue
+        growth = float((1.0 + sl).prod() - 1.0)
+        years = int(window["window_years"])
+        irr = (1.0 + growth) ** (1.0 / max(years, 1)) - 1.0
+        r_pct = growth * 100.0
+        rolling_returns.append(r_pct)
+        series.append(
+            {
+                "index_ts": window["index_ts"],
+                "start": window["start"],
+                "end": window["end"],
+                "window_years": years,
+                "return_pct": r_pct,
+                "irr": irr,
+                "regime": _label_market_regime(r_pct),
+            }
+        )
+
+    longest = 0
+    current = 0
+    severity = 0.0
+    for value in rolling_returns:
+        if value < 0:
+            current += 1
+            longest = max(longest, current)
+            severity += abs(value)
+        else:
+            current = 0
+
+    return {
+        "series": series,
+        "regime_definition": {
+            "version": "v1",
+            "bull_min_return_pct": 20.0,
+            "bear_max_return_pct": -20.0,
+            "sideways_between": [-20.0, 20.0],
+        },
+        "underperformance": {
+            "duration_windows": longest,
+            "severity_pct_points": severity,
+        },
+    }
 def _start_end_from_signals(signals_by_symbol: Mapping[str, Iterable[SignalLike]]) -> Tuple[Optional[datetime], Optional[datetime]]:
     timestamps: List[datetime] = []
     for sigs in signals_by_symbol.values():
@@ -359,6 +462,18 @@ def build_dca_performance_from_signals(
     if win_vals and loss_vals:
         rr_moyen = (sum(win_vals) / len(win_vals)) / (sum(loss_vals) / len(loss_vals))
 
+    rolling_cfg = config.get("rolling_windows", {}) if isinstance(config.get("rolling_windows"), Mapping) else {}
+    rolling_years_raw = rolling_cfg.get("years", [3, 5, 10])
+    if not isinstance(rolling_years_raw, list):
+        rolling_years_raw = [3, 5, 10]
+    rolling_years = [int(y) for y in rolling_years_raw if int(y) > 0]
+    rolling_step_months = int(rolling_cfg.get("step_months", 1) or 1)
+    rolling_analytics = _rolling_window_analytics(
+        ohlc_by_symbol,
+        window_years=rolling_years or [3, 5, 10],
+        step_months=rolling_step_months,
+    )
+
     run = StrategyRunResult(
         strategy_id=strategy_id,
         run_id=run_id,
@@ -400,6 +515,7 @@ def build_dca_performance_from_signals(
             "max_drawdown_on_contributed_capital": max_drawdown_pct_value,
             "time_under_water": time_under_water_periods,
             "contributed_capital": contributed_capital,
+            "rolling_windows": rolling_analytics,
         },
     )
 
