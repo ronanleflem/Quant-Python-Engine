@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 import pandas as pd
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 SCHEMA_VERSION = "dca-grid-process-v1"
@@ -24,8 +24,21 @@ class ContractMetadata(BaseModel):
     schema_version: str = SCHEMA_VERSION
     contract_version: str = CONTRACT_VERSION
     universe_rules_version: str = DEFAULT_UNIVERSE_RULES_VERSION
+    seed: int | None = None
+    dataset_hash: str | None = None
+    config_version: str | None = None
     generated_at: str
     reproducibility: ReproducibilityMetadata
+
+    @model_validator(mode="after")
+    def _populate_flat_reproducibility_fields(self) -> "ContractMetadata":
+        if self.seed is None:
+            self.seed = self.reproducibility.seed
+        if self.dataset_hash is None:
+            self.dataset_hash = self.reproducibility.dataset_hash
+        if self.config_version is None:
+            self.config_version = self.reproducibility.config_version
+        return self
 
 
 class ArtifactEnvelope(BaseModel):
@@ -51,6 +64,9 @@ def build_metadata(
 ) -> ContractMetadata:
     return ContractMetadata(
         universe_rules_version=str(universe_rules_version or DEFAULT_UNIVERSE_RULES_VERSION),
+        seed=seed,
+        dataset_hash=dataset_hash,
+        config_version=config_version,
         generated_at=generated_at,
         reproducibility=ReproducibilityMetadata(seed=seed, dataset_hash=dataset_hash, config_version=config_version),
     )
@@ -132,12 +148,52 @@ def write_dca_contract_artifacts(
         }
     ]
 
+    plausibility_constraints = {
+        "min_percentile": 0.50,
+        "min_perf_dominance_prob": 0.60,
+        "min_drawdown_dominance_prob": 0.60,
+        "requires_dominance_flag": True,
+    }
+    best_candidate: Dict[str, Any] = {}
+    if metrics_rows:
+        best_candidate = max(metrics_rows, key=lambda item: float(item.get("lift_freq", 0.0) or 0.0))
+    percentile_value = float(robustness.get("percentile", 0.0) or 0.0)
+    dominance_payload = robustness.get("dominance") or {}
+    perf_prob = float(dominance_payload.get("perf_dominance_prob", 0.0) or 0.0)
+    drawdown_prob = float(dominance_payload.get("drawdown_dominance_prob", 0.0) or 0.0)
+    is_dominant = bool(dominance_payload.get("is_dominant", False))
+    passes_constraints = (
+        bool(best_candidate)
+        and percentile_value >= plausibility_constraints["min_percentile"]
+        and perf_prob >= plausibility_constraints["min_perf_dominance_prob"]
+        and drawdown_prob >= plausibility_constraints["min_drawdown_dominance_prob"]
+        and is_dominant
+    )
+    best_plausible_passive_ex_ante_rows = [
+        {
+            "selection_method": "max_lift_freq_under_plausibility",
+            "symbol": best_candidate.get("symbol"),
+            "target": best_candidate.get("target"),
+            "n": int(best_candidate.get("n", 0) or 0),
+            "successes": int(best_candidate.get("successes", 0) or 0),
+            "lift_freq": float(best_candidate.get("lift_freq", 0.0) or 0.0),
+            "lift_bayes": float(best_candidate.get("lift_bayes", 0.0) or 0.0),
+            "percentile": percentile_value,
+            "perf_dominance_prob": perf_prob,
+            "drawdown_dominance_prob": drawdown_prob,
+            "is_dominant": is_dominant,
+            "constraints": plausibility_constraints,
+            "passes_constraints": passes_constraints,
+        }
+    ]
+
     artifacts = {
         "metrics": metrics_rows,
         "distributions": distributions_rows,
         "capital_curves": capital_curve,
         "rolling": rolling_rows,
         "score": score_rows,
+        "best_plausible_passive_ex_ante": best_plausible_passive_ex_ante_rows,
     }
 
     written: Dict[str, Dict[str, str]] = {}

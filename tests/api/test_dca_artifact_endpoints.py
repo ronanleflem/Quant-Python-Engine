@@ -32,6 +32,8 @@ def test_run_artifacts_endpoint_lists_files(api_db, tmp_path):
     (out_dir / "metrics.parquet").write_text("parquet")
     (out_dir / "run_manifest.json").write_text("{}")
     (out_dir / "checksums.txt").write_text("abc  metrics.json\n")
+    (out_dir / "best_plausible_passive_ex_ante.json").write_text("{}")
+    (out_dir / "best_plausible_passive_ex_ante.parquet").write_text("parquet")
 
     run_id = "run-artifacts-1"
     api_app._init_job(
@@ -52,7 +54,9 @@ def test_run_artifacts_endpoint_lists_files(api_db, tmp_path):
     assert payload["schema_version"] == "dca-grid-process-v1"
     assert payload["out_dir"] == str(out_dir)
     names = {item["name"] for item in payload["files"]}
-    assert {"metrics.json", "metrics.parquet", "run_manifest.json", "checksums.txt"}.issubset(names)
+    assert {"metrics.json", "metrics.parquet", "run_manifest.json", "checksums.txt", "best_plausible_passive_ex_ante.json", "best_plausible_passive_ex_ante.parquet"}.issubset(names)
+    assert payload["contract_artifacts"]["best_plausible_passive_ex_ante"]["json"] == "best_plausible_passive_ex_ante.json"
+    assert payload["contract_artifacts"]["best_plausible_passive_ex_ante"]["parquet"] == "best_plausible_passive_ex_ante.parquet"
     assert payload["audit_trail"]["run_manifest"] == "run_manifest.json"
     assert payload["audit_trail"]["checksums"] == "checksums.txt"
 

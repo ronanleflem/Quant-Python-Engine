@@ -79,6 +79,26 @@ def test_stats_pipeline_writes_dca_robustness_artifacts(tmp_path: Path) -> None:
     assert checksum_lines
     assert any(line.endswith("run_manifest.json") for line in checksum_lines)
     assert any(line.endswith("dca_robustness_v1.json") for line in checksum_lines)
+    assert any(line.endswith("best_plausible_passive_ex_ante.json") for line in checksum_lines)
+
+    ex_ante_json = out_dir / "best_plausible_passive_ex_ante.json"
+    ex_ante_parquet = out_dir / "best_plausible_passive_ex_ante.parquet"
+    assert ex_ante_json.exists()
+    assert ex_ante_parquet.exists()
+
+    ex_ante_payload = json.loads(ex_ante_json.read_text())
+    metadata = ex_ante_payload["metadata"]
+    assert metadata["schema_version"] == "dca-grid-process-v1"
+    assert metadata["seed"] == 42
+    assert isinstance(metadata["dataset_hash"], str)
+    assert len(metadata["dataset_hash"]) == 64
+    assert metadata["config_version"] == "dca-grid-process-v1"
+    assert "universe_rules_version" in metadata
+
+    row = ex_ante_payload["rows"][0]
+    assert row["percentile"] == payload["percentile"]
+    assert row["perf_dominance_prob"] == payload["dominance"]["perf_dominance_prob"]
+    assert row["drawdown_dominance_prob"] == payload["dominance"]["drawdown_dominance_prob"]
 
 
 def test_optimize_runner_bridge_maps_to_stats_robustness() -> None:
