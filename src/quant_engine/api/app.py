@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+from pathlib import Path
 import time
 import threading
 import re
@@ -31,6 +32,7 @@ from ..levels.schemas import LevelsBuildSpec
 from ..optimize.runner import run as run_optimisation
 from ..optimize import variants as optimize_variants
 from ..io import ids
+from ..io.dca_artifacts import SCHEMA_VERSION
 from ..persistence import db, RunsRepository, MetricsRepository, TrialsRepository
 from ..stats import runner as stats_runner
 from ..stats import conditions as stats_conditions
@@ -4033,6 +4035,34 @@ def run_detail_endpoint(run_id: str) -> Dict[str, Any]:
     return payload
 
 
+
+
+def get_run_artifacts(run_id: str) -> Dict[str, Any]:
+    """Return artifact listing for a canonical run output directory."""
+
+    job = _get_job(run_id)
+    if not job or job.get("job_type") != JOB_TYPE_CANONICAL_RUN:
+        raise HTTPException(status_code=404, detail='Run not found')
+
+    payload = job.get("payload") if isinstance(job.get("payload"), dict) else {}
+    request = payload.get("request") if isinstance(payload.get("request"), dict) else {}
+    output = request.get("output") if isinstance(request.get("output"), dict) else {}
+    out_dir_raw = output.get("out_dir")
+    out_dir = Path(str(out_dir_raw)).expanduser() if isinstance(out_dir_raw, str) and out_dir_raw.strip() else None
+
+    files: List[Dict[str, Any]] = []
+    if out_dir and out_dir.exists() and out_dir.is_dir():
+        for item in sorted(out_dir.iterdir()):
+            if item.is_file():
+                files.append({"name": item.name, "path": str(item), "size_bytes": item.stat().st_size})
+
+    return {
+        "run_id": run_id,
+        "schema_version": SCHEMA_VERSION,
+        "out_dir": str(out_dir) if out_dir is not None else None,
+        "files": files,
+    }
+
 @fastapi_app.get('/runs/{run_id}/result', response_model=Dict[str, Any])
 def run_result_endpoint(run_id: str) -> Dict[str, Any]:
     """Return the result for a canonical run."""
@@ -4058,6 +4088,13 @@ def run_result_endpoint(run_id: str) -> Dict[str, Any]:
     if isinstance(result, dict) and "error" in result:
         payload["error"] = result.get("error")
     return payload
+
+
+@fastapi_app.get('/runs/{run_id}/artifacts', response_model=Dict[str, Any])
+def run_artifacts_endpoint(run_id: str) -> Dict[str, Any]:
+    """Return canonical run artifact listing."""
+
+    return get_run_artifacts(run_id)
 
 
 @fastapi_app.get('/runs/{run_id}/trials', response_model=List[Dict[str, Any]])

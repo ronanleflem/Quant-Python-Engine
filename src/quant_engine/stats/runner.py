@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
@@ -12,6 +13,7 @@ from ..core.dataset import load_ohlcv
 from ..core.features import atr
 from ..validate import splitter
 from ..io import artifacts
+from ..io.dca_artifacts import SCHEMA_VERSION, write_dca_contract_artifacts
 from . import conditions as cond_mod
 from . import events as event_mod
 from . import targets as tgt_mod
@@ -263,7 +265,7 @@ def _compute_robustness_artifacts(out: pd.DataFrame, seed: int = 42) -> Dict[str
 
     if out.empty:
         return {
-            "version": "dca-grid-process-v1",
+            "version": SCHEMA_VERSION,
             "seed": int(seed),
             "n_runs": 0,
             "quantiles": {},
@@ -323,7 +325,7 @@ def _compute_robustness_artifacts(out: pd.DataFrame, seed: int = 42) -> Dict[str
         )
 
     return {
-        "version": "dca-grid-process-v1",
+        "version": SCHEMA_VERSION,
         "seed": int(seed),
         "n_runs": len(passive_perf_distribution),
         "quantiles": quantiles,
@@ -438,10 +440,20 @@ def run_stats(spec: StatsSpec) -> pd.DataFrame:
         out_dir.mkdir(parents=True, exist_ok=True)
         artifacts.write_stats_summary(out_dir / "stats_summary.parquet", out)
         artifacts.write_stats_details(out_dir / "stats_details.parquet", pd.DataFrame())
-        robustness = _compute_robustness_artifacts(out, seed=42)
+        seed = 42
+        robustness = _compute_robustness_artifacts(out, seed=seed)
         (out_dir / "dca_robustness_v1.json").write_text(json.dumps(robustness, indent=2))
         pd.DataFrame([robustness]).to_parquet(out_dir / "dca_robustness_v1.parquet", index=False)
-        logger.info("MarketStats artifacts written | out_dir=%s", out_dir)
+        contract_written = write_dca_contract_artifacts(
+            out_dir,
+            generated_at=datetime.now(timezone.utc).isoformat(),
+            seed=seed,
+            dataset_rows=dataset,
+            config_version=SCHEMA_VERSION,
+            stats_summary=out,
+            robustness=robustness,
+        )
+        logger.info("MarketStats artifacts written | out_dir=%s contract_artifacts=%s", out_dir, sorted(contract_written.keys()))
 
     if spec.persistence and getattr(spec.persistence, "enabled", False):
         rows: List[Dict[str, Any]] = []

@@ -432,3 +432,26 @@ Approche pragmatique:
 6. Ajouter tests unitaires par builder (golden JSON).
 7. Integrer dans le service d'orchestration vers Python.
 
+
+## 10) Contrat de donnees versionne (DCA grid process v1)
+
+Pour les runs `market_stats` utilises par l'initiative `INIT-DCA-GRID-001`, les artefacts de reporting doivent exposer:
+
+- `schema_version`: `dca-grid-process-v1`
+- `contract_version`: version semantique du contrat (ex: `1.0.0`)
+- `metadata.reproducibility`: `seed`, `dataset_hash`, `config_version`
+
+Artefacts standards produits en JSON + Parquet:
+
+- `metrics`
+- `distributions`
+- `capital_curves`
+- `rolling`
+- `score`
+
+### Politique de backward compatibility
+
+- **Patch (`x.y.Z`)**: corrections sans changement de schema (retrocompatible).
+- **Minor (`x.Y.z`)**: ajout de champs optionnels uniquement (retrocompatible).
+- **Major (`X.y.z`)**: changement breaking (rename/suppression/type change), avec bump de `schema_version`.
+- Les consommateurs Angular/export doivent ignorer les champs inconnus et se baser sur `schema_version` pour le routage.
