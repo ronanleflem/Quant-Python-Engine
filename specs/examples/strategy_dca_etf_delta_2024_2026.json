@@ -5,11 +5,26 @@
     "params": {
       "asset_class": "ETF",
       "grid": [
-        { "dd": -10.0, "weight": 0.2 },
-        { "dd": -15.0, "weight": 0.2 },
-        { "dd": -20.0, "weight": 0.2 },
-        { "dd": -25.0, "weight": 0.2 },
-        { "dd": -30.0, "weight": 0.2 }
+        {
+          "dd": -10.0,
+          "weight": 0.2
+        },
+        {
+          "dd": -15.0,
+          "weight": 0.2
+        },
+        {
+          "dd": -20.0,
+          "weight": 0.2
+        },
+        {
+          "dd": -25.0,
+          "weight": 0.2
+        },
+        {
+          "dd": -30.0,
+          "weight": 0.2
+        }
       ],
       "reset_on_new_high": true,
       "rearm_on_rebound_pct": 10.0,
@@ -30,28 +45,86 @@
     "delta_broker": "IBKR",
     "delta_market_type": "SPOT",
     "delta_exchange": "AEB,BVME.ETF,IBIS2,LSEETF,SBF",
-    "delta_quotes": "EUR,USD"
+    "delta_quotes": "EUR,USD",
+    "universe": {
+      "calendar": "xetra_business_days",
+      "lot_mode": "integer",
+      "fees_bps": 7.0,
+      "corporate_actions": "adjusted_dividends_splits",
+      "timezone": "Europe/Berlin"
+    }
   },
   "universe": [
-    { "symbol": "INFR", "asset_class": "ETF" },
-    { "symbol": "TRET", "asset_class": "ETF" },
-    { "symbol": "WENS", "asset_class": "ETF" },
-    { "symbol": "IWQU", "asset_class": "ETF" },
-    { "symbol": "CEBL", "asset_class": "ETF" },
-    { "symbol": "IUSN", "asset_class": "ETF" },
-    { "symbol": "XAXJ", "asset_class": "ETF" },
-    { "symbol": "XRS2", "asset_class": "ETF" },
-    { "symbol": "DGTL", "asset_class": "ETF" },
-    { "symbol": "AEEM", "asset_class": "ETF" },
-    { "symbol": "ESE", "asset_class": "ETF" },
-    { "symbol": "ETZ", "asset_class": "ETF" },
-    { "symbol": "INRE", "asset_class": "ETF" },
-    { "symbol": "TPXE", "asset_class": "ETF" },
-    { "symbol": "UNIC", "asset_class": "ETF" },
-    { "symbol": "UST", "asset_class": "ETF" }
+    {
+      "symbol": "INFR",
+      "asset_class": "ETF"
+    },
+    {
+      "symbol": "TRET",
+      "asset_class": "ETF"
+    },
+    {
+      "symbol": "WENS",
+      "asset_class": "ETF"
+    },
+    {
+      "symbol": "IWQU",
+      "asset_class": "ETF"
+    },
+    {
+      "symbol": "CEBL",
+      "asset_class": "ETF"
+    },
+    {
+      "symbol": "IUSN",
+      "asset_class": "ETF"
+    },
+    {
+      "symbol": "XAXJ",
+      "asset_class": "ETF"
+    },
+    {
+      "symbol": "XRS2",
+      "asset_class": "ETF"
+    },
+    {
+      "symbol": "DGTL",
+      "asset_class": "ETF"
+    },
+    {
+      "symbol": "AEEM",
+      "asset_class": "ETF"
+    },
+    {
+      "symbol": "ESE",
+      "asset_class": "ETF"
+    },
+    {
+      "symbol": "ETZ",
+      "asset_class": "ETF"
+    },
+    {
+      "symbol": "INRE",
+      "asset_class": "ETF"
+    },
+    {
+      "symbol": "TPXE",
+      "asset_class": "ETF"
+    },
+    {
+      "symbol": "UNIC",
+      "asset_class": "ETF"
+    },
+    {
+      "symbol": "UST",
+      "asset_class": "ETF"
+    }
   ],
   "output": {
     "path": "runs/dca_etf_delta_2024_2026.json",
     "format": "json"
+  },
+  "performance": {
+    "universe_rules_version": "asset-universe-rules-v1"
   }
 }
