@@ -67,5 +67,23 @@ class SeasonalityRun:
     created_at: str | None = None
 
 
-__all__ = ["MarketStat", "SeasonalityProfile", "SeasonalityRun"]
+@dataclass
+class DcaRollingWindowMetric:
+    """Represents persisted rolling-window analytics for DCA runs."""
+
+    id: Optional[int] = None
+    run_id: str | None = None
+    index_ts: str | None = None
+    start: str | None = None
+    end: str | None = None
+    window_years: int | None = None
+    return_pct: float | None = None
+    irr: float | None = None
+    regime: str | None = None
+    underperformance_duration_windows: int | None = None
+    underperformance_severity_pct_points: float | None = None
+    created_at: str | None = None
+
+
+__all__ = ["MarketStat", "SeasonalityProfile", "SeasonalityRun", "DcaRollingWindowMetric"]
 

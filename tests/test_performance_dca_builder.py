@@ -291,3 +291,40 @@ def test_to_backend_payload_has_non_null_required_fields() -> None:
         assert trade_payload[key] is not None
 
     assert trade_payload["grossPnlPct"] == pytest.approx(trades[0].gross_pnl_pct)
+
+
+def test_build_dca_performance_includes_rolling_regimes_and_underperformance() -> None:
+    base = datetime(2020, 1, 1, tzinfo=timezone.utc)
+    signals = [
+        _make_signal(cycle_id=1, side="BUY", ts=base, qty=1.0),
+        _make_signal(cycle_id=1, side="SELL", ts=base.replace(year=2021), action="take_profit"),
+    ]
+
+    dates = pd.date_range(start="2020-01-01", periods=365 * 4, freq="D", tz="UTC")
+    # alternating positive/negative yearly blocks to force regime and underperformance detection
+    closes = []
+    price = 100.0
+    for i, _ in enumerate(dates):
+        if i < 365 * 2:
+            price *= 0.9998
+        else:
+            price *= 1.0004
+        closes.append(price)
+
+    run, _trades = build_dca_performance_from_signals(
+        strategy_id="dca",
+        run_id="run-rolling",
+        asset_class="EQUITY",
+        universe="ABC",
+        timeframe="1D",
+        signals_by_symbol={"ABC": signals},
+        ohlc_by_symbol={"ABC": pd.DataFrame({"ts": dates, "close": closes})},
+        config={"rolling_windows": {"years": [3], "step_months": 12}},
+    )
+
+    rolling = run.extra["rolling_windows"]
+    assert rolling["series"]
+    assert rolling["series"][0]["window_years"] == 3
+    assert rolling["series"][0]["regime"] in {"bull", "bear", "sideways"}
+    assert "duration_windows" in rolling["underperformance"]
+    assert "severity_pct_points" in rolling["underperformance"]

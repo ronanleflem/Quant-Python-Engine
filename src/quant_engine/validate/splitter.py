@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Sequence
 
 
 def _add_months(dt: datetime, months: int) -> datetime:
@@ -41,4 +41,56 @@ def generate_folds(
         if not test_rows:
             break
         out.append({"train": train_rows, "test": test_rows})
+    return out
+
+
+def generate_dca_rolling_windows(
+    dataset: List[Dict[str, Any]],
+    window_years: Sequence[int] = (3, 5, 10),
+    step_months: int = 1,
+) -> List[Dict[str, Any]]:
+    """Build rolling windows for DCA analyses with temporal indexing.
+
+    Each element contains:
+    - ``window_years``
+    - ``start`` / ``end`` (ISO timestamps)
+    - ``index_ts``: temporal index of the window (window end)
+    - ``rows``: dataset rows inside ``[start, end)``
+    """
+    if not dataset:
+        return []
+
+    if step_months <= 0:
+        raise ValueError("step_months must be > 0")
+
+    dates: List[datetime] = []
+    for row in dataset:
+        dt = datetime.fromisoformat(row["timestamp"])
+        if dt.tzinfo is not None:
+            dt = dt.replace(tzinfo=None)
+        dates.append(dt)
+
+    start = min(dates)
+    end = max(dates)
+    ordered_windows = sorted({int(y) for y in window_years if int(y) > 0})
+    out: List[Dict[str, Any]] = []
+
+    for years in ordered_windows:
+        cursor = start
+        months = years * 12
+        while cursor <= end:
+            window_end = _add_months(cursor, months)
+            if window_end > end:
+                break
+            rows = [r for r, d in zip(dataset, dates) if cursor <= d < window_end]
+            out.append(
+                {
+                    "window_years": years,
+                    "start": cursor.isoformat(),
+                    "end": window_end.isoformat(),
+                    "index_ts": window_end.isoformat(),
+                    "rows": rows,
+                }
+            )
+            cursor = _add_months(cursor, step_months)
     return out
