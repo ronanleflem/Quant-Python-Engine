@@ -29,9 +29,9 @@ Pour chaque sous-ticket, l’agent doit renseigner dans la PR:
   - `src/quant_engine/strategies/runner.py`
   - `docs/dca_grid_implementation_process.md`
 - Tests:
-  - `tests/strategies/test_dca_benchmark_contract.py`
+  - `tests/strategies/test_dca_benchmark_calendars.py`
 - Validation:
-  - `poetry run pytest -q tests/strategies/test_dca_benchmark_contract.py`
+  - `poetry run pytest -q tests/strategies/test_dca_benchmark_calendars.py`
 - Dépendances: aucune.
 - Risque: divergence de schéma entre variantes.
 
@@ -41,9 +41,9 @@ Pour chaque sous-ticket, l’agent doit renseigner dans la PR:
   - `src/quant_engine/strategies/runner.py`
   - `specs/tests/strategy_dca_equity_monthly_fixed.json`
 - Tests:
-  - `tests/strategies/test_dca_monthly_fixed.py`
+  - `tests/strategies/test_dca_benchmark_calendars.py`
 - Validation:
-  - `poetry run pytest -q tests/strategies/test_dca_monthly_fixed.py`
+  - `poetry run pytest -q tests/strategies/test_dca_benchmark_calendars.py`
 
 ### PY-DCA-1.3 — Mensuel randomisé
 - Scope: randomisation calendrier contrôlée par seed.
@@ -51,9 +51,9 @@ Pour chaque sous-ticket, l’agent doit renseigner dans la PR:
   - `src/quant_engine/strategies/runner.py`
   - `specs/tests/strategy_dca_equity_monthly_randomized.json`
 - Tests:
-  - `tests/strategies/test_dca_monthly_randomized.py`
+  - `tests/strategies/test_dca_benchmark_calendars.py`
 - Validation:
-  - `poetry run pytest -q tests/strategies/test_dca_monthly_randomized.py`
+  - `poetry run pytest -q tests/strategies/test_dca_benchmark_calendars.py`
 - Risque: non-déterminisme si seed non propagée.
 
 ### PY-DCA-1.4 — Mid-month + Turn-of-month
@@ -63,18 +63,18 @@ Pour chaque sous-ticket, l’agent doit renseigner dans la PR:
   - `specs/tests/strategy_dca_equity_mid_month.json`
   - `specs/tests/strategy_dca_equity_turn_of_month.json`
 - Tests:
-  - `tests/strategies/test_dca_mid_turn_month.py`
+  - `tests/strategies/test_dca_benchmark_calendars.py`
 - Validation:
-  - `poetry run pytest -q tests/strategies/test_dca_mid_turn_month.py`
+  - `poetry run pytest -q tests/strategies/test_dca_benchmark_calendars.py`
 
 ### PY-DCA-1.5 — Hebdo fixe
 - Scope: exécution hebdo + contrôle timezone.
 - Fichiers cibles:
   - `src/quant_engine/strategies/runner.py`
 - Tests:
-  - `tests/strategies/test_dca_weekly_fixed.py`
+  - `tests/strategies/test_dca_benchmark_calendars.py`
 - Validation:
-  - `poetry run pytest -q tests/strategies/test_dca_weekly_fixed.py`
+  - `poetry run pytest -q tests/strategies/test_dca_benchmark_calendars.py`
 
 ### PY-DCA-1.6 — Intégration CLI/API
 - Scope: exposer variantes passives dans pipeline run-local/submit.
@@ -83,9 +83,9 @@ Pour chaque sous-ticket, l’agent doit renseigner dans la PR:
   - `src/quant_engine/api/app.py`
   - `specs/tests/strategy_dca_equity_benchmark_matrix.json`
 - Tests:
-  - `tests/integration/test_dca_benchmark_cli_api.py`
+  - `tests/integration/test_dca_benchmark_specs.py`
 - Validation:
-  - `poetry run pytest -q tests/integration/test_dca_benchmark_cli_api.py`
+  - `poetry run pytest -q tests/integration/test_dca_benchmark_specs.py`
 
 ---
 
@@ -93,38 +93,38 @@ Pour chaque sous-ticket, l’agent doit renseigner dans la PR:
 
 ### PY-DCA-2.1 — final_performance_normalized
 - Fichiers cibles: `src/quant_engine/backtest/metrics.py`
-- Tests: `tests/backtest/test_dca_metric_final_perf.py`
-- Validation: `poetry run pytest -q tests/backtest/test_dca_metric_final_perf.py`
+- Tests: `tests/backtest/test_dca_metrics.py`
+- Validation: `poetry run pytest -q tests/backtest/test_dca_metrics.py`
 
 ### PY-DCA-2.2 — TWR
 - Fichiers cibles: `src/quant_engine/backtest/metrics.py`
-- Tests: `tests/backtest/test_dca_metric_twr.py`
-- Validation: `poetry run pytest -q tests/backtest/test_dca_metric_twr.py`
+- Tests: `tests/backtest/test_dca_metrics.py`
+- Validation: `poetry run pytest -q tests/backtest/test_dca_metrics.py`
 
 ### PY-DCA-2.3 — XIRR robuste
 - Fichiers cibles: `src/quant_engine/backtest/metrics.py`
-- Tests: `tests/backtest/test_dca_metric_xirr.py`
-- Validation: `poetry run pytest -q tests/backtest/test_dca_metric_xirr.py`
+- Tests: `tests/backtest/test_dca_metrics.py`
+- Validation: `poetry run pytest -q tests/backtest/test_dca_metrics.py`
 - Risque: non-convergence -> statut explicite requis, pas de fallback silencieux.
 
 ### PY-DCA-2.4 — Max drawdown sur capital contribué
 - Fichiers cibles: `src/quant_engine/backtest/metrics.py`
-- Tests: `tests/backtest/test_dca_metric_drawdown_contributed.py`
-- Validation: `poetry run pytest -q tests/backtest/test_dca_metric_drawdown_contributed.py`
+- Tests: `tests/backtest/test_dca_metrics.py`
+- Validation: `poetry run pytest -q tests/backtest/test_dca_metrics.py`
 
 ### PY-DCA-2.5 — Time under water
 - Fichiers cibles: `src/quant_engine/backtest/metrics.py`
-- Tests: `tests/backtest/test_dca_metric_time_under_water.py`
-- Validation: `poetry run pytest -q tests/backtest/test_dca_metric_time_under_water.py`
+- Tests: `tests/backtest/test_dca_metrics.py`
+- Validation: `poetry run pytest -q tests/backtest/test_dca_metrics.py`
 
 ### PY-DCA-2.6 — Intégration persistence + API
 - Fichiers cibles:
   - `src/quant_engine/persistence/db.py`
   - `src/quant_engine/api/app.py`
 - Tests:
-  - `tests/api/test_dca_metrics_endpoint.py`
+  - `tests/api/test_runs_metrics_dca.py`
 - Validation:
-  - `poetry run pytest -q tests/api/test_dca_metrics_endpoint.py`
+  - `poetry run pytest -q tests/api/test_runs_metrics_dca.py`
 
 ---
 
@@ -132,42 +132,42 @@ Pour chaque sous-ticket, l’agent doit renseigner dans la PR:
 
 ### PY-DCA-3.1 — Job Monte Carlo calendrier
 - Fichiers cibles: `src/quant_engine/stats/runner.py`
-- Tests: `tests/stats/test_dca_mc_calendar.py`
-- Validation: `poetry run pytest -q tests/stats/test_dca_mc_calendar.py`
+- Tests: `tests/stats/test_dca_robustness.py`
+- Validation: `poetry run pytest -q tests/stats/test_dca_robustness.py`
 
 ### PY-DCA-3.2 — Agrégats distribution
 - Fichiers cibles: `src/quant_engine/stats/estimators.py`
-- Tests: `tests/stats/test_dca_distribution_aggregates.py`
-- Validation: `poetry run pytest -q tests/stats/test_dca_distribution_aggregates.py`
+- Tests: `tests/stats/test_dca_robustness.py`
+- Validation: `poetry run pytest -q tests/stats/test_dca_robustness.py`
 
 ### PY-DCA-3.3 — Percentile grid-vs-passive
 - Fichiers cibles:
   - `src/quant_engine/stats/runner.py`
   - `src/quant_engine/persistence/db.py`
-- Tests: `tests/stats/test_dca_grid_percentile.py`
-- Validation: `poetry run pytest -q tests/stats/test_dca_grid_percentile.py`
+- Tests: `tests/stats/test_dca_robustness.py`
+- Validation: `poetry run pytest -q tests/stats/test_dca_robustness.py`
 
 ### PY-DCA-3.4 — Dominance simplifiée
 - Fichiers cibles:
   - `src/quant_engine/stats/estimators.py`
   - `docs/dca_grid_implementation_process.md`
-- Tests: `tests/stats/test_dca_dominance.py`
-- Validation: `poetry run pytest -q tests/stats/test_dca_dominance.py`
+- Tests: `tests/stats/test_dca_robustness.py`
+- Validation: `poetry run pytest -q tests/stats/test_dca_robustness.py`
 
 ### PY-DCA-3.5 — Stress test paramètres grille
 - Fichiers cibles: `src/quant_engine/optimize/runner.py`
-- Tests: `tests/integration/test_dca_stress_grid_params.py`
-- Validation: `poetry run pytest -q tests/integration/test_dca_stress_grid_params.py`
+- Tests: `tests/test_dca_stress_tests.py`
+- Validation: `poetry run pytest -q tests/test_dca_stress_tests.py`
 
 ---
 
 ## EPIC-4 — Rolling windows & régimes
-- **PY-DCA-4.1** Splitter rolling (`src/quant_engine/validate/splitter.py`) + `tests/validate/test_dca_rolling_splitter.py`
-- **PY-DCA-4.2** Métriques par fenêtre (`src/quant_engine/strategies/runner.py`) + `tests/strategies/test_dca_window_metrics.py`
-- **PY-DCA-4.3** IRR glissant (`src/quant_engine/backtest/metrics.py`) + `tests/backtest/test_dca_rolling_irr.py`
-- **PY-DCA-4.4** Sous-performance structurelle (`src/quant_engine/stats/runner.py`) + `tests/stats/test_dca_structural_underperformance.py`
+- **PY-DCA-4.1** Splitter rolling (`src/quant_engine/validate/splitter.py`) + `tests/validate/test_dca_rolling_windows.py`
+- **PY-DCA-4.2** Métriques par fenêtre (`src/quant_engine/strategies/runner.py`) + `tests/integration/test_dca_rolling_regimes_pipeline.py`
+- **PY-DCA-4.3** IRR glissant (`src/quant_engine/backtest/metrics.py`) + `tests/integration/test_dca_rolling_regimes_pipeline.py`
+- **PY-DCA-4.4** Sous-performance structurelle (`src/quant_engine/stats/runner.py`) + `tests/integration/test_dca_rolling_regimes_pipeline.py`
 - Validation commune:
-  - `poetry run pytest -q tests/validate/test_dca_rolling_splitter.py tests/strategies/test_dca_window_metrics.py tests/backtest/test_dca_rolling_irr.py tests/stats/test_dca_structural_underperformance.py`
+  - `poetry run pytest -q tests/validate/test_dca_rolling_windows.py tests/integration/test_dca_rolling_regimes_pipeline.py`
 
 ## EPIC-5 — Score composite
 - **PY-DCA-5.1** Contrat score + config poids (`src/quant_engine/backtest/metrics.py`, docs)
@@ -183,7 +183,7 @@ Pour chaque sous-ticket, l’agent doit renseigner dans la PR:
 - **PY-DCA-6.3** Endpoints artefacts run (`src/quant_engine/api/app.py`)
 - **PY-DCA-6.4** Compatibilité ascendante (tests dédiés)
 - Validation commune:
-  - `poetry run pytest -q tests/io/test_dca_artifacts_schema.py tests/api/test_dca_artifacts_api.py tests/io/test_dca_artifacts_compat.py`
+  - `poetry run pytest -q tests/io/test_dca_artifact_contract.py tests/api/test_dca_artifact_endpoints.py`
 
 ## EPIC-7 — Méthodologie & audit
 - **PY-DCA-7.1** Checklist anti-snooping (`docs/`)
@@ -207,6 +207,55 @@ Pour chaque sous-ticket, l’agent doit renseigner dans la PR:
   - `specs/examples/`
 - Validation:
   - `poetry run pytest -q tests/strategies/test_asset_universe_adapter.py tests/integration/test_dca_cross_universe_specs.py`
+
+---
+
+## Annexe A — Mapping officiel sous-ticket -> tests existants -> commande CI
+
+> Objectif: garantir une traçabilité **exécutable telle quelle** sans renommer massivement les fichiers de tests.
+> Règle: en cas d’écart entre les sections ci-dessus et ce tableau, **ce tableau fait foi pour l’audit CI**.
+
+| Sous-ticket | Tests existants (repo) | Commande CI exécutable |
+|---|---|---|
+| PY-DCA-1.1 | `tests/strategies/test_dca_benchmark_calendars.py`, `tests/integration/test_dca_benchmark_specs.py` | `poetry run pytest -q tests/strategies/test_dca_benchmark_calendars.py tests/integration/test_dca_benchmark_specs.py` |
+| PY-DCA-1.2 | `tests/strategies/test_dca_benchmark_calendars.py` | `poetry run pytest -q tests/strategies/test_dca_benchmark_calendars.py` |
+| PY-DCA-1.3 | `tests/strategies/test_dca_benchmark_calendars.py` | `poetry run pytest -q tests/strategies/test_dca_benchmark_calendars.py` |
+| PY-DCA-1.4 | `tests/strategies/test_dca_benchmark_calendars.py` | `poetry run pytest -q tests/strategies/test_dca_benchmark_calendars.py` |
+| PY-DCA-1.5 | `tests/strategies/test_dca_benchmark_calendars.py` | `poetry run pytest -q tests/strategies/test_dca_benchmark_calendars.py` |
+| PY-DCA-1.6 | `tests/integration/test_dca_benchmark_specs.py`, `tests/test_cli_smoke.py` | `poetry run pytest -q tests/integration/test_dca_benchmark_specs.py tests/test_cli_smoke.py` |
+| PY-DCA-2.1 | `tests/backtest/test_dca_metrics.py` | `poetry run pytest -q tests/backtest/test_dca_metrics.py` |
+| PY-DCA-2.2 | `tests/backtest/test_dca_metrics.py` | `poetry run pytest -q tests/backtest/test_dca_metrics.py` |
+| PY-DCA-2.3 | `tests/backtest/test_dca_metrics.py` | `poetry run pytest -q tests/backtest/test_dca_metrics.py` |
+| PY-DCA-2.4 | `tests/backtest/test_dca_metrics.py` | `poetry run pytest -q tests/backtest/test_dca_metrics.py` |
+| PY-DCA-2.5 | `tests/backtest/test_dca_metrics.py` | `poetry run pytest -q tests/backtest/test_dca_metrics.py` |
+| PY-DCA-2.6 | `tests/api/test_runs_metrics_dca.py` | `poetry run pytest -q tests/api/test_runs_metrics_dca.py` |
+| PY-DCA-3.1 | `tests/stats/test_dca_robustness.py`, `tests/integration/test_dca_robustness_pipeline.py` | `poetry run pytest -q tests/stats/test_dca_robustness.py tests/integration/test_dca_robustness_pipeline.py` |
+| PY-DCA-3.2 | `tests/stats/test_dca_robustness.py` | `poetry run pytest -q tests/stats/test_dca_robustness.py` |
+| PY-DCA-3.3 | `tests/stats/test_dca_robustness.py` | `poetry run pytest -q tests/stats/test_dca_robustness.py` |
+| PY-DCA-3.4 | `tests/stats/test_dca_robustness.py` | `poetry run pytest -q tests/stats/test_dca_robustness.py` |
+| PY-DCA-3.5 | `tests/test_dca_stress_tests.py` | `poetry run pytest -q tests/test_dca_stress_tests.py` |
+| PY-DCA-4.1 | `tests/validate/test_dca_rolling_windows.py` | `poetry run pytest -q tests/validate/test_dca_rolling_windows.py` |
+| PY-DCA-4.2 | `tests/integration/test_dca_rolling_regimes_pipeline.py` | `poetry run pytest -q tests/integration/test_dca_rolling_regimes_pipeline.py` |
+| PY-DCA-4.3 | `tests/integration/test_dca_rolling_regimes_pipeline.py` | `poetry run pytest -q tests/integration/test_dca_rolling_regimes_pipeline.py` |
+| PY-DCA-4.4 | `tests/integration/test_dca_rolling_regimes_pipeline.py` | `poetry run pytest -q tests/integration/test_dca_rolling_regimes_pipeline.py` |
+| PY-DCA-5.1 | `tests/backtest/test_dca_score.py` | `poetry run pytest -q tests/backtest/test_dca_score.py` |
+| PY-DCA-5.2 | `tests/backtest/test_dca_score.py`, `tests/test_persistence_db.py` | `poetry run pytest -q tests/backtest/test_dca_score.py tests/test_persistence_db.py` |
+| PY-DCA-5.3 | `tests/test_api_schemas_contract.py`, `tests/test_api_endpoints_extended.py` | `poetry run pytest -q tests/test_api_schemas_contract.py tests/test_api_endpoints_extended.py` |
+| PY-DCA-5.4 | `tests/integration/test_dca_score_sensitivity.py` | `poetry run pytest -q tests/integration/test_dca_score_sensitivity.py` |
+| PY-DCA-6.1 | `tests/io/test_dca_artifact_contract.py` | `poetry run pytest -q tests/io/test_dca_artifact_contract.py` |
+| PY-DCA-6.2 | `tests/io/test_dca_artifact_contract.py` | `poetry run pytest -q tests/io/test_dca_artifact_contract.py` |
+| PY-DCA-6.3 | `tests/api/test_dca_artifact_endpoints.py` | `poetry run pytest -q tests/api/test_dca_artifact_endpoints.py` |
+| PY-DCA-6.4 | `tests/io/test_dca_artifact_contract.py`, `tests/api/test_dca_artifact_endpoints.py` | `poetry run pytest -q tests/io/test_dca_artifact_contract.py tests/api/test_dca_artifact_endpoints.py` |
+| PY-DCA-7.1 | `tests/test_backtest_engine_no_lookahead.py` | `poetry run pytest -q tests/test_backtest_engine_no_lookahead.py` |
+| PY-DCA-7.2 | `tests/strategies/test_dca_benchmark_calendars.py` | `poetry run pytest -q tests/strategies/test_dca_benchmark_calendars.py` |
+| PY-DCA-7.3 | `tests/integration/test_dca_benchmark_specs.py` | `poetry run pytest -q tests/integration/test_dca_benchmark_specs.py` |
+| PY-DCA-7.4 | `tests/integration/test_dca_robustness_pipeline.py` | `poetry run pytest -q tests/integration/test_dca_robustness_pipeline.py` |
+| PY-DCA-8.1 | `tests/strategies/test_asset_universe_adapter.py` | `poetry run pytest -q tests/strategies/test_asset_universe_adapter.py` |
+| PY-DCA-8.2 | `tests/integration/test_dca_cross_universe_specs.py` | `poetry run pytest -q tests/integration/test_dca_cross_universe_specs.py` |
+| PY-DCA-8.3 | `tests/integration/test_dca_cross_universe_specs.py` | `poetry run pytest -q tests/integration/test_dca_cross_universe_specs.py` |
+| PY-DCA-8.4 | `tests/integration/test_dca_cross_universe_specs.py` | `poetry run pytest -q tests/integration/test_dca_cross_universe_specs.py` |
+| PY-DCA-8.5 | `tests/io/test_dca_artifact_contract.py`, `tests/integration/test_dca_cross_universe_specs.py` | `poetry run pytest -q tests/io/test_dca_artifact_contract.py tests/integration/test_dca_cross_universe_specs.py` |
+| PY-DCA-8.6 | `tests/strategies/test_asset_universe_adapter.py`, `tests/integration/test_dca_cross_universe_specs.py` | `poetry run pytest -q tests/strategies/test_asset_universe_adapter.py tests/integration/test_dca_cross_universe_specs.py` |
 
 ---
 

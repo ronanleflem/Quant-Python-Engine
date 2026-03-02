@@ -213,6 +213,24 @@ Pour exécuter proprement, il faut découpler en deux streams :
 
 ---
 
+## Annexe — Traçabilité exécutable des tickets EPIC-1..8
+
+Cette annexe fixe la source de vérité pour l’audit « ticket -> tests -> commande ».  
+Le détail ligne à ligne des sous-tickets PY-DCA est maintenu dans `tickets/active/PY-DCA-SUBTASKS-EXECUTION-PLAN.md` (Annexe A), avec commandes `pytest` prêtes CI.
+
+### Commandes de validation canonique par EPIC
+
+- **EPIC-1**: `poetry run pytest -q tests/strategies/test_dca_benchmark_calendars.py tests/integration/test_dca_benchmark_specs.py`
+- **EPIC-2**: `poetry run pytest -q tests/backtest/test_dca_metrics.py tests/api/test_runs_metrics_dca.py`
+- **EPIC-3**: `poetry run pytest -q tests/stats/test_dca_robustness.py tests/integration/test_dca_robustness_pipeline.py`
+- **EPIC-4**: `poetry run pytest -q tests/validate/test_dca_rolling_windows.py tests/integration/test_dca_rolling_regimes_pipeline.py`
+- **EPIC-5**: `poetry run pytest -q tests/backtest/test_dca_score.py tests/integration/test_dca_score_sensitivity.py`
+- **EPIC-6**: `poetry run pytest -q tests/io/test_dca_artifact_contract.py tests/api/test_dca_artifact_endpoints.py`
+- **EPIC-7**: `poetry run pytest -q tests/test_backtest_engine_no_lookahead.py tests/integration/test_dca_robustness_pipeline.py`
+- **EPIC-8**: `poetry run pytest -q tests/strategies/test_asset_universe_adapter.py tests/integration/test_dca_cross_universe_specs.py`
+
+---
+
 ## 4) Roadmap d’implémentation côté Angular (priorité 2)
 
 ## Epic NG-1 — Ingestion & modèle de données UI
