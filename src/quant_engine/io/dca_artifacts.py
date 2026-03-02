@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 SCHEMA_VERSION = "dca-grid-process-v1"
 CONTRACT_VERSION = "1.0.0"
+DEFAULT_UNIVERSE_RULES_VERSION = "asset-universe-rules-v1"
 
 
 class ReproducibilityMetadata(BaseModel):
@@ -22,6 +23,7 @@ class ReproducibilityMetadata(BaseModel):
 class ContractMetadata(BaseModel):
     schema_version: str = SCHEMA_VERSION
     contract_version: str = CONTRACT_VERSION
+    universe_rules_version: str = DEFAULT_UNIVERSE_RULES_VERSION
     generated_at: str
     reproducibility: ReproducibilityMetadata
 
@@ -39,8 +41,16 @@ def compute_dataset_hash(rows: List[Dict[str, Any]]) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
-def build_metadata(*, generated_at: str, seed: int, dataset_hash: str, config_version: str) -> ContractMetadata:
+def build_metadata(
+    *,
+    generated_at: str,
+    seed: int,
+    dataset_hash: str,
+    config_version: str,
+    universe_rules_version: str | None = None,
+) -> ContractMetadata:
     return ContractMetadata(
+        universe_rules_version=str(universe_rules_version or DEFAULT_UNIVERSE_RULES_VERSION),
         generated_at=generated_at,
         reproducibility=ReproducibilityMetadata(seed=seed, dataset_hash=dataset_hash, config_version=config_version),
     )
@@ -66,6 +76,7 @@ def write_dca_contract_artifacts(
     seed: int,
     dataset_rows: List[Dict[str, Any]],
     config_version: str,
+    universe_rules_version: str | None = None,
     stats_summary: pd.DataFrame,
     robustness: Dict[str, Any],
 ) -> Dict[str, Dict[str, str]]:
@@ -76,6 +87,7 @@ def write_dca_contract_artifacts(
         seed=seed,
         dataset_hash=dataset_hash,
         config_version=config_version,
+        universe_rules_version=universe_rules_version,
     )
 
     rows = stats_summary.to_dict("records")

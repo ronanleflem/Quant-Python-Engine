@@ -253,6 +253,16 @@ Chaque builder suit la meme pipeline:
 }
 ```
 
+### 6.5 Contrat artefacts DCA (EPIC-8)
+
+Quand `artifacts.out_dir` est fourni, les artefacts contractuels DCA JSON/Parquet doivent persister `metadata.universe_rules_version`.
+
+Source de la valeur:
+1. `performance.universe_rules_version` si present dans la requete canonique.
+2. fallback stable: `asset-universe-rules-v1`.
+
+Ce champ est versionne dans le bloc metadata du contrat et ne remplace aucun champ existant.
+
 ## 7) Builder: Seasonality
 
 ### 7.1 Classe conseillee

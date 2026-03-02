@@ -196,6 +196,7 @@ class StatsSpec(BaseModel):
     validation: CoreValidationSpec | None = None
     artifacts: CoreArtifactsSpec | None = None
     persistence: StatsPersistenceSpec | None = None
+    performance: Dict[str, Any] | None = None
 
 
 class ExecutionSpec(BaseModel):

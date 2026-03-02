@@ -13,7 +13,11 @@ from ..core.dataset import load_ohlcv
 from ..core.features import atr
 from ..validate import splitter
 from ..io import artifacts
-from ..io.dca_artifacts import SCHEMA_VERSION, write_dca_contract_artifacts
+from ..io.dca_artifacts import (
+    DEFAULT_UNIVERSE_RULES_VERSION,
+    SCHEMA_VERSION,
+    write_dca_contract_artifacts,
+)
 from . import conditions as cond_mod
 from . import events as event_mod
 from . import targets as tgt_mod
@@ -435,6 +439,17 @@ def run_stats(spec: StatsSpec) -> pd.DataFrame:
 
     out = out.reindex(columns=final_columns)
 
+    universe_rules_version = DEFAULT_UNIVERSE_RULES_VERSION
+    if getattr(spec, "performance", None) is not None:
+        performance_block = getattr(spec, "performance")
+        candidate = None
+        if isinstance(performance_block, dict):
+            candidate = performance_block.get("universe_rules_version")
+        else:
+            candidate = getattr(performance_block, "universe_rules_version", None)
+        if candidate is not None and str(candidate).strip():
+            universe_rules_version = str(candidate).strip()
+
     if spec.artifacts and spec.artifacts.out_dir:
         out_dir = Path(spec.artifacts.out_dir)
         out_dir.mkdir(parents=True, exist_ok=True)
@@ -450,6 +465,7 @@ def run_stats(spec: StatsSpec) -> pd.DataFrame:
             seed=seed,
             dataset_rows=dataset,
             config_version=SCHEMA_VERSION,
+            universe_rules_version=universe_rules_version,
             stats_summary=out,
             robustness=robustness,
         )
