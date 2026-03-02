@@ -488,6 +488,8 @@ def build_dca_performance_from_signals(
         weights=score_weights,
     )
 
+    universe_rules_version = str(config.get("universe_rules_version", "asset-universe-rules-v1"))
+
     run = StrategyRunResult(
         strategy_id=strategy_id,
         run_id=run_id,
@@ -522,6 +524,7 @@ def build_dca_performance_from_signals(
             "capital_per_unit": capital_per_unit,
             "note": "DCA performance computed from pct PnL with cashflow-aware metrics.",
             "metrics_version": "dca-grid-process-v1",
+            "universe_rules_version": universe_rules_version,
             "final_performance_normalized": final_perf_norm,
             "twr": twr_value,
             "xirr": xirr_value,

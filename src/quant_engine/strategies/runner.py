@@ -21,6 +21,7 @@ from ..integrations import java_client
 from ..filters.utils import apply_filter_stack, FilterValidationError
 from ..filters.trade_filter_service import score_filter_rules
 from ..performance.dca_builder import build_backend_payload_for_java
+from ..datafeeds.asset_universe_adapter import resolve_asset_universe_adapter
 from pandas.tseries.holiday import USFederalHolidayCalendar
 from pandas.tseries.offsets import CustomBusinessDay
 try:
@@ -132,8 +133,11 @@ def _run_backtest_core(spec: Mapping[str, Any]) -> tuple[Dict[str, Any], Dict[st
             "asset_class",
             getattr(strategy, "asset_class", None) or strategy_cfg.get("asset_class"),
         )
+        universe_adapter = resolve_asset_universe_adapter(asset_class)
+        universe_rules = universe_adapter.get_rules(data_spec=data_spec, instrument=instrument)
+        adapted_data_spec = universe_adapter.adapt_data_spec(data_spec, instrument)
         t_fetch = time.monotonic()
-        df = _fetch_ohlc_for_symbol(symbol, asset_class, data_spec, instrument)
+        df = _fetch_ohlc_for_symbol(symbol, asset_class, adapted_data_spec, instrument)
         _perf_log(f"strategy.fetch_ohlc {symbol} rows={len(df)}", t_fetch)
         if isinstance(screening_cfg, Mapping) and screening_cfg.get("enabled"):
             window_start = screening_cfg.get("window_start")
@@ -217,6 +221,7 @@ def _run_backtest_core(spec: Mapping[str, Any]) -> tuple[Dict[str, Any], Dict[st
         ohlc_by_symbol[symbol] = df.copy()
         t_signals = time.monotonic()
         context = {"symbol": symbol, "asset_class": asset_class, "screening": screening_cfg}
+        context = universe_adapter.adapt_context(context, universe_rules)
         signals = strategy.backtest(df, context)
         serialized = [_serialize_signal(sig) for sig in signals]
         signals_by_symbol[symbol] = serialized
@@ -1484,6 +1489,10 @@ def _build_payload_for_result(
     for sym, records in (result.get("signals") or {}).items():
         signals_by_symbol[sym] = [_DictSignal(r) for r in records]
 
+    universe_adapter = resolve_asset_universe_adapter(asset_class)
+    performance_cfg = dict(spec.get("performance", {}) or {})
+    performance_cfg.setdefault("universe_rules_version", universe_adapter.rules_version)
+
     return build_backend_payload_for_java(
         strategy_id=strategy_id,
         run_id=run_id,
@@ -1492,5 +1501,5 @@ def _build_payload_for_result(
         timeframe=timeframe,
         signals_by_symbol=signals_by_symbol,
         ohlc_by_symbol=ohlc_by_symbol,
-        config=spec.get("performance", {}) or {},
+        config=performance_cfg,
     )
