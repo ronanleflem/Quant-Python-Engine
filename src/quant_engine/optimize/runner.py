@@ -29,6 +29,29 @@ def _iterate_search_space(search_space: Dict[str, List[int]]):
             yield {"ema_fast": fast, "ema_slow": slow}
 
 
+def _bounded_stress_grid(base_params: Dict[str, int]) -> List[Dict[str, int]]:
+    """Return a reproducible bounded parameter sweep around base params."""
+
+    fast = int(base_params.get("ema_fast", 0))
+    slow = int(base_params.get("ema_slow", 0))
+    candidates: List[Dict[str, int]] = []
+    for df in (-2, 0, 2):
+        for ds in (-5, 0, 5):
+            f = max(2, fast + df)
+            sl = max(f + 1, slow + ds)
+            candidates.append({"ema_fast": f, "ema_slow": sl})
+
+    seen = set()
+    out: List[Dict[str, int]] = []
+    for c in candidates:
+        key = (c["ema_fast"], c["ema_slow"])
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(c)
+    return out
+
+
 def run(spec: Spec, out_dir: str | Path = Path(".")) -> Dict[str, Any]:
     data = dataset.load_dataset(spec.data)
     val = spec.strategy.validation
@@ -42,34 +65,35 @@ def run(spec: Spec, out_dir: str | Path = Path(".")) -> Dict[str, Any]:
     best: Dict[str, Any] | None = None
     best_folds: List[Any] = []
 
-    for params in _iterate_search_space(spec.strategy.search_space):
-        for r in range(1, 6):
-            fold_metrics = []
-            fold_artifacts = []
-            for fold in folds:
-                test = fold["test"]
-                signal = EmaCross(params["ema_fast"], params["ema_slow"]).generate(test)
-                atr_vals = atr.compute(test)
-                trades, equity, summary = engine.run(
-                    test,
-                    signal,
-                    atr_vals,
-                    spec.strategy.tpsl.atr_k,
-                    r,
-                )
-                fold_metrics.append(summary)
-                fold_artifacts.append((trades, equity))
-            if not fold_metrics:
-                continue
-            avg_sharpe = sum(m["sharpe"] for m in fold_metrics) / len(fold_metrics)
-            trial = {"params": {**params, "R": r}, "metrics": {"sharpe": avg_sharpe}}
-            trials.append(trial)
-            if (
-                len(fold_artifacts[0][0]) >= val.min_trades
-                and (best is None or avg_sharpe > best["metrics"]["sharpe"])
-            ):
-                best = trial
-                best_folds = fold_artifacts
+    for base_params in _iterate_search_space(spec.strategy.search_space):
+        for params in _bounded_stress_grid(base_params):
+            for r in range(1, 6):
+                fold_metrics = []
+                fold_artifacts = []
+                for fold in folds:
+                    test = fold["test"]
+                    signal = EmaCross(params["ema_fast"], params["ema_slow"]).generate(test)
+                    atr_vals = atr.compute(test)
+                    trades, equity, summary = engine.run(
+                        test,
+                        signal,
+                        atr_vals,
+                        spec.strategy.tpsl.atr_k,
+                        r,
+                    )
+                    fold_metrics.append(summary)
+                    fold_artifacts.append((trades, equity))
+                if not fold_metrics:
+                    continue
+                avg_sharpe = sum(m["sharpe"] for m in fold_metrics) / len(fold_metrics)
+                trial = {"params": {**params, "R": r}, "metrics": {"sharpe": avg_sharpe}}
+                trials.append(trial)
+                if (
+                    len(fold_artifacts[0][0]) >= val.min_trades
+                    and (best is None or avg_sharpe > best["metrics"]["sharpe"])
+                ):
+                    best = trial
+                    best_folds = fold_artifacts
 
     artifacts.write_trials(out_dir / "trials.parquet", [
         {**t["params"], **t["metrics"]} for t in trials

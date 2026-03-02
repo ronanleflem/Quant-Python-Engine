@@ -4,6 +4,7 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
+import json
 import pandas as pd
 
 from ..api.schemas import StatsSpec
@@ -11,8 +12,6 @@ from ..core.dataset import load_ohlcv
 from ..core.features import atr
 from ..validate import splitter
 from ..io import artifacts
-from ..persistence import db
-from ..persistence.repo import MarketStatsRepository
 from . import conditions as cond_mod
 from . import events as event_mod
 from . import targets as tgt_mod
@@ -21,6 +20,9 @@ from .estimators import (
     aggregate_binary_bayes,
     p_value_binomial_onesided_normal,
     benjamini_hochberg,
+    monte_carlo_calendar_distribution,
+    percentile_rank,
+    stochastic_dominance_simplified,
 )
 
 N_MIN = 300
@@ -256,6 +258,82 @@ def _aggregate(df: pd.DataFrame) -> pd.DataFrame:
     return grouped[columns]
 
 
+def _compute_robustness_artifacts(out: pd.DataFrame, seed: int = 42) -> Dict[str, Any]:
+    """Compute percentile and simplified dominance against passive benchmark distribution."""
+
+    if out.empty:
+        return {
+            "version": "dca-grid-process-v1",
+            "seed": int(seed),
+            "n_runs": 0,
+            "quantiles": {},
+            "percentile": 0.0,
+            "dominance": {
+                "perf_dominance_prob": 0.0,
+                "drawdown_dominance_prob": 0.0,
+                "is_dominant": False,
+            },
+            "stress_grid": [],
+            "notes": "Dominance simplifiee: P(perf_obs >= perf_passive) et P(dd_obs <= dd_passive)",
+        }
+
+    observed_perf = float(out["lift_freq"].mean()) if "lift_freq" in out.columns else 0.0
+    observed_drawdown = float((1.0 - out["p_hat"]).clip(lower=0).mean()) if "p_hat" in out.columns else 0.0
+
+    passive_perf_distribution = monte_carlo_calendar_distribution(
+        list(out["p_hat"].fillna(0.0).astype(float).to_numpy()),
+        n_runs=200,
+        sample_size=max(1, min(20, len(out))),
+        seed=seed,
+    )
+    passive_drawdown_distribution = monte_carlo_calendar_distribution(
+        list((1.0 - out["p_hat"].fillna(0.0).astype(float)).clip(lower=0).to_numpy()),
+        n_runs=200,
+        sample_size=max(1, min(20, len(out))),
+        seed=seed + 1,
+    )
+
+    quantiles = {}
+    for q in [0.05, 0.25, 0.5, 0.75, 0.95]:
+        quantiles[f"p{int(q*100)}"] = float(pd.Series(passive_perf_distribution).quantile(q))
+
+    dominance = stochastic_dominance_simplified(
+        observed_perf,
+        observed_drawdown,
+        passive_perf_distribution,
+        passive_drawdown_distribution,
+        threshold=0.6,
+    )
+
+    stress_grid: List[Dict[str, Any]] = []
+    for n_runs in [50, 100, 200]:
+        dist = monte_carlo_calendar_distribution(
+            list(out["p_hat"].fillna(0.0).astype(float).to_numpy()),
+            n_runs=n_runs,
+            sample_size=max(1, min(20, len(out))),
+            seed=seed,
+        )
+        stress_grid.append(
+            {
+                "n_runs": n_runs,
+                "seed": seed,
+                "mean": float(pd.Series(dist).mean()) if dist else 0.0,
+                "p50": float(pd.Series(dist).quantile(0.5)) if dist else 0.0,
+            }
+        )
+
+    return {
+        "version": "dca-grid-process-v1",
+        "seed": int(seed),
+        "n_runs": len(passive_perf_distribution),
+        "quantiles": quantiles,
+        "percentile": float(percentile_rank(observed_perf, passive_perf_distribution)),
+        "dominance": dominance,
+        "stress_grid": stress_grid,
+        "notes": "Dominance simplifiee: P(perf_obs >= perf_passive) et P(dd_obs <= dd_passive)",
+    }
+
+
 def run_stats(spec: StatsSpec) -> pd.DataFrame:
     logger.info(
         "MarketStats run started | symbols=%s timeframe=%s source_path=%s mysql=%s persistence=%s artifacts=%s",
@@ -360,6 +438,9 @@ def run_stats(spec: StatsSpec) -> pd.DataFrame:
         out_dir.mkdir(parents=True, exist_ok=True)
         artifacts.write_stats_summary(out_dir / "stats_summary.parquet", out)
         artifacts.write_stats_details(out_dir / "stats_details.parquet", pd.DataFrame())
+        robustness = _compute_robustness_artifacts(out, seed=42)
+        (out_dir / "dca_robustness_v1.json").write_text(json.dumps(robustness, indent=2))
+        pd.DataFrame([robustness]).to_parquet(out_dir / "dca_robustness_v1.parquet", index=False)
         logger.info("MarketStats artifacts written | out_dir=%s", out_dir)
 
     if spec.persistence and getattr(spec.persistence, "enabled", False):
@@ -420,6 +501,8 @@ def run_stats(spec: StatsSpec) -> pd.DataFrame:
                 }
             )
         if rows:
+            from ..persistence import db
+            from ..persistence.repo import MarketStatsRepository
             with db.session() as conn:
                 repo = MarketStatsRepository(conn)
                 repo.bulk_upsert(rows)
