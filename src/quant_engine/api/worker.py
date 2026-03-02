@@ -179,6 +179,8 @@ def process_next_job(
     if api_app._is_true_flag(api_app._get_job(job_id).get("cancel_requested")):
         api_app._mark_canceled(job_id)
         return None
+    if job.get("job_type") == api_app.JOB_TYPE_CANONICAL_RUN:
+        api_app._persist_canonical_run_metrics(job_id, job.get("payload"), result)
     payload_out = api_app._build_job_result(job.get("job_type"), job_id, result)
     api_app._update_job_result(job_id, payload_out, status=success_status)
     return payload_out
