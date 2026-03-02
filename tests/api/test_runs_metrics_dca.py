@@ -58,6 +58,16 @@ def test_runs_metrics_endpoint_exposes_dca_metrics(tmp_path, monkeypatch) -> Non
                         "xirr_status": "ok",
                         "max_drawdown_on_contributed_capital": 15.0,
                         "time_under_water": 3,
+                        "dca_composite_score": {
+                            "score": 0.66,
+                            "edge": "medium",
+                            "components": {
+                                "performance": 0.70,
+                                "irr": 0.60,
+                                "drawdown": 0.80,
+                                "robustness": 0.50,
+                            },
+                        },
                     },
                 }
             },
@@ -76,3 +86,6 @@ def test_runs_metrics_endpoint_exposes_dca_metrics(tmp_path, monkeypatch) -> Non
     assert aggregated["max_drawdown_on_contributed_capital"] == 15.0
     assert aggregated["time_under_water"] == 3.0
     assert aggregated["xirr_converged"] == 1.0
+    assert aggregated["dca_score"] == 0.66
+    assert aggregated["dca_edge_level"] == 2.0
+    assert aggregated["dca_score_component_performance"] == 0.70

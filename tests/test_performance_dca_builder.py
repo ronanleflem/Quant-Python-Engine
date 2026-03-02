@@ -97,6 +97,11 @@ def test_build_dca_performance_from_signals_handles_cycles_and_metrics() -> None
     assert run.win_count == 1
     assert run.loss_count == 1
     assert run.total_return == pytest.approx(trades[0].gross_pnl_pct + trades[1].gross_pnl_pct)
+    assert isinstance(run.extra, dict)
+    dca_score = run.extra.get("dca_composite_score")
+    assert isinstance(dca_score, dict)
+    assert 0.0 <= dca_score["score"] <= 1.0
+    assert dca_score["edge"] in {"weak", "medium", "strong"}
 
 
 def test_build_dca_performance_multiple_buys_and_tp_metrics() -> None:

@@ -1849,6 +1849,21 @@ def _persist_canonical_run_metrics(job_id: str, payload: Any | None, result: Any
     if isinstance(xirr_status, str):
         metrics_map["xirr_converged"] = 1.0 if xirr_status == "ok" else 0.0
 
+    composite = extra.get("dca_composite_score") if isinstance(extra.get("dca_composite_score"), dict) else {}
+    score_value = composite.get("score")
+    if isinstance(score_value, (int, float)):
+        metrics_map["dca_score"] = float(score_value)
+    edge_value = composite.get("edge")
+    if isinstance(edge_value, str):
+        edge = edge_value.strip().lower()
+        edge_map = {"weak": 1.0, "medium": 2.0, "strong": 3.0}
+        if edge in edge_map:
+            metrics_map["dca_edge_level"] = edge_map[edge]
+    components = composite.get("components") if isinstance(composite.get("components"), dict) else {}
+    for name, value in components.items():
+        if isinstance(value, (int, float)):
+            metrics_map[f"dca_score_component_{name}"] = float(value)
+
     if not metrics_map:
         return
 

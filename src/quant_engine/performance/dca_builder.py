@@ -473,6 +473,20 @@ def build_dca_performance_from_signals(
         window_years=rolling_years or [3, 5, 10],
         step_months=rolling_step_months,
     )
+    underperformance = rolling_analytics.get("underperformance", {}) if isinstance(rolling_analytics, dict) else {}
+    score_cfg = config.get("composite_score", {}) if isinstance(config.get("composite_score"), Mapping) else {}
+    score_weights = score_cfg.get("weights") if isinstance(score_cfg.get("weights"), Mapping) else None
+    dca_score = backtest_metrics.dca_composite_score(
+        final_performance_normalized_value=final_perf_norm,
+        xirr_value=xirr_value,
+        max_drawdown_on_contributed_capital_value=(
+            (max_drawdown_pct_value / 100.0) if isinstance(max_drawdown_pct_value, (int, float)) else None
+        ),
+        underperformance_duration_windows=int(underperformance.get("duration_windows", 0) or 0),
+        underperformance_severity_pct_points=float(underperformance.get("severity_pct_points", 0.0) or 0.0),
+        xirr_status=xirr_status,
+        weights=score_weights,
+    )
 
     run = StrategyRunResult(
         strategy_id=strategy_id,
@@ -516,6 +530,9 @@ def build_dca_performance_from_signals(
             "time_under_water": time_under_water_periods,
             "contributed_capital": contributed_capital,
             "rolling_windows": rolling_analytics,
+            "dca_composite_score": dca_score,
+            "dca_edge": dca_score.get("edge"),
+            "dca_score": dca_score.get("score"),
         },
     )
 
