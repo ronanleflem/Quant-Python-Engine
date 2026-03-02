@@ -80,3 +80,24 @@ def test_canonical_market_stats_mapping_includes_performance_universe_rules_vers
     )
 
     assert mapped["performance"]["universe_rules_version"] == "asset-universe-rules-v3"
+
+
+def test_canonical_market_stats_mapping_normalizes_timezone_to_utc(api_db):
+    mapped = api_app._canonical_market_stats_to_spec(
+        {
+            "data": {
+                "symbol": "AAPL",
+                "timeframe": "1D",
+                "start_date": "2025-01-06T09:00:00+01:00",
+                "end_date": "2025-01-07T18:00:00+01:00",
+            },
+            "stats": {
+                "event": {"id": "k_consecutive", "params": {"k": 2}},
+                "condition": {"id": "session", "params": {}},
+                "target": {"id": "up_next_bar", "params": {}},
+            },
+        }
+    )
+
+    assert mapped["data"]["start"] == "2025-01-06T08:00:00+00:00"
+    assert mapped["data"]["end"] == "2025-01-07T17:00:00+00:00"
