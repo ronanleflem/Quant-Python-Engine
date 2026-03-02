@@ -10,6 +10,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Dict, Any, List
 
+import pandas as pd
+
 from ..core import dataset
 from ..core.spec import Spec
 from ..signals.ema_cross import EmaCross
@@ -50,6 +52,14 @@ def _bounded_stress_grid(base_params: Dict[str, int]) -> List[Dict[str, int]]:
         seen.add(key)
         out.append(c)
     return out
+
+
+def compute_dca_robustness_from_stats(out_df: "pd.DataFrame", seed: int = 42) -> Dict[str, Any]:
+    """Bridge helper to compute DCA robustness via the stats runner implementation."""
+
+    from ..stats.runner import compute_dca_robustness_artifacts
+
+    return compute_dca_robustness_artifacts(out_df, seed=seed)
 
 
 def run(spec: Spec, out_dir: str | Path = Path(".")) -> Dict[str, Any]:

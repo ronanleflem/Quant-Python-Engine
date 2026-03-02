@@ -342,3 +342,14 @@ Seules certaines briques doivent être spécialisées par classe d’actifs.
 ### 7.5 Règle méthodologique clé
 
 - **Comparer une stratégie uniquement contre des benchmarks plausibles du même univers** (pas de conclusion “crypto > ETF” sans normalisation stricte du risque, des frais et du calendrier).
+
+## 8) Mapping point d’entrée robustesse (clarification architecture)
+
+Pour EPIC-3/P1, le **calcul canonique** des artefacts de robustesse DCA reste implémenté dans `quant_engine.stats.runner` via `compute_dca_robustness_artifacts`.
+
+Afin d’éviter toute ambiguïté côté point d’entrée ticket `optimize/runner.py`, un pont explicite est exposé:
+
+- `quant_engine.optimize.runner.compute_dca_robustness_from_stats(out_df, seed)`
+- ce helper délègue directement à `quant_engine.stats.runner.compute_dca_robustness_artifacts(...)`
+
+Conséquence: la logique métier de robustesse n’est pas dupliquée; `optimize` fournit uniquement un point d’accès aligné pour les workflows qui partent de l’optimisation.
