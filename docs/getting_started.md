@@ -84,3 +84,68 @@ poetry run qe YOUR_COMMAND --spec specs/filters_risk_mgmt_example.json
 ```
 
 Comme pour les autres scénarios, remplace `YOUR_COMMAND` par la commande correspondant à ton pipeline (`stats run`, backtest, etc.).
+
+
+## Activer la feature Currency Strength (Option B)
+
+Tu peux enrichir les runs avec `ccy_strength_base`, `ccy_strength_quote`, `ccy_strength_spread` via la section `features.currency_strength`.
+
+Exemple :
+
+```json
+{
+  "features": {
+    "currency_strength": {
+      "enabled": true,
+      "lookback": 72,
+      "majors": ["USD", "EUR", "GBP", "JPY", "CHF", "CAD", "AUD", "NZD"]
+    }
+  }
+}
+```
+
+Ce bloc fonctionne sur les workflows backtest/strategy runner et enrichit les données avant application des filtres.
+
+## Utiliser la condition stats `currency_strength_regime` (Option C)
+
+Dans une spec stats, tu peux classer le régime de force devise via :
+
+```json
+{
+  "conditions": [
+    {
+      "name": "ccy_regime",
+      "type": "currency_strength_regime",
+      "params": {
+        "spread_col": "ccy_strength_spread",
+        "long_threshold": 0.2,
+        "short_threshold": -0.2
+      }
+    }
+  ]
+}
+```
+
+Assure-toi que la colonne `ccy_strength_spread` est bien présente dans les données exploitées par le run stats.
+
+
+## Lire les résultats Currency Strength (long vs short)
+
+Interprétation des colonnes enrichies :
+
+- `ccy_strength_base` : force relative de la devise de base.
+- `ccy_strength_quote` : force relative de la devise cotée.
+- `ccy_strength_spread = base - quote`.
+
+Règle de lecture :
+- `spread > 0` : contexte plutôt **long**.
+- `spread < 0` : contexte plutôt **short**.
+- `spread ~ 0` : contexte neutre, avantage faible.
+
+Réaction opérationnelle suggérée :
+- au-dessus d’un seuil `+T` (ex: `+0.2`) -> privilégier les longs,
+- en dessous de `-T` (ex: `-0.2`) -> privilégier les shorts,
+- entre `-T` et `+T` -> filtrer ou réduire l’exposition.
+
+Cette logique correspond à la condition stats `currency_strength_regime` (`long` / `neutral` / `short`) pour vérifier quantitativement le comportement avant d’en faire une règle stricte en production.
+

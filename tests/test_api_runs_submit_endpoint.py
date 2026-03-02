@@ -305,3 +305,23 @@ def test_runs_submit_rejects_optimize_backtest_empty_search_space(tmp_path, monk
     assert response.status_code == 422
     errors = response.json()["errors"]
     assert errors
+
+
+def test_submit_run_accepts_currency_strength_features_block(tmp_path, monkeypatch):
+    monkeypatch.setenv("DB_SQLITE_PATH", str(tmp_path / "quant.db"))
+    reset_settings_cache()
+    client = TestClient(api_app.fastapi_app)
+
+    payload = _canonical_backtest_payload()
+    payload["features"] = {
+        "currency_strength": {
+            "enabled": True,
+            "lookback": 72,
+            "majors": ["USD", "EUR", "GBP", "JPY", "CHF", "CAD", "AUD", "NZD"],
+        }
+    }
+
+    resp = client.post("/runs", json=payload)
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == "queued"

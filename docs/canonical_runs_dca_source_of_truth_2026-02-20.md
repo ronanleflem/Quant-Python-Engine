@@ -37,6 +37,8 @@ Runtime not-wired errors are returned as:
 - `strategy`: required
 - `filters`: supported (mapped to internal `filters`, `filter_rules`, `filter_rules_config`)
 - `performance.initial_capital`: supported
+- `features.currency_strength`: supported (forwarded to runtime)
+  - `enabled`, `lookback`, `majors`, `pairs`
 - `performance.stress_tests`: accepted by contract, not wired in this canonical DCA runtime path
 
 ### `data`
@@ -121,6 +123,19 @@ Not wired:
   }
 }
 ```
+
+## Functional behavior for currency strength
+
+When enabled in canonical DCA payload, `features.currency_strength` is forwarded to strategy runtime.
+Each symbol dataframe is enriched before filters with:
+- `ccy_strength_base`
+- `ccy_strength_quote`
+- `ccy_strength_spread`
+
+Interpretation is context-only:
+- positive spread: long-favoring context
+- negative spread: short-favoring context
+- near-zero spread: neutral context
 
 ## Multi-symbol runtime rules
 

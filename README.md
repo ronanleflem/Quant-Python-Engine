@@ -60,6 +60,7 @@ export $(grep -v '^#' .env | xargs)
 - [Filtres pré-trade](docs/filters.md)
 - [Optimization workflow](docs/optimization.md)
 - [Seasonality – Dimensions & Métriques](docs/seasonality_reference.md)
+- [Currency Strength (audit + activation)](docs/currency_strength_audit.md)
 - [Live Trading Runner](docs/live.md)
 - [High-level Strategies](docs/strategies_overview.md)
 

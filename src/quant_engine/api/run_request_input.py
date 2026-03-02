@@ -195,6 +195,7 @@ class RunRequestCommon(StrictModel):
     persistence: Optional[Dict[str, Any]] = None
     filters: Optional[FiltersBlock] = None
     performance: Optional[PerformanceBlock] = None
+    features: Optional[Dict[str, Any]] = None
 
 
 class BacktestRunRequest(RunRequestCommon):

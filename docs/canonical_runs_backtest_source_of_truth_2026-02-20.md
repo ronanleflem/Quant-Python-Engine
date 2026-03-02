@@ -23,6 +23,11 @@ This document is the Python runtime reference for canonical `POST /runs` request
 - `filters.rules_config` -> internal `filter_rules_config`
 - `strategy.params.tp_sl` when provided as internal backtest TP/SL object (`atr_window`, `atr_k`, `r_mult`, etc.)
 - `performance.initial_capital`
+- `features.currency_strength` (forwarded to runtime):
+  - `enabled`
+  - `lookback`
+  - `majors`
+  - `pairs`
 - `output`
 - `persistence`
 
@@ -30,6 +35,19 @@ This document is the Python runtime reference for canonical `POST /runs` request
 
 - `strategy.name`
 - `performance.stress_tests`
+
+## Functional behavior for currency strength
+
+When `features.currency_strength.enabled=true`, canonical backtest forwards the feature block to runtime.
+The runner enriches OHLC rows with:
+- `ccy_strength_base`
+- `ccy_strength_quote`
+- `ccy_strength_spread`
+
+Operational interpretation:
+- `spread > 0`: bullish context (favor long bias)
+- `spread < 0`: bearish context (favor short bias)
+- `spread ~ 0`: neutral context
 
 ## Runtime not-implemented behavior
 

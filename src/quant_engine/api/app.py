@@ -901,6 +901,10 @@ def _canonical_backtest_to_spec(request: Dict[str, Any]) -> Dict[str, Any]:
         if performance_spec:
             mapped["performance"] = performance_spec
 
+    features_block = request.get("features")
+    if isinstance(features_block, dict):
+        mapped["features"] = dict(features_block)
+
     if isinstance(request.get("output"), dict):
         mapped["output"] = request.get("output")
     if isinstance(request.get("persistence"), dict):
@@ -1165,6 +1169,10 @@ def _canonical_dca_to_strategy_spec(request: Dict[str, Any]) -> Dict[str, Any]:
         performance_spec = _canonical_performance_to_internal(performance_block)
         if performance_spec:
             spec["performance"] = performance_spec
+
+    features_block = request.get("features")
+    if isinstance(features_block, dict):
+        spec["features"] = dict(features_block)
 
     return spec
 
@@ -2315,6 +2323,11 @@ def _canonical_runs_capabilities(spec_type: str) -> Dict[str, Any]:
                     "performance.stress_tests.timestamp_alignment",
                     "output",
                     "persistence",
+                    "features.currency_strength",
+                    "features.currency_strength.enabled",
+                    "features.currency_strength.lookback",
+                    "features.currency_strength.majors",
+                    "features.currency_strength.pairs",
                 ],
                 "accepted_but_not_wired": [
                     "strategy.name",
@@ -2332,6 +2345,7 @@ def _canonical_runs_capabilities(spec_type: str) -> Dict[str, Any]:
                 "execution_status": "partially_wired",
                 "failure_mode": "worker returns not_implemented_feature for accepted_but_not_wired blocks",
                 "details_source": "_canonical_backtest_unsupported_details",
+                "feature_enrichment": "features.currency_strength is forwarded to runtime and enriches rows before filter evaluation when enabled",
                 "data_source_resolution": {
                     "mode": "auto_when_no_explicit_source",
                     "order": ["delta", "mysql", "java"],
@@ -2469,6 +2483,11 @@ def _canonical_runs_capabilities(spec_type: str) -> Dict[str, Any]:
                 "performance.stress_tests.aggregation",
                 "performance.stress_tests.weights",
                 "performance.stress_tests.timestamp_alignment",
+                "features.currency_strength",
+                "features.currency_strength.enabled",
+                "features.currency_strength.lookback",
+                "features.currency_strength.majors",
+                "features.currency_strength.pairs",
                 ],
             "accepted_but_not_wired": [
                 "output",
@@ -2495,6 +2514,7 @@ def _canonical_runs_capabilities(spec_type: str) -> Dict[str, Any]:
                 "aggregation": "result.counts keyed by symbol; payload trades aggregated across symbols",
                 "filter_application": "filters and filter_rules are evaluated independently per symbol on each symbol OHLC",
                 "missing_data_behavior": "run fails fast if any universe symbol cannot load OHLC",
+                "feature_enrichment": "features.currency_strength is applied per symbol before filter evaluation when enabled",
             }
         },
         "legacy_dca": {
@@ -2581,6 +2601,7 @@ def _canonical_runs_capabilities(spec_type: str) -> Dict[str, Any]:
                     "strategy.params.tp_sl",
                     "filters",
                     "performance.initial_capital",
+                    "features.currency_strength",
                 ],
                 "not_in_canonical": [
                     "strategy.strategy_id",
