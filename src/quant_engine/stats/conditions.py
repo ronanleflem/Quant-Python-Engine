@@ -215,6 +215,22 @@ def touched_level_since(level_type: str, bars: int = 1) -> Callable[[pd.DataFram
     return _inner
 
 
+
+def currency_strength_regime(
+    df: pd.DataFrame,
+    *,
+    long_threshold: float = 0.25,
+    short_threshold: float = -0.25,
+    spread_col: str = "ccy_strength_spread",
+) -> pd.Series:
+    """Classify currency-strength regime from spread into long/neutral/short."""
+
+    spread = pd.to_numeric(df.get(spread_col), errors="coerce")
+    regime = pd.Series("neutral", index=df.index, dtype="object")
+    regime[spread >= float(long_threshold)] = "long"
+    regime[spread <= float(short_threshold)] = "short"
+    return regime.astype("category")
+
 def list_condition_types() -> list[str]:
     """Return the list of available condition factory names."""
 

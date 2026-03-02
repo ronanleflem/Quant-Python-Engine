@@ -21,6 +21,11 @@ from ..integrations import java_client
 from ..filters.utils import apply_filter_stack, FilterValidationError
 from ..filters.trade_filter_service import score_filter_rules
 from ..performance.dca_builder import build_backend_payload_for_java
+from ..core.features.currency_strength import (
+    MAJOR_CURRENCIES,
+    default_major_pairs,
+    enrich_with_currency_strength,
+)
 from pandas.tseries.holiday import USFederalHolidayCalendar
 from pandas.tseries.offsets import CustomBusinessDay
 try:
@@ -123,6 +128,8 @@ def _run_backtest_core(spec: Mapping[str, Any]) -> tuple[Dict[str, Any], Dict[st
     counts: Dict[str, int] = {}
     ohlc_by_symbol: Dict[str, pd.DataFrame] = {}
     cache_stats_start = dict(_OHLC_CACHE_STATS)
+    ccy_cfg = ((spec.get("features") or {}).get("currency_strength") or {})
+    ccy_prices_cache: Dict[str, Dict[str, pd.DataFrame]] = {}
     for instrument in universe:
         symbol = instrument.get("symbol")
         if not symbol:
@@ -135,6 +142,28 @@ def _run_backtest_core(spec: Mapping[str, Any]) -> tuple[Dict[str, Any], Dict[st
         t_fetch = time.monotonic()
         df = _fetch_ohlc_for_symbol(symbol, asset_class, data_spec, instrument)
         _perf_log(f"strategy.fetch_ohlc {symbol} rows={len(df)}", t_fetch)
+        if isinstance(ccy_cfg, Mapping) and ccy_cfg.get("enabled"):
+            basket = ccy_cfg.get("pairs") or default_major_pairs(ccy_cfg.get("majors") or MAJOR_CURRENCIES)
+            lookback = int(ccy_cfg.get("lookback", 72))
+            cache_key = str(asset_class or "")
+            prices_by_symbol = ccy_prices_cache.get(cache_key)
+            if prices_by_symbol is None:
+                prices_by_symbol = {}
+                for pair in basket:
+                    try:
+                        pair_df = _fetch_ohlc_for_symbol(str(pair), asset_class, data_spec, {})
+                    except Exception:
+                        continue
+                    prices_by_symbol[str(pair)] = pair_df[["ts", "close"]] if {"ts", "close"}.issubset(pair_df.columns) else pair_df
+                ccy_prices_cache[cache_key] = prices_by_symbol
+            if prices_by_symbol:
+                df = enrich_with_currency_strength(
+                    df,
+                    symbol=str(symbol),
+                    prices_by_symbol=prices_by_symbol,
+                    majors=ccy_cfg.get("majors") or MAJOR_CURRENCIES,
+                    lookback=lookback,
+                )
         if isinstance(screening_cfg, Mapping) and screening_cfg.get("enabled"):
             window_start = screening_cfg.get("window_start")
             window_end = screening_cfg.get("window_end")

@@ -320,6 +320,8 @@ def test_runs_capabilities_returns_dca_runtime_matrix(tmp_path, monkeypatch) -> 
     assert body["resolution"]["dca_symbol_source_priority"] == ["universe", "data.symbol"]
     assert body["deprecations"]["data.symbol"]["status"] == "deprecated"
     assert body["deprecations"]["data.symbol"]["recommended_replacement"] == "universe[]"
+    assert "features.currency_strength" in body["fields"]["supported"]
+    assert body["runtime_rules"]["multi_symbol"]["feature_enrichment"].startswith("features.currency_strength")
 
 
 def test_runs_capabilities_rejects_unknown_spec_type(tmp_path, monkeypatch) -> None:
@@ -391,6 +393,8 @@ def test_runs_capabilities_returns_backtest_runtime_matrix(tmp_path, monkeypatch
     assert body["runtime_rules"]["execution_status"] == "partially_wired"
     assert body["runtime_rules"]["data_source_resolution"]["mode"] == "auto_when_no_explicit_source"
     assert body["runtime_rules"]["data_source_resolution"]["order"] == ["delta", "mysql", "java"]
+    assert "features.currency_strength" in body["fields"]["supported"]
+    assert "features.currency_strength.enabled" in body["fields"]["supported"]
 
 
 def test_runs_capabilities_returns_stress_tests_runtime_matrix(tmp_path, monkeypatch) -> None:

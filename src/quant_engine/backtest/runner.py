@@ -15,6 +15,11 @@ import logging
 from . import engine
 from ..core import dataset
 from ..core.features import atr
+from ..core.features.currency_strength import (
+    MAJOR_CURRENCIES,
+    default_major_pairs,
+    enrich_with_currency_strength,
+)
 from ..core.spec import DataSpec, parse_data_spec, uses_strategy_sources
 from ..filters.utils import apply_filter_stack, FilterValidationError
 from ..filters.trade_filter_service import score_filter_rules
@@ -252,6 +257,29 @@ def run_backtest_from_spec(spec: Mapping[str, Any]) -> Dict[str, Any]:
             pruning_cfg = candidate_pruning
 
     symbol = _detect_symbol(rows)
+
+    ccy_cfg = ((spec.get("features") or {}).get("currency_strength") or {})
+    if isinstance(ccy_cfg, Mapping) and ccy_cfg.get("enabled"):
+        basket = ccy_cfg.get("pairs") or default_major_pairs(ccy_cfg.get("majors") or MAJOR_CURRENCIES)
+        lookback = int(ccy_cfg.get("lookback", 72))
+        prices_by_symbol: Dict[str, pd.DataFrame] = {}
+        for pair in basket:
+            try:
+                pair_df, _ = _fetch_ohlc_with_source(str(pair), asset_class, data_raw)
+            except Exception:
+                continue
+            prices_by_symbol[str(pair)] = pair_df[["ts", "close"]] if {"ts", "close"}.issubset(pair_df.columns) else pair_df
+        if prices_by_symbol:
+            df_rows = pd.DataFrame(rows)
+            df_rows = enrich_with_currency_strength(
+                df_rows,
+                symbol=symbol,
+                prices_by_symbol=prices_by_symbol,
+                majors=ccy_cfg.get("majors") or MAJOR_CURRENCIES,
+                lookback=lookback,
+            )
+            rows = _rows_from_dataframe(df_rows.reset_index(drop=True), symbol)
+
     t_signal = time.monotonic()
     signal = _build_signal(spec, rows)
     _perf_log("backtest.build_signal", t_signal)
