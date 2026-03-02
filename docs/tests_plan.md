@@ -130,3 +130,29 @@ No hard duplication found. Some intentional overlaps:
     - Tests: tests/test_large_dataset_perf.py
    - Notes: optional memory cap + throughput check + filters-on variant + optimize perf (grid/random, screening on/off)
     - Status: implemented (marked slow).
+
+## PY-DCA-EPIC-7 — Validation méthodologique (Audit/Discovery)
+
+### Objectif d’audit
+
+- Vérifier la non-fuite d’information (look-ahead, leakage calendrier, data snooping).
+- Garantir la reproductibilité d’un run canonique via artefacts et checksums.
+- Formaliser une décision go/no-go indépendante des ajustements post-hoc.
+
+### Protocole d’intégration (rejeu canonique)
+
+1. Exécuter un run local avec une spec canonique figée.
+2. Capturer les artefacts minimaux d’audit (`run_manifest`, métriques, trades, logs, checksums).
+3. Comparer les sorties au baseline canonique (`docs/canonical_runs_dca_source_of_truth_2026-02-20.md`).
+4. Classer le run: `REPRODUCIBLE` / `DRIFT_MINEUR` / `NON_CONFORME`.
+
+### Commande de validation
+
+- `poetry run qe run-local --spec specs/examples/strategy_dca_etf_delta_2024_2026.json`
+
+### Critères d’acceptation (gate reviewer)
+
+- Scope conforme à PY-DCA-EPIC-7 et DoD documentaire.
+- Vérification explicite de la checklist anti-snooping.
+- Matrice risques + mitigations renseignée avec preuves.
+- Rejeu canonique effectué et comparaison d’artefacts documentée.

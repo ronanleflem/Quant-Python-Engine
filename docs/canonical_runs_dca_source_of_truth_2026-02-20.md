@@ -169,6 +169,24 @@ After:
 }
 ```
 
+
+## Audit trail requis (PY-DCA-EPIC-7)
+
+Pour qu’un run canonique soit auditable et rejouable, les artefacts suivants sont obligatoires:
+
+- `run_manifest.json` (spec figée, commit, versions runtime, seed(s), hash dataset)
+- `metrics.json` (métriques principales + distribution stats)
+- `trades.parquet` ou `trades.csv` (journal d’exécution)
+- `logs.txt` (journal runtime horodaté)
+- `checksums.txt` (hash SHA256 des artefacts)
+
+### Procédure de comparaison baseline vs rerun
+
+1. Rejouer avec la même spec et les mêmes seeds.
+2. Vérifier l’égalité des checksums pour les artefacts déterministes.
+3. Appliquer tolérance numérique définie pour les métriques flottantes.
+4. Consigner un statut: `REPRODUCIBLE`, `DRIFT_MINEUR`, `NON_CONFORME`.
+
 ## Frontend guidance
 
 - Prefer sending explicit `strategy.params.grid` instead of `strategy.grid` presets.

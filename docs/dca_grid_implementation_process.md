@@ -156,6 +156,56 @@ Pour exécuter proprement, il faut découpler en deux streams :
 - **PY-7.3** Gel des règles benchmark ex-ante.
 - **PY-7.4** Rapport de reproductibilité.
 
+### Cadre d’audit vérifiable (à appliquer avant toute conclusion)
+
+#### 1) Checklist anti-snooping (revue obligatoire)
+
+- [ ] **Préréglage ex-ante**: paramètres de grille, dates, univers, métriques et seuils go/no-go gelés avant exécution.
+- [ ] **Aucune optimisation post-hoc**: interdiction d’ajuster les paramètres sur la même période d’évaluation finale.
+- [ ] **Split temporel respecté**: calibration/validation/test strictement ordonnés dans le temps (pas de mélange).
+- [ ] **Zéro fuite de features**: tout indicateur utilise uniquement l’historique disponible à `t`.
+- [ ] **Calendrier explicite**: jours non ouvrés, décalages d’exécution et fuseau horodatés et documentés.
+- [ ] **Cashflows comparables**: budgets et règles d’investissement identiques entre stratégie DCA Grid et benchmarks.
+- [ ] **Jeu de seeds traçable**: seeds Monte Carlo figées et archivées pour rerun bit-à-bit.
+- [ ] **Versionning complet**: commit, spec, dataset hash, config runtime et artefacts signés dans le run manifest.
+- [ ] **Comparaison canonique**: run de contrôle rejoué contre le baseline de référence et diff documenté.
+- [ ] **Revue pairée**: validation indépendante signée avant communication d’un “edge”.
+
+#### 2) Matrice des risques méthodologiques + mitigations
+
+| Risque | Symptôme observable | Impact | Mitigation obligatoire | Evidence attendue |
+|---|---|---|---|---|
+| Data snooping | Perf excellente seulement après multiples tweaks | Surestimation de l’alpha | Gel ex-ante + journal des changements paramétriques | Changelog de specs + run manifest |
+| Look-ahead bias | Signaux basés sur données futures | Résultats non réplicables en réel | Tests no-lookahead + audit des colonnes dérivées | Rapport tests + revue code |
+| Survivorship bias | Univers actuel appliqué au passé | Biais positif structurel | Universe daté et versionné par période | Snapshot univers + dates effectives |
+| Leakage calendrier | Exécutions sur dates impossibles | Biais opérationnel | Règles de trading calendar explicites | Trace d’exécution journalière |
+| Overfitting de grille | Variance extrême hors échantillon | Robustesse faible | Validation OOS + stress tests paramètres | Table de sensibilité et quantiles |
+| Non-reproductibilité | Résultats différents à spec identique | Audit impossible | Seeds, versions, hash datasets, artefacts figés | Manifest + checksum artefacts |
+
+#### 3) Procédure de rerun reproductible
+
+1. Sélectionner un identifiant de run canonique validé (baseline).  
+2. Récupérer la **spec figée**, le **hash dataset**, le **commit git**, la version Python/poetry et les variables d’environnement requises.  
+3. Exécuter le rerun avec la commande standardisée (`qe run-local`) sans modification locale de la spec.  
+4. Générer les artefacts d’audit minimaux: `run_manifest.json`, `metrics.json`, `trades.parquet/csv`, `logs.txt`, `checksums.txt`.  
+5. Comparer baseline vs rerun via diff déterministe: métriques principales, nombre de trades, distributions MC, checksums.  
+6. Classer l’issue: **REPRODUCIBLE** (diffs dans tolérance), **DRIFT MINEUR**, ou **NON CONFORME** (investigation bloquante).  
+
+#### 4) Critères go/no-go (formalisation)
+
+- **GO** si toutes les conditions suivantes sont vraies:
+  - Checklist anti-snooping: 100% validée.
+  - Rerun canonique: statut `REPRODUCIBLE`.
+  - Aucune fuite d’information détectée (tests + revue).
+  - Performances DCA Grid supérieures au percentile ex-ante visé sur l’intervalle test.
+  - Rapport méthodologique signé par 2 reviewers.
+- **NO-GO** si au moins une condition suivante est observée:
+  - Règles ex-ante modifiées après observation des résultats test.
+  - Échec de reproductibilité non expliqué.
+  - Divergence majeure entre benchmark calculé et baseline canonique.
+  - Artefacts d’audit incomplets ou checksum manquant.
+  - Fuite d’information non corrigée.
+
 ### DoD
 
 - Audit trail complet (inputs, code version, paramètres, outputs).
