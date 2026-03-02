@@ -1804,6 +1804,8 @@ def _execute_job(
         result = _run_job_payload(job_type, payload)
         if job_type == JOB_TYPE_OPTIMIZATION:
             _persist_optimization_result(job_id, payload, result)
+        if job_type == JOB_TYPE_CANONICAL_RUN:
+            _persist_canonical_run_metrics(job_id, payload, result)
     except Exception as exc:  # pragma: no cover - defensive
         _update_job_status(job_id, failure_status, error=str(exc))
         raise
@@ -1817,6 +1819,41 @@ def _first_numeric_metric(metrics: Dict[str, Any]) -> float | None:
         if isinstance(value, (int, float)):
             return float(value)
     return None
+
+
+def _persist_canonical_run_metrics(job_id: str, payload: Any | None, result: Any) -> None:
+    if not isinstance(payload, dict) or not isinstance(result, dict):
+        return
+    request = payload.get("request") if isinstance(payload.get("request"), dict) else {}
+    spec_type = str(request.get("spec_type") or "").strip().lower()
+    if spec_type != "dca" or result.get("accepted") is not True:
+        return
+
+    run_payload = result.get("payload") if isinstance(result.get("payload"), dict) else {}
+    run = run_payload.get("run") if isinstance(run_payload.get("run"), dict) else {}
+    extra = run.get("extra") if isinstance(run.get("extra"), dict) else {}
+
+    metrics_map: Dict[str, float] = {}
+    for key in (
+        "final_performance_normalized",
+        "twr",
+        "xirr",
+        "max_drawdown_on_contributed_capital",
+        "time_under_water",
+    ):
+        value = extra.get(key)
+        if isinstance(value, (int, float)):
+            metrics_map[key] = float(value)
+
+    xirr_status = extra.get("xirr_status")
+    if isinstance(xirr_status, str):
+        metrics_map["xirr_converged"] = 1.0 if xirr_status == "ok" else 0.0
+
+    if not metrics_map:
+        return
+
+    with db.session() as conn:
+        MetricsRepository(conn).bulk_upsert_metrics(job_id, metrics_map, fold=None)
 
 
 def _persist_optimization_result(job_id: str, payload: Any | None, result: Any) -> None:

@@ -156,6 +156,9 @@ class _CompatCursor:
     def fetchall(self) -> Any:
         return self._raw.fetchall()
 
+    def __iter__(self):
+        return iter(self._raw)
+
     @property
     def rowcount(self) -> int:
         return int(getattr(self._raw, "rowcount", 0))

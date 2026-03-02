@@ -16,6 +16,7 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Protocol, Tuple
 import pandas as pd
 
 from .models import CompletedTrade, StrategyRunResult, to_backend_payload
+from ..backtest import metrics as backtest_metrics
 from .stress_tests import run_monte_carlo_on_trades
 
 LOGGER = logging.getLogger(__name__)
@@ -38,6 +39,30 @@ def _maybe_dt(value: Any) -> Optional[datetime]:
         return pd.to_datetime(value, utc=True).to_pydatetime()
     except Exception:
         return None
+
+
+def _extract_buy_cashflows(trade: CompletedTrade) -> List[Tuple[datetime, float]]:
+    """Extract negative cashflows from trade metadata buy entries."""
+
+    raw_entries = trade.meta.get("buy_entries") if isinstance(trade.meta, dict) else None
+    if not isinstance(raw_entries, list):
+        return []
+    out: List[Tuple[datetime, float]] = []
+    for item in raw_entries:
+        if not isinstance(item, dict):
+            continue
+        dt = _maybe_dt(item.get("ts_utc"))
+        qty = item.get("qty")
+        price = item.get("price")
+        if dt is None:
+            continue
+        try:
+            amount = float(qty) * float(price)
+        except Exception:
+            continue
+        if amount > 0:
+            out.append((dt, -amount))
+    return out
 
 
 def _start_end_from_signals(signals_by_symbol: Mapping[str, Iterable[SignalLike]]) -> Tuple[Optional[datetime], Optional[datetime]]:
@@ -192,6 +217,7 @@ def build_dca_performance_from_signals(
                     "synthetic_entry": not bool(buys),
                 }
             )
+            tp_meta["buy_entries"] = buy_entries
             if len(buy_entries) > 1:
                 tp_meta["intermediate_entries"] = buy_entries[1:]
 
@@ -254,9 +280,11 @@ def build_dca_performance_from_signals(
     total_return = sum(t.gross_pnl_pct for t in trades)  # points de pourcentage cumulés
     nb_trades = len(trades)
     average_trade = total_return / nb_trades if nb_trades else 0.0
+
+    sorted_trades = sorted(trades, key=lambda t: t.exit_time_utc) if trades else []
+
     # max drawdown sur l'équité cumulée en pourcentage (somme des pnl_pct)
-    if trades:
-        sorted_trades = sorted(trades, key=lambda t: t.exit_time_utc)
+    if sorted_trades:
         equity = 0.0
         peak = 0.0
         max_dd_val = 0.0
@@ -267,19 +295,42 @@ def build_dca_performance_from_signals(
         max_drawdown_val = abs(max_dd_val)
     else:
         max_drawdown_val = 0.0
-    # Courbe de capital en valeur (utilise capital_per_unit * qty comme notionnel)
-    equity_value = initial_capital
-    equity_peak_value = initial_capital
-    max_dd_value = 0.0
-    if trades:
-        for tr in sorted(trades, key=lambda t: t.exit_time_utc):
-            notionnel = capital_per_unit * (tr.quantity or 0.0)
-            pnl_value = notionnel * (tr.gross_pnl_pct / 100.0)
-            equity_value += pnl_value
-            equity_peak_value = max(equity_peak_value, equity_value)
-            max_dd_value = max(max_dd_value, equity_peak_value - equity_value)
-    max_drawdown_pct_value = (max_dd_value / equity_peak_value * 100.0) if equity_peak_value > 0 else None
+
+    # Courbe de capital en valeur (cashflows irréguliers: entrées BUY puis sortie SELL agrégée)
+    cashflows: List[Tuple[datetime, float]] = []
+    equity_values: List[float] = []
+    contributed_values: List[float] = []
+    contributed_capital = 0.0
+    equity_value = float(initial_capital)
+
+    if sorted_trades:
+        for tr in sorted_trades:
+            for dt, amount in _extract_buy_cashflows(tr):
+                cashflows.append((dt, amount))
+                contributed_capital += abs(amount)
+                equity_value += amount
+                equity_values.append(equity_value)
+                contributed_values.append(contributed_capital)
+
+            exit_dt = tr.exit_time_utc
+            sale_amount = (tr.exit_price or 0.0) * (tr.quantity or 0.0)
+            if sale_amount:
+                cashflows.append((exit_dt, sale_amount))
+                equity_value += sale_amount
+                equity_values.append(equity_value)
+                contributed_values.append(contributed_capital)
+
+    max_drawdown_pct_value = (
+        backtest_metrics.max_drawdown_on_contributed_capital(equity_values, contributed_values) * 100.0
+        if equity_values
+        else None
+    )
     return_pct_value = ((equity_value - initial_capital) / initial_capital * 100.0) if initial_capital else None
+
+    final_perf_norm = backtest_metrics.final_performance_normalized(equity_value, contributed_capital)
+    twr_value = backtest_metrics.twr([t.gross_pnl_pct / 100.0 for t in sorted_trades])
+    xirr_value, xirr_status = backtest_metrics.xirr(cashflows) if cashflows else (None, "invalid_cashflows")
+    time_under_water_periods = backtest_metrics.time_under_water(equity_values)
     tp_values: List[float] = []
     for tr in trades:
         tp_val = tr.meta.get("tp_pct") if isinstance(tr.meta, dict) else None
@@ -340,7 +391,15 @@ def build_dca_performance_from_signals(
         winrate_pct=(win_count / nb_trades * 100.0) if nb_trades else None,
         extra={
             "capital_per_unit": capital_per_unit,
-            "note": "DCA performance computed from pct PnL with simple capital model.",
+            "note": "DCA performance computed from pct PnL with cashflow-aware metrics.",
+            "metrics_version": "dca-grid-process-v1",
+            "final_performance_normalized": final_perf_norm,
+            "twr": twr_value,
+            "xirr": xirr_value,
+            "xirr_status": xirr_status,
+            "max_drawdown_on_contributed_capital": max_drawdown_pct_value,
+            "time_under_water": time_under_water_periods,
+            "contributed_capital": contributed_capital,
         },
     )
 
