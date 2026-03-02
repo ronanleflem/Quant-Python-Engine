@@ -2,8 +2,11 @@ import json
 from datetime import datetime, timedelta
 from pathlib import Path
 
+import pandas as pd
+
 from quant_engine.api import schemas
 from quant_engine.core.spec import ArtifactsSpec
+from quant_engine.optimize import runner as optimize_runner
 from quant_engine.stats import runner
 
 
@@ -76,3 +79,19 @@ def test_stats_pipeline_writes_dca_robustness_artifacts(tmp_path: Path) -> None:
     assert checksum_lines
     assert any(line.endswith("run_manifest.json") for line in checksum_lines)
     assert any(line.endswith("dca_robustness_v1.json") for line in checksum_lines)
+
+
+def test_optimize_runner_bridge_maps_to_stats_robustness() -> None:
+    stats_out = pd.DataFrame(
+        [
+            {"p_hat": 0.55, "lift_freq": 0.10},
+            {"p_hat": 0.45, "lift_freq": 0.05},
+            {"p_hat": 0.60, "lift_freq": 0.12},
+        ]
+    )
+
+    via_stats = runner.compute_dca_robustness_artifacts(stats_out, seed=77)
+    via_optimize = optimize_runner.compute_dca_robustness_from_stats(stats_out, seed=77)
+
+    assert via_optimize == via_stats
+    assert len(via_optimize["stress_grid"]) == 3

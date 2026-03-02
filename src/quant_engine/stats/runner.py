@@ -340,6 +340,17 @@ def _compute_robustness_artifacts(out: pd.DataFrame, seed: int = 42) -> Dict[str
     }
 
 
+def compute_dca_robustness_artifacts(out: pd.DataFrame, seed: int = 42) -> Dict[str, Any]:
+    """Public helper for DCA robustness payload generation.
+
+    This function is the canonical code entry point for robustness artifacts so
+    other runners (for example optimize) can delegate without duplicating the
+    implementation.
+    """
+
+    return _compute_robustness_artifacts(out, seed=seed)
+
+
 def run_stats(spec: StatsSpec) -> pd.DataFrame:
     logger.info(
         "MarketStats run started | symbols=%s timeframe=%s source_path=%s mysql=%s persistence=%s artifacts=%s",
@@ -462,7 +473,7 @@ def run_stats(spec: StatsSpec) -> pd.DataFrame:
         artifacts.write_stats_summary(stats_summary_path, out)
         artifacts.write_stats_details(stats_details_path, pd.DataFrame())
         seed = 42
-        robustness = _compute_robustness_artifacts(out, seed=seed)
+        robustness = compute_dca_robustness_artifacts(out, seed=seed)
         robustness_json_path.write_text(json.dumps(robustness, indent=2))
         pd.DataFrame([robustness]).to_parquet(robustness_parquet_path, index=False)
         contract_written = write_dca_contract_artifacts(
