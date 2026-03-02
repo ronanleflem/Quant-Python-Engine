@@ -3,10 +3,129 @@ from __future__ import annotations
 
 from datetime import datetime
 import math
-from typing import List, Dict, Any, Sequence, Tuple
+from typing import List, Dict, Any, Mapping, Sequence, Tuple
 
 
 CashflowPoint = Tuple[datetime, float]
+
+DCA_COMPOSITE_SCORE_VERSION = "dca_composite_v1"
+DEFAULT_DCA_SCORE_WEIGHTS: Dict[str, float] = {
+    "performance": 0.35,
+    "irr": 0.25,
+    "drawdown": 0.25,
+    "robustness": 0.15,
+}
+
+
+def _clamp01(value: float) -> float:
+    return max(0.0, min(1.0, float(value)))
+
+
+def _normalize_weights(weights: Mapping[str, Any] | None = None) -> Dict[str, float]:
+    merged: Dict[str, float] = {key: float(value) for key, value in DEFAULT_DCA_SCORE_WEIGHTS.items()}
+    if isinstance(weights, Mapping):
+        for key in merged:
+            raw_value = weights.get(key)
+            if raw_value is None:
+                continue
+            try:
+                merged[key] = max(0.0, float(raw_value))
+            except Exception:
+                continue
+    total = sum(merged.values())
+    if total <= 0:
+        return {key: float(value) for key, value in DEFAULT_DCA_SCORE_WEIGHTS.items()}
+    return {key: value / total for key, value in merged.items()}
+
+
+def _weighted_score(weights: Mapping[str, float], components: Mapping[str, float]) -> float:
+    return sum(float(weights.get(key, 0.0)) * float(components.get(key, 0.0)) for key in DEFAULT_DCA_SCORE_WEIGHTS)
+
+
+def dca_composite_score(
+    *,
+    final_performance_normalized_value: float,
+    xirr_value: float | None,
+    max_drawdown_on_contributed_capital_value: float | None,
+    underperformance_duration_windows: int = 0,
+    underperformance_severity_pct_points: float = 0.0,
+    xirr_status: str | None = None,
+    weights: Mapping[str, Any] | None = None,
+) -> Dict[str, Any]:
+    """Compute versioned and decomposable DCA composite score.
+
+    Component rules (all in [0, 1]):
+    - ``performance``: normalized performance in range [-20%, +80%].
+    - ``irr``: annualized XIRR in range [-5%, +30%].
+    - ``drawdown``: inverse penalty using max drawdown on contributed capital,
+      with full penalty at 60% drawdown.
+    - ``robustness``: combines rolling underperformance duration/severity and
+      XIRR convergence status.
+
+    Edge classes:
+    - ``strong``: score >= 0.70
+    - ``medium``: 0.40 <= score < 0.70
+    - ``weak``: score < 0.40
+    """
+
+    performance_component = _clamp01((float(final_performance_normalized_value) + 0.20) / 1.0)
+    irr_raw = float(xirr_value) if isinstance(xirr_value, (int, float)) else -0.05
+    irr_component = _clamp01((irr_raw + 0.05) / 0.35)
+
+    drawdown_raw = (
+        float(max_drawdown_on_contributed_capital_value)
+        if isinstance(max_drawdown_on_contributed_capital_value, (int, float))
+        else 0.60
+    )
+    if drawdown_raw > 1.0:
+        drawdown_raw /= 100.0
+    drawdown_component = _clamp01(1.0 - (drawdown_raw / 0.60))
+
+    duration_penalty = _clamp01(float(max(0, underperformance_duration_windows)) / 12.0)
+    severity_penalty = _clamp01(float(max(0.0, underperformance_severity_pct_points)) / 150.0)
+    convergence_bonus = 1.0 if str(xirr_status or "").strip().lower() == "ok" else 0.0
+    robustness_component = _clamp01(1.0 - (0.5 * duration_penalty + 0.4 * severity_penalty + 0.1 * (1.0 - convergence_bonus)))
+
+    components: Dict[str, float] = {
+        "performance": performance_component,
+        "irr": irr_component,
+        "drawdown": drawdown_component,
+        "robustness": robustness_component,
+    }
+    norm_weights = _normalize_weights(weights)
+    score = _clamp01(_weighted_score(norm_weights, components))
+
+    if score >= 0.70:
+        edge = "strong"
+    elif score >= 0.40:
+        edge = "medium"
+    else:
+        edge = "weak"
+
+    contributions = {key: norm_weights[key] * components[key] for key in components}
+    sensitivity: Dict[str, float] = {}
+    delta = 0.10
+    for key in components:
+        up_weights = dict(norm_weights)
+        up_weights[key] = up_weights.get(key, 0.0) + delta
+        up_weights = _normalize_weights(up_weights)
+        score_up = _weighted_score(up_weights, components)
+        sensitivity[key] = score_up - score
+
+    return {
+        "version": DCA_COMPOSITE_SCORE_VERSION,
+        "weights": norm_weights,
+        "components": components,
+        "contributions": contributions,
+        "score": score,
+        "edge": edge,
+        "edge_mapping": {
+            "weak_max_exclusive": 0.40,
+            "medium_max_exclusive": 0.70,
+            "strong_min_inclusive": 0.70,
+        },
+        "weight_sensitivity": sensitivity,
+    }
 
 
 def final_performance_normalized(final_value: float, contributed_capital: float) -> float:
