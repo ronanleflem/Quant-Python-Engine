@@ -3,9 +3,10 @@ from __future__ import annotations
 
 from math import sqrt
 from statistics import NormalDist
-from typing import Dict, Tuple
+from typing import Dict, Sequence, Tuple
 
 import math
+import random
 import numpy as np
 import pandas as pd
 
@@ -198,6 +199,66 @@ def aggregate_binary_bayes(
     }
 
 
+def monte_carlo_calendar_distribution(
+    values: Sequence[float],
+    *,
+    n_runs: int,
+    sample_size: int | None = None,
+    seed: int = 42,
+) -> list[float]:
+    """Bootstrap distribution for calendar-like simulations with a traceable seed."""
+
+    if n_runs <= 0:
+        return []
+    pool = [float(v) for v in values]
+    if not pool:
+        return [0.0] * n_runs
+    k = sample_size or len(pool)
+    rng = random.Random(int(seed))
+    sims: list[float] = []
+    for _ in range(n_runs):
+        draw = [pool[rng.randrange(0, len(pool))] for _ in range(k)]
+        sims.append(float(sum(draw) / len(draw)))
+    return sims
+
+
+def percentile_rank(value: float, distribution: Sequence[float]) -> float:
+    """Return percentile rank (0..100) of value in distribution."""
+
+    if not distribution:
+        return 0.0
+    below_or_equal = sum(1 for x in distribution if float(x) <= float(value))
+    return 100.0 * below_or_equal / len(distribution)
+
+
+def stochastic_dominance_simplified(
+    observed_perf: float,
+    observed_drawdown: float,
+    passive_perf_distribution: Sequence[float],
+    passive_drawdown_distribution: Sequence[float],
+    threshold: float = 0.6,
+) -> Dict[str, float | bool]:
+    """Simplified dominance test using pairwise probability thresholds."""
+
+    n_perf = len(passive_perf_distribution)
+    n_dd = len(passive_drawdown_distribution)
+    perf_prob = (
+        sum(1 for x in passive_perf_distribution if float(observed_perf) >= float(x)) / n_perf
+        if n_perf
+        else 0.0
+    )
+    drawdown_prob = (
+        sum(1 for x in passive_drawdown_distribution if float(observed_drawdown) <= float(x)) / n_dd
+        if n_dd
+        else 0.0
+    )
+    return {
+        "perf_dominance_prob": perf_prob,
+        "drawdown_dominance_prob": drawdown_prob,
+        "is_dominant": perf_prob >= threshold and drawdown_prob >= threshold,
+    }
+
+
 __all__ = [
     "freq_with_wilson",
     "aggregate_binary",
@@ -209,5 +270,7 @@ __all__ = [
     "posterior_map",
     "beta_hdi",
     "aggregate_binary_bayes",
+    "monte_carlo_calendar_distribution",
+    "percentile_rank",
+    "stochastic_dominance_simplified",
 ]
-
