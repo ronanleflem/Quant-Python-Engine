@@ -56,3 +56,23 @@ def test_stats_pipeline_writes_dca_robustness_artifacts(tmp_path: Path) -> None:
     assert "percentile" in payload
     assert "dominance" in payload
     assert len(payload["stress_grid"]) == 3
+
+    run_manifest = out_dir / "run_manifest.json"
+    checksums = out_dir / "checksums.txt"
+    assert run_manifest.exists()
+    assert checksums.exists()
+
+    manifest_payload = json.loads(run_manifest.read_text())
+    assert manifest_payload["schema_version"] == "dca-grid-process-v1"
+    assert manifest_payload["seed"] == 42
+    assert isinstance(manifest_payload.get("dataset_hash"), str)
+    assert len(manifest_payload["dataset_hash"]) == 64
+    assert isinstance(manifest_payload.get("spec_hash"), str)
+    assert len(manifest_payload["spec_hash"]) == 64
+    assert isinstance(manifest_payload.get("runtime_versions"), dict)
+    assert "python" in manifest_payload["runtime_versions"]
+
+    checksum_lines = [line for line in checksums.read_text().splitlines() if line.strip()]
+    assert checksum_lines
+    assert any(line.endswith("run_manifest.json") for line in checksum_lines)
+    assert any(line.endswith("dca_robustness_v1.json") for line in checksum_lines)

@@ -4064,11 +4064,16 @@ def get_run_artifacts(run_id: str) -> Dict[str, Any]:
             if item.is_file():
                 files.append({"name": item.name, "path": str(item), "size_bytes": item.stat().st_size})
 
+    file_names = {entry["name"] for entry in files}
     return {
         "run_id": run_id,
         "schema_version": SCHEMA_VERSION,
         "out_dir": str(out_dir) if out_dir is not None else None,
         "files": files,
+        "audit_trail": {
+            "run_manifest": "run_manifest.json" if "run_manifest.json" in file_names else None,
+            "checksums": "checksums.txt" if "checksums.txt" in file_names else None,
+        },
     }
 
 @fastapi_app.get('/runs/{run_id}/result', response_model=Dict[str, Any])

@@ -30,6 +30,8 @@ def test_run_artifacts_endpoint_lists_files(api_db, tmp_path):
     out_dir.mkdir(parents=True)
     (out_dir / "metrics.json").write_text("{}")
     (out_dir / "metrics.parquet").write_text("parquet")
+    (out_dir / "run_manifest.json").write_text("{}")
+    (out_dir / "checksums.txt").write_text("abc  metrics.json\n")
 
     run_id = "run-artifacts-1"
     api_app._init_job(
@@ -50,7 +52,9 @@ def test_run_artifacts_endpoint_lists_files(api_db, tmp_path):
     assert payload["schema_version"] == "dca-grid-process-v1"
     assert payload["out_dir"] == str(out_dir)
     names = {item["name"] for item in payload["files"]}
-    assert {"metrics.json", "metrics.parquet"}.issubset(names)
+    assert {"metrics.json", "metrics.parquet", "run_manifest.json", "checksums.txt"}.issubset(names)
+    assert payload["audit_trail"]["run_manifest"] == "run_manifest.json"
+    assert payload["audit_trail"]["checksums"] == "checksums.txt"
 
 
 def test_canonical_market_stats_mapping_includes_performance_universe_rules_version(api_db):
