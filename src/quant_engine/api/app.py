@@ -4065,11 +4065,18 @@ def get_run_artifacts(run_id: str) -> Dict[str, Any]:
                 files.append({"name": item.name, "path": str(item), "size_bytes": item.stat().st_size})
 
     file_names = {entry["name"] for entry in files}
+    contract_artifacts = {
+        "best_plausible_passive_ex_ante": {
+            "json": "best_plausible_passive_ex_ante.json" if "best_plausible_passive_ex_ante.json" in file_names else None,
+            "parquet": "best_plausible_passive_ex_ante.parquet" if "best_plausible_passive_ex_ante.parquet" in file_names else None,
+        }
+    }
     return {
         "run_id": run_id,
         "schema_version": SCHEMA_VERSION,
         "out_dir": str(out_dir) if out_dir is not None else None,
         "files": files,
+        "contract_artifacts": contract_artifacts,
         "audit_trail": {
             "run_manifest": "run_manifest.json" if "run_manifest.json" in file_names else None,
             "checksums": "checksums.txt" if "checksums.txt" in file_names else None,
