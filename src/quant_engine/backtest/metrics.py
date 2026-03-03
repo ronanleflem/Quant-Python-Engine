@@ -142,6 +142,35 @@ def final_performance_normalized(final_value: float, contributed_capital: float)
     return (float(final_value) - contributed) / contributed
 
 
+def capital_efficiency_index(final_value: float, contributed_capital_series: Sequence[float] | None) -> float:
+    """Return DCA capital efficiency index (CEI).
+
+    v1 formula: ``CEI = final_value / max_contributed_capital`` where
+    ``max_contributed_capital`` is the maximum observed contributed capital.
+
+    Returns ``0.0`` when the contributed series is empty or when
+    ``max_contributed_capital <= 0``.
+
+    Note: a possible future variant can use average immobilized capital instead
+    of the maximum contributed capital.
+    """
+
+    if not contributed_capital_series:
+        return 0.0
+    numeric_values: List[float] = []
+    for value in contributed_capital_series:
+        try:
+            numeric_values.append(float(value))
+        except Exception:
+            continue
+    if not numeric_values:
+        return 0.0
+    max_contributed_capital = max(numeric_values)
+    if max_contributed_capital <= 0:
+        return 0.0
+    return float(final_value) / max_contributed_capital
+
+
 def return_over_stress_ratio(
     final_performance_normalized_value: float,
     max_drawdown_on_contributed_capital_value: float | None,

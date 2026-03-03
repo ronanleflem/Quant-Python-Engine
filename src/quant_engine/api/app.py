@@ -1846,6 +1846,7 @@ def _persist_canonical_run_metrics(job_id: str, payload: Any | None, result: Any
     metrics_map: Dict[str, float] = {}
     for key in (
         "final_performance_normalized",
+        "capital_efficiency_index",
         "twr",
         "xirr",
         "max_drawdown_on_contributed_capital",

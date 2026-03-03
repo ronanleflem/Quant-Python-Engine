@@ -16,6 +16,10 @@ Si le timeframe est fourni, l'annualisation utilise un nombre de périodes par a
 Pour les runs `spec_type=dca`, le moteur expose aussi :
 
 - `final_performance_normalized` : performance finale normalisée par le capital réellement contribué.
+- `capital_efficiency_index` : indice d'efficacité du capital immobilisé, défini (v1) par
+  `final_value / max_contributed_capital`.
+  - quand `max_contributed_capital <= 0`, la métrique retourne `0.0`.
+  - variante future possible: utiliser le capital moyen immobilisé (au lieu du maximum).
 - `twr` : time-weighted return basé sur les rendements de cycles.
 - `xirr` : rendement annualisé sur cashflows irréguliers (statut séparé `xirr_status` pour non-convergence).
 - `max_drawdown_on_contributed_capital` : drawdown max rapporté au capital contribué au fil de l'eau.
@@ -36,3 +40,5 @@ Pour les runs `spec_type=dca`, le moteur expose aussi :
 - Quand `max_drawdown_on_contributed_capital` est nul (ou très proche de 0),
   `return_over_stress_ratio` utilise `epsilon` comme borne inférieure du dénominateur
   pour garantir un calcul déterministe sans division par zéro.
+
+- `capital_efficiency_index` dépend fortement de l'horizon étudié et de la fréquence des contributions (plus elles sont denses, plus le maximum de capital immobilisé peut augmenter).

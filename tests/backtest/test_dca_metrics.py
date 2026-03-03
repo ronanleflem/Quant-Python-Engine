@@ -52,3 +52,18 @@ def test_return_over_stress_ratio_uses_epsilon_for_near_zero_drawdown() -> None:
     ratio = metrics.return_over_stress_ratio(0.1, 0.0, epsilon=1e-6)
     assert ratio["denominator"] == pytest.approx(1e-6)
     assert ratio["ratio"] == pytest.approx(100000.0)
+
+
+def test_capital_efficiency_index_nominal() -> None:
+    cei = metrics.capital_efficiency_index(1300.0, [100.0, 400.0, 1000.0])
+    assert cei == pytest.approx(1.3)
+
+
+def test_capital_efficiency_index_zero_or_negative_max_contributed_capital() -> None:
+    assert metrics.capital_efficiency_index(1000.0, []) == pytest.approx(0.0)
+    assert metrics.capital_efficiency_index(1000.0, [0.0, -10.0]) == pytest.approx(0.0)
+
+
+def test_capital_efficiency_index_short_series() -> None:
+    cei = metrics.capital_efficiency_index(950.0, [1000.0])
+    assert cei == pytest.approx(0.95)
