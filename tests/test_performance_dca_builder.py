@@ -102,6 +102,9 @@ def test_build_dca_performance_from_signals_handles_cycles_and_metrics() -> None
     assert isinstance(dca_score, dict)
     assert 0.0 <= dca_score["score"] <= 1.0
     assert dca_score["edge"] in {"weak", "medium", "strong"}
+    assert run.extra["capital_efficiency_index"] is not None
+    assert run.extra["return_over_stress_ratio"]["version"] == "return_over_stress_ratio_v1"
+    assert run.extra["data_contract_version"] == "dca-java-import-v2"
 
 
 def test_build_dca_performance_multiple_buys_and_tp_metrics() -> None:
@@ -206,6 +209,9 @@ def test_build_backend_payload_for_java_structure_and_meta() -> None:
         "totalReturn",
     ):
         assert key in run
+    assert run["extra"]["capital_efficiency_index"] is not None
+    assert run["extra"]["return_over_stress_ratio"]["version"] == "return_over_stress_ratio_v1"
+    assert run["extra"]["data_contract_version"] == "dca-java-import-v2"
     for key in (
         "strategyId",
         "runId",

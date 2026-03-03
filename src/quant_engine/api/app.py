@@ -33,7 +33,7 @@ from ..optimize.runner import run as run_optimisation
 from ..optimize import variants as optimize_variants
 from ..io import ids
 from ..io.dca_artifacts import SCHEMA_VERSION
-from ..persistence import db, RunsRepository, MetricsRepository, TrialsRepository
+from ..persistence import db, RunsRepository, MetricsRepository, TrialsRepository, extract_dca_run_metrics
 from ..stats import runner as stats_runner
 from ..stats import conditions as stats_conditions
 from ..stats.estimators import freq_with_wilson
@@ -1843,43 +1843,7 @@ def _persist_canonical_run_metrics(job_id: str, payload: Any | None, result: Any
     run = run_payload.get("run") if isinstance(run_payload.get("run"), dict) else {}
     extra = run.get("extra") if isinstance(run.get("extra"), dict) else {}
 
-    metrics_map: Dict[str, float] = {}
-    for key in (
-        "final_performance_normalized",
-        "capital_efficiency_index",
-        "twr",
-        "xirr",
-        "max_drawdown_on_contributed_capital",
-        "time_under_water",
-    ):
-        value = extra.get(key)
-        if isinstance(value, (int, float)):
-            metrics_map[key] = float(value)
-
-    ros_ratio = extra.get("return_over_stress_ratio") if isinstance(extra.get("return_over_stress_ratio"), dict) else {}
-    for key in ("ratio", "numerator", "denominator", "denominator_raw", "epsilon"):
-        value = ros_ratio.get(key)
-        if isinstance(value, (int, float)):
-            metrics_map[f"return_over_stress_ratio_{key}"] = float(value)
-
-    xirr_status = extra.get("xirr_status")
-    if isinstance(xirr_status, str):
-        metrics_map["xirr_converged"] = 1.0 if xirr_status == "ok" else 0.0
-
-    composite = extra.get("dca_composite_score") if isinstance(extra.get("dca_composite_score"), dict) else {}
-    score_value = composite.get("score")
-    if isinstance(score_value, (int, float)):
-        metrics_map["dca_score"] = float(score_value)
-    edge_value = composite.get("edge")
-    if isinstance(edge_value, str):
-        edge = edge_value.strip().lower()
-        edge_map = {"weak": 1.0, "medium": 2.0, "strong": 3.0}
-        if edge in edge_map:
-            metrics_map["dca_edge_level"] = edge_map[edge]
-    components = composite.get("components") if isinstance(composite.get("components"), dict) else {}
-    for name, value in components.items():
-        if isinstance(value, (int, float)):
-            metrics_map[f"dca_score_component_{name}"] = float(value)
+    metrics_map = extract_dca_run_metrics(extra)
 
     if not metrics_map:
         return

@@ -120,6 +120,14 @@ def request_historical_ingestion(
     return request_json("POST", url, json=payload, session=session, timeout=DEFAULT_TIMEOUT)
 
 
+def import_strategy_result(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Forward a precomputed Python strategy payload to Java import API."""
+
+    url = BASE_URL + "/api/strategy-results/import"
+    session = get_shared_session()
+    return request_json("POST", url, json=payload, session=session, timeout=DEFAULT_TIMEOUT)
+
+
 def get_positions() -> List[Dict[str, Any]]:
     """Return live positions if the Java backend exposes them."""
 
@@ -140,5 +148,6 @@ __all__ = [
     "get_ohlc",
     "request_historical_ingestion",
     "get_positions",
+    "import_strategy_result",
     "BASE_URL",
 ]

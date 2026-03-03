@@ -529,6 +529,7 @@ def build_dca_performance_from_signals(
             "capital_per_unit": capital_per_unit,
             "note": "DCA performance computed from pct PnL with cashflow-aware metrics.",
             "metrics_version": "dca-grid-process-v1",
+            "data_contract_version": "dca-java-import-v2",
             "universe_rules_version": universe_rules_version,
             "final_performance_normalized": final_perf_norm,
             "capital_efficiency_index": capital_efficiency_index,

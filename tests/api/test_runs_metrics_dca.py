@@ -53,6 +53,7 @@ def test_runs_metrics_endpoint_exposes_dca_metrics(tmp_path, monkeypatch) -> Non
                     "status": "ok",
                     "extra": {
                         "final_performance_normalized": 0.12,
+                        "data_contract_version": "dca-java-import-v2",
                         "capital_efficiency_index": 1.2,
                         "twr": 0.10,
                         "xirr": 0.08,

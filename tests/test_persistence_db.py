@@ -1,9 +1,21 @@
 import sqlite3
+import sys
+import types
 
 import pytest
 
+if "pymysql" not in sys.modules:
+    pymysql_stub = types.ModuleType("pymysql")
+    pymysql_stub.connect = lambda *args, **kwargs: None
+    cursors_stub = types.ModuleType("pymysql.cursors")
+    cursors_stub.DictCursor = object
+    pymysql_stub.cursors = cursors_stub
+    sys.modules["pymysql"] = pymysql_stub
+    sys.modules["pymysql.cursors"] = cursors_stub
+
 from quant_engine.config import reset_settings_cache
 from quant_engine.persistence import db
+from quant_engine.persistence.repositories import extract_dca_run_metrics
 
 
 def test_init_db_creates_tables(monkeypatch):
@@ -48,8 +60,52 @@ def test_run_id_unique_constraint(monkeypatch):
         conn.close()
 
 
-def test_non_sqlite_dsn_raises(monkeypatch):
+def test_mysql_dsn_uses_mysql_connector(monkeypatch):
+    class _FakeCursor:
+        def execute(self, *_args, **_kwargs):
+            return None
+
+    class _FakeConn:
+        def cursor(self):
+            return _FakeCursor()
+
+        def commit(self):
+            return None
+
+        def rollback(self):
+            return None
+
+        def close(self):
+            return None
+
     monkeypatch.setenv("DB_DSN", "mysql://localhost/db")
     reset_settings_cache()
-    with pytest.raises(RuntimeError, match="Only sqlite DSNs are supported"):
-        db.connect()
+    monkeypatch.setattr(db.pymysql, "connect", lambda **_kwargs: _FakeConn())
+    conn = db.connect()
+    try:
+        assert conn.dialect == "mysql"
+    finally:
+        conn.close()
+
+
+def test_extract_dca_run_metrics_flattens_ratio_and_efficiency() -> None:
+    extra = {
+        "capital_efficiency_index": 1.2,
+        "return_over_stress_ratio": {
+            "version": "return_over_stress_ratio_v1",
+            "ratio": 0.8,
+            "numerator": 0.12,
+            "denominator": 0.15,
+            "denominator_raw": 0.15,
+            "epsilon": 1e-9,
+        },
+        "xirr_status": "ok",
+    }
+    metrics = extract_dca_run_metrics(extra)
+    assert metrics["capital_efficiency_index"] == 1.2
+    assert metrics["return_over_stress_ratio_ratio"] == 0.8
+    assert metrics["return_over_stress_ratio_numerator"] == 0.12
+    assert metrics["return_over_stress_ratio_denominator"] == 0.15
+    assert metrics["return_over_stress_ratio_denominator_raw"] == 0.15
+    assert metrics["return_over_stress_ratio_epsilon"] == 1e-9
+    assert metrics["xirr_converged"] == 1.0

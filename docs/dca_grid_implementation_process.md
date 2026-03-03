@@ -140,6 +140,18 @@ Pour exécuter proprement, il faut découpler en deux streams :
 - **PY-6.3** Exports synthèse par période testée.
 - **PY-6.4** Pipeline reproductible (config + seed + hash dataset).
 
+### Contrat de données DCA inter-repo (MySQL -> API Spring -> Angular)
+
+- **Canal principal**: payload Python `run.extra` persisté en SQL (`run_metrics`) puis exposé par API Java/Spring.
+- **Canal secondaire**: artefacts JSON/Parquet conservés pour debug/audit uniquement.
+- **Champs risque-ajustés obligatoires**:
+  - `capital_efficiency_index`
+  - `return_over_stress_ratio` (`version`, `ratio`, `numerator`, `denominator`, `denominator_raw`, `epsilon`)
+- **Versionnement contrat**:
+  - `metrics_version`: `dca-grid-process-v1` (compat historique maintenue)
+  - `data_contract_version`: `dca-java-import-v2` (extension non cassante)
+- **Compatibilité**: les consommateurs existants continuent de lire `metrics_version` et les métriques déjà disponibles; les nouveaux champs sont additifs.
+
 ### DoD
 
 - Contrat de données documenté et stable.
