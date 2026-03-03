@@ -43,3 +43,30 @@
 2. **Worker jobs + monitoring** (stabilise l’API asynchrone).
 3. **Stats details + metadata filtres** (améliore l’exploitabilité des analyses).
 4. **Observabilité levels** (améliore la supervision des jobs levels).
+
+---
+
+## Ticket research/policy — PY-DCA-POLICY-1
+
+### Objectif
+
+Formaliser une policy de **conclusion stratégique** indépendante du moteur de calcul, afin de garder une séparation claire entre:
+
+- calcul quantitatif (backend Python),
+- décision métier (research/policy versionnée).
+
+### Livrables
+
+1. **Spec versionnée**: `specs/examples/decision_policy_dca_example.json`
+   - critères « alpha réel vs confort psychologique »,
+   - contextes de dominance,
+   - conditions d’abandon,
+   - validation long terme.
+2. **Mapping policy -> métriques backend existantes**.
+3. **Liste des métriques manquantes** pour exécution fully-automated de la policy.
+
+### Règle de séparation moteur/policy
+
+- Le moteur publie des métriques et artefacts factuels (aucune conclusion stratégique hardcodée).
+- La policy consomme ces métriques et rend un verdict traçable (`decision`, `decision_trace`).
+- Toute évolution des règles de décision passe par bump de version de policy et changelog.

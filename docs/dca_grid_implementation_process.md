@@ -383,3 +383,67 @@ Afin d’éviter toute ambiguïté côté point d’entrée ticket `optimize/run
 - ce helper délègue directement à `quant_engine.stats.runner.compute_dca_robustness_artifacts(...)`
 
 Conséquence: la logique métier de robustesse n’est pas dupliquée; `optimize` fournit uniquement un point d’accès aligné pour les workflows qui partent de l’optimisation.
+
+---
+
+## 9) Policy métier versionnée — « Conclusion stratégique » (séparée du moteur)
+
+Objectif: rendre la décision **auditable et versionnée** sans embarquer de logique métier dans le runner quant.
+
+### 9.1 Principe d’architecture (séparation stricte)
+
+- **Moteur quant (Python)**: calcule et expose les métriques brutes/versionnées (`run.extra`, artefacts).
+- **Policy métier (research/policy)**: lit ces métriques et produit une décision (`ALPHA_REEL`, `CONFORT_PSYCHOLOGIQUE`, `ABANDON`, `INCONCLUSIF`).
+- **Aucune règle de conclusion stratégique codée dans le moteur**: uniquement des sorties quantitatives et des flags de qualité.
+
+### 9.2 Critères de décision requis par la policy
+
+1. **Alpha réel vs confort psychologique**
+   - *Alpha réel* si la surperformance risque-ajustée est robuste et stable.
+   - *Confort psychologique* si l’amélioration provient surtout de la baisse du stress/perception (drawdown, recovery), sans dominance de performance robuste.
+
+2. **Contextes de dominance**
+   - Dominance globale: performance relative et percentile contre passifs ex-ante.
+   - Dominance conditionnelle: par régime (haussier/baissier/lateral), par fenêtre glissante (3/5/10 ans).
+
+3. **Conditions d’abandon**
+   - Sous-performance persistante sur fenêtres longues.
+   - Dégradation simultanée du couple rendement/stress.
+   - Rupture de robustesse (dominance qui disparaît hors échantillon ou sous stress).
+
+4. **Validation long terme**
+   - Stabilité inter-fenêtres (rolling), cohérence inter-régimes, reproductibilité rerun.
+   - Maintien du signal sur plusieurs périodes non recouvrantes.
+
+### 9.3 Mapping policy -> métriques backend déjà disponibles
+
+| Critère policy | Métriques backend existantes (clé) | Source moteur |
+|---|---|---|
+| Surperformance absolue/normalisée | `final_performance_normalized` | sortie DCA metrics |
+| Rendement annualisé cashflows | `xirr`, `xirr_status` | sortie DCA metrics |
+| Rendement indépendant des flux | `twr` | sortie DCA metrics |
+| Stress de perte sur capital contribué | `max_drawdown_on_contributed_capital` | sortie DCA metrics |
+| Efficacité rendement/stress | `return_over_stress_ratio` | sortie DCA metrics |
+| Efficacité d’immobilisation capital | `capital_efficiency_index` | sortie DCA metrics |
+| Stabilité temporelle | rolling windows (3/5/10 ans), sous-performance structurelle | artefacts d’analyse temporelle |
+| Dominance relative | percentiles vs distribution passive, dominance stochastique simplifiée | artefacts robustesse |
+| Score synthétique support décision | `dca_composite_score` | sortie DCA metrics |
+| Reproductibilité | seed/config/hash dataset/manifest | artefacts run |
+
+### 9.4 Gaps métriques (manques pour exécuter la policy de bout en bout)
+
+Les items suivants doivent être ajoutés/normalisés côté backend pour automatiser totalement la décision:
+
+- `dominance_by_regime`: dominance segmentée par régime de marché.
+- `dominance_persistence_windows`: part des fenêtres rolling où la dominance est validée.
+- `abandon_streak_windows`: nombre de fenêtres consécutives en sous-performance (règle d’abandon).
+- `psychological_relief_index` (versionné): agrégat explicite drawdown + time-to-recovery + durée sous l’eau.
+- `oos_stability_score`: score de stabilité out-of-sample (walk-forward / splits temporels).
+- `policy_input_quality_flags`: drapeaux bloquants pour décision (xirr non convergent, coverage insuffisant, artefact manquant).
+
+### 9.5 Gouvernance et audit
+
+- Versionner la policy (`policy_id`, `policy_version`, `effective_from`).
+- Sauvegarder le verdict avec les preuves (`decision_trace`: critères, seuils, métriques lues, statut pass/fail).
+- Interdire la mutation rétroactive d’une policy appliquée à un run validé (append-only + changelog).
+- Publier un exemple de spec JSON dans `specs/examples/decision_policy_dca_example.json`.
