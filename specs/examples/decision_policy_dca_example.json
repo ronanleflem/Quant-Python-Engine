@@ -1,0 +1,156 @@
+{
+  "policy_id": "PY-DCA-POLICY-1",
+  "policy_version": "1.0.0",
+  "policy_name": "decision_policy_dca_conclusion_strategique",
+  "effective_from": "2026-01-01",
+  "scope": {
+    "strategy_type": "dca_grid",
+    "benchmark_family": [
+      "dca_monthly_naive",
+      "dca_monthly_randomized",
+      "dca_mid_month",
+      "dca_turn_of_month",
+      "dca_weekly_passive"
+    ]
+  },
+  "decision_outputs": [
+    "ALPHA_REEL",
+    "CONFORT_PSYCHOLOGIQUE",
+    "ABANDON",
+    "INCONCLUSIF"
+  ],
+  "criteria": {
+    "alpha_reel_vs_confort_psychologique": {
+      "alpha_reel": {
+        "all_of": [
+          {
+            "metric": "dca_composite_score",
+            "op": ">=",
+            "value": 0.65
+          },
+          {
+            "metric": "return_over_stress_ratio.ratio",
+            "op": ">=",
+            "value": 1.0
+          },
+          {
+            "metric": "relative_percentile_vs_passive_p50",
+            "op": ">=",
+            "value": 0.6
+          }
+        ]
+      },
+      "confort_psychologique": {
+        "all_of": [
+          {
+            "metric": "max_drawdown_on_contributed_capital",
+            "op": "<=",
+            "value": 0.2
+          },
+          {
+            "metric": "time_to_recovery_p50_days",
+            "op": "<=",
+            "value": 90
+          }
+        ],
+        "any_of": [
+          {
+            "metric": "dca_composite_score",
+            "op": "<",
+            "value": 0.65
+          },
+          {
+            "metric": "relative_percentile_vs_passive_p50",
+            "op": "<",
+            "value": 0.6
+          }
+        ]
+      }
+    },
+    "contextes_de_dominance": {
+      "global": {
+        "metric": "relative_percentile_vs_passive_p50",
+        "op": ">=",
+        "value": 0.6
+      },
+      "regime": {
+        "metric": "dominance_by_regime",
+        "op": "contains_min_share",
+        "value": 0.66
+      },
+      "rolling_windows": {
+        "metric": "dominance_persistence_windows",
+        "op": ">=",
+        "value": 0.7
+      }
+    },
+    "conditions_abandon": {
+      "any_of": [
+        {
+          "metric": "abandon_streak_windows",
+          "op": ">=",
+          "value": 3
+        },
+        {
+          "metric": "return_over_stress_ratio.ratio",
+          "op": "<",
+          "value": 0.8
+        },
+        {
+          "metric": "oos_stability_score",
+          "op": "<",
+          "value": 0.5
+        }
+      ]
+    },
+    "validation_long_terme": {
+      "all_of": [
+        {
+          "metric": "rolling_xirr_stability_score",
+          "op": ">=",
+          "value": 0.6
+        },
+        {
+          "metric": "rerun_repro_status",
+          "op": "==",
+          "value": "REPRODUCIBLE"
+        }
+      ]
+    }
+  },
+  "metric_mapping": {
+    "existing_backend_metrics": [
+      "final_performance_normalized",
+      "twr",
+      "xirr",
+      "xirr_status",
+      "max_drawdown_on_contributed_capital",
+      "capital_efficiency_index",
+      "return_over_stress_ratio",
+      "dca_composite_score"
+    ],
+    "existing_backend_artifacts": [
+      "rolling_windows_3y_5y_10y",
+      "structural_underperformance_periods",
+      "passive_distribution_percentiles",
+      "stochastic_dominance_summary",
+      "run_manifest"
+    ],
+    "missing_metrics_to_add": [
+      "relative_percentile_vs_passive_p50",
+      "dominance_by_regime",
+      "dominance_persistence_windows",
+      "abandon_streak_windows",
+      "time_to_recovery_p50_days",
+      "rolling_xirr_stability_score",
+      "oos_stability_score",
+      "policy_input_quality_flags"
+    ]
+  },
+  "governance": {
+    "append_only": true,
+    "requires_changelog": true,
+    "decision_trace_required": true,
+    "forbid_runner_embedded_business_decision": true
+  }
+}
