@@ -1855,6 +1855,12 @@ def _persist_canonical_run_metrics(job_id: str, payload: Any | None, result: Any
         if isinstance(value, (int, float)):
             metrics_map[key] = float(value)
 
+    ros_ratio = extra.get("return_over_stress_ratio") if isinstance(extra.get("return_over_stress_ratio"), dict) else {}
+    for key in ("ratio", "numerator", "denominator", "denominator_raw", "epsilon"):
+        value = ros_ratio.get(key)
+        if isinstance(value, (int, float)):
+            metrics_map[f"return_over_stress_ratio_{key}"] = float(value)
+
     xirr_status = extra.get("xirr_status")
     if isinstance(xirr_status, str):
         metrics_map["xirr_converged"] = 1.0 if xirr_status == "ok" else 0.0

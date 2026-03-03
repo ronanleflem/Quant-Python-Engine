@@ -37,3 +37,18 @@ def test_drawdown_and_time_under_water_on_contributed_capital() -> None:
     contributed = [100.0, 120.0, 120.0, 140.0, 140.0]
     assert metrics.max_drawdown_on_contributed_capital(equity, contributed) == pytest.approx(0.25)
     assert metrics.time_under_water(equity) == 2
+
+
+def test_return_over_stress_ratio_uses_drawdown_denominator() -> None:
+    ratio = metrics.return_over_stress_ratio(0.3, 0.15)
+    assert ratio["version"] == "return_over_stress_ratio_v1"
+    assert ratio["numerator"] == pytest.approx(0.3)
+    assert ratio["denominator_raw"] == pytest.approx(0.15)
+    assert ratio["denominator"] == pytest.approx(0.15)
+    assert ratio["ratio"] == pytest.approx(2.0)
+
+
+def test_return_over_stress_ratio_uses_epsilon_for_near_zero_drawdown() -> None:
+    ratio = metrics.return_over_stress_ratio(0.1, 0.0, epsilon=1e-6)
+    assert ratio["denominator"] == pytest.approx(1e-6)
+    assert ratio["ratio"] == pytest.approx(100000.0)

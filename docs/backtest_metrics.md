@@ -19,9 +19,20 @@ Pour les runs `spec_type=dca`, le moteur expose aussi :
 - `twr` : time-weighted return basé sur les rendements de cycles.
 - `xirr` : rendement annualisé sur cashflows irréguliers (statut séparé `xirr_status` pour non-convergence).
 - `max_drawdown_on_contributed_capital` : drawdown max rapporté au capital contribué au fil de l'eau.
+- `return_over_stress_ratio` : ratio versionné rendement/stress, défini par
+  `final_performance_normalized / max(max_drawdown_on_contributed_capital, epsilon)`.
+  - `version`: `return_over_stress_ratio_v1`
+  - `numerator`: valeur de `final_performance_normalized`
+  - `denominator_raw`: drawdown brut (décimal)
+  - `epsilon`: plancher numérique anti-division-par-zéro (par défaut `1e-9`)
+  - `denominator`: `max(denominator_raw, epsilon)`
+  - `ratio`: `numerator / denominator`
 - `time_under_water` : plus longue durée passée sous le dernier plus haut de la courbe de valeur.
 
 ### Limites connues
 
 - Les cashflows très irréguliers peuvent entraîner des non-convergences `xirr` (`xirr_status=non_convergent`).
 - Certaines séries de cashflows peuvent admettre plusieurs racines IRR; l'algorithme retourne une solution numérique locale si convergence.
+- Quand `max_drawdown_on_contributed_capital` est nul (ou très proche de 0),
+  `return_over_stress_ratio` utilise `epsilon` comme borne inférieure du dénominateur
+  pour garantir un calcul déterministe sans division par zéro.

@@ -57,6 +57,14 @@ def test_runs_metrics_endpoint_exposes_dca_metrics(tmp_path, monkeypatch) -> Non
                         "xirr": 0.08,
                         "xirr_status": "ok",
                         "max_drawdown_on_contributed_capital": 15.0,
+                        "return_over_stress_ratio": {
+                            "version": "return_over_stress_ratio_v1",
+                            "numerator": 0.12,
+                            "denominator_raw": 0.15,
+                            "epsilon": 1e-9,
+                            "denominator": 0.15,
+                            "ratio": 0.8,
+                        },
                         "time_under_water": 3,
                         "dca_composite_score": {
                             "score": 0.66,
@@ -84,6 +92,11 @@ def test_runs_metrics_endpoint_exposes_dca_metrics(tmp_path, monkeypatch) -> Non
     assert aggregated["twr"] == 0.10
     assert aggregated["xirr"] == 0.08
     assert aggregated["max_drawdown_on_contributed_capital"] == 15.0
+    assert aggregated["return_over_stress_ratio_ratio"] == 0.8
+    assert aggregated["return_over_stress_ratio_numerator"] == 0.12
+    assert aggregated["return_over_stress_ratio_denominator"] == 0.15
+    assert aggregated["return_over_stress_ratio_denominator_raw"] == 0.15
+    assert aggregated["return_over_stress_ratio_epsilon"] == 1e-9
     assert aggregated["time_under_water"] == 3.0
     assert aggregated["xirr_converged"] == 1.0
     assert aggregated["dca_score"] == 0.66

@@ -9,6 +9,7 @@ from typing import List, Dict, Any, Mapping, Sequence, Tuple
 CashflowPoint = Tuple[datetime, float]
 
 DCA_COMPOSITE_SCORE_VERSION = "dca_composite_v1"
+RETURN_OVER_STRESS_RATIO_VERSION = "return_over_stress_ratio_v1"
 DEFAULT_DCA_SCORE_WEIGHTS: Dict[str, float] = {
     "performance": 0.35,
     "irr": 0.25,
@@ -139,6 +140,38 @@ def final_performance_normalized(final_value: float, contributed_capital: float)
     if contributed <= 0:
         return 0.0
     return (float(final_value) - contributed) / contributed
+
+
+def return_over_stress_ratio(
+    final_performance_normalized_value: float,
+    max_drawdown_on_contributed_capital_value: float | None,
+    *,
+    epsilon: float = 1e-9,
+) -> Dict[str, Any]:
+    """Return a versioned rendement/stress ratio for DCA runs.
+
+    Formula:
+    - numerator = ``final_performance_normalized``
+    - denominator = ``max(max_drawdown_on_contributed_capital, epsilon)``
+    - ratio = ``numerator / denominator``
+    """
+
+    numerator = float(final_performance_normalized_value)
+    denominator_raw = (
+        float(max_drawdown_on_contributed_capital_value)
+        if isinstance(max_drawdown_on_contributed_capital_value, (int, float))
+        else 0.0
+    )
+    epsilon_safe = max(float(epsilon), 1e-12)
+    denominator = max(denominator_raw, epsilon_safe)
+    return {
+        "version": RETURN_OVER_STRESS_RATIO_VERSION,
+        "numerator": numerator,
+        "denominator_raw": denominator_raw,
+        "epsilon": epsilon_safe,
+        "denominator": denominator,
+        "ratio": numerator / denominator,
+    }
 
 
 def twr(period_returns: Sequence[float]) -> float:

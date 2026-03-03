@@ -431,6 +431,10 @@ def build_dca_performance_from_signals(
     return_pct_value = ((equity_value - initial_capital) / initial_capital * 100.0) if initial_capital else None
 
     final_perf_norm = backtest_metrics.final_performance_normalized(equity_value, contributed_capital)
+    return_over_stress = backtest_metrics.return_over_stress_ratio(
+        final_perf_norm,
+        (max_drawdown_pct_value / 100.0) if isinstance(max_drawdown_pct_value, (int, float)) else None,
+    )
     twr_value = backtest_metrics.twr([t.gross_pnl_pct / 100.0 for t in sorted_trades])
     xirr_value, xirr_status = backtest_metrics.xirr(cashflows) if cashflows else (None, "invalid_cashflows")
     time_under_water_periods = backtest_metrics.time_under_water(equity_values)
@@ -530,6 +534,7 @@ def build_dca_performance_from_signals(
             "xirr": xirr_value,
             "xirr_status": xirr_status,
             "max_drawdown_on_contributed_capital": max_drawdown_pct_value,
+            "return_over_stress_ratio": return_over_stress,
             "time_under_water": time_under_water_periods,
             "contributed_capital": contributed_capital,
             "rolling_windows": rolling_analytics,
