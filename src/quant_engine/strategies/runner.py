@@ -22,6 +22,7 @@ from ..filters.utils import apply_filter_stack, FilterValidationError
 from ..filters.trade_filter_service import score_filter_rules
 from ..performance.dca_builder import build_backend_payload_for_java
 from ..datafeeds.asset_universe_adapter import resolve_asset_universe_adapter
+from ..persistence.repositories import extract_dca_run_metrics
 from pandas.tseries.holiday import USFederalHolidayCalendar
 from pandas.tseries.offsets import CustomBusinessDay
 try:
@@ -1276,6 +1277,21 @@ def persist_payload_to_db(
         perf_row = _filter_row_for_table(engine, "performance", perf_row)
         pd.DataFrame([perf_row]).to_sql("performance", engine, if_exists="append", index=False)
         LOGGER.info("Persisted performance row for run %s to DB", run_id)
+
+        extra = run.get("extra", {}) if isinstance(run.get("extra"), Mapping) else {}
+        dca_metrics = extract_dca_run_metrics(extra) if strategy_type.startswith("dca") else {}
+        if dca_metrics:
+            metric_rows = [
+                {"run_id": run_id, "fold": None, "metric_name": name, "metric_value": value}
+                for name, value in dca_metrics.items()
+            ]
+            filtered_metric_rows = [_filter_row_for_table(engine, "run_metrics", row) for row in metric_rows]
+            metric_df = pd.DataFrame(filtered_metric_rows)
+            if not metric_df.empty:
+                with engine.begin() as conn:
+                    conn.execute(text("DELETE FROM run_metrics WHERE run_id = :run_id AND fold IS NULL"), {"run_id": run_id})
+                metric_df.to_sql("run_metrics", engine, if_exists="append", index=False)
+                LOGGER.info("Persisted %d DCA run metrics for run %s", len(filtered_metric_rows), run_id)
     except Exception as exc:
         LOGGER.warning("Failed to persist performance for run %s: %s", run_id, exc)
 
