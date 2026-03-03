@@ -53,6 +53,7 @@ def test_runs_metrics_endpoint_exposes_dca_metrics(tmp_path, monkeypatch) -> Non
                     "status": "ok",
                     "extra": {
                         "final_performance_normalized": 0.12,
+                        "capital_efficiency_index": 1.2,
                         "twr": 0.10,
                         "xirr": 0.08,
                         "xirr_status": "ok",
@@ -89,6 +90,7 @@ def test_runs_metrics_endpoint_exposes_dca_metrics(tmp_path, monkeypatch) -> Non
     payload = api_app.run_metrics_endpoint(response.run_id)
     aggregated = payload["aggregated"]
     assert aggregated["final_performance_normalized"] == 0.12
+    assert aggregated["capital_efficiency_index"] == 1.2
     assert aggregated["twr"] == 0.10
     assert aggregated["xirr"] == 0.08
     assert aggregated["max_drawdown_on_contributed_capital"] == 15.0

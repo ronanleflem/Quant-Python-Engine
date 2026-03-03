@@ -431,6 +431,7 @@ def build_dca_performance_from_signals(
     return_pct_value = ((equity_value - initial_capital) / initial_capital * 100.0) if initial_capital else None
 
     final_perf_norm = backtest_metrics.final_performance_normalized(equity_value, contributed_capital)
+    capital_efficiency_index = backtest_metrics.capital_efficiency_index(equity_value, contributed_values)
     return_over_stress = backtest_metrics.return_over_stress_ratio(
         final_perf_norm,
         (max_drawdown_pct_value / 100.0) if isinstance(max_drawdown_pct_value, (int, float)) else None,
@@ -530,6 +531,7 @@ def build_dca_performance_from_signals(
             "metrics_version": "dca-grid-process-v1",
             "universe_rules_version": universe_rules_version,
             "final_performance_normalized": final_perf_norm,
+            "capital_efficiency_index": capital_efficiency_index,
             "twr": twr_value,
             "xirr": xirr_value,
             "xirr_status": xirr_status,
