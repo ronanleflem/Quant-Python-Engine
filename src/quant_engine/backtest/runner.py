@@ -17,6 +17,7 @@ from ..core import dataset
 from ..core.contracts import MarketIntelligenceService
 from ..core.features import atr
 from ..core.spec import DataSpec, parse_data_spec, uses_strategy_sources
+from ..config import get_settings
 from ..filters.utils import apply_filter_stack, FilterValidationError
 from ..filters.trade_filter_service import score_filter_rules
 from ..performance.backtest_builder import build_backtest_payload
@@ -154,7 +155,11 @@ def _resolve_market_features(
     symbol: str,
     mi_service: MarketIntelligenceService | None,
 ) -> Mapping[str, Any]:
-    service = mi_service or _NullMarketIntelligenceService()
+    settings = get_settings()
+    if not settings.market_intelligence_enabled:
+        service = _NullMarketIntelligenceService()
+    else:
+        service = mi_service or _NullMarketIntelligenceService()
     frame = _rows_to_frame(rows)
     return service.build_snapshot(symbol, frame)
 
