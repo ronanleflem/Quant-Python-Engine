@@ -646,22 +646,53 @@ def _apply_scenario_to_returns(
     scenario: Mapping[str, Any],
     *,
     initial_capital: float,
-) -> List[float]:
+    regime_labels: Optional[Sequence[Optional[str]]] = None,
+    regime_shift_shock_multiplier: float = 1.5,
+    vol_spike_multiplier: float = 1.5,
+) -> tuple[List[float], Dict[str, Any]]:
     adjusted = [float(val) for val in returns]
     if not adjusted:
-        return adjusted
+        return adjusted, {"regime_label": None}
+
+    normalized_labels: List[Optional[str]] = []
+    if regime_labels is not None:
+        normalized_labels = [str(label).strip().lower() if label is not None else None for label in regime_labels]
+
+    def _label_at(index: int) -> Optional[str]:
+        if not normalized_labels:
+            return None
+        if index < len(normalized_labels):
+            return normalized_labels[index]
+        return None
 
     scenario_type = str(scenario.get("type", "")).lower()
     if scenario_type in {"crash", "gap"}:
         shock_pct = float(scenario.get("shock_pct", -0.2))
         idx = _scenario_index(adjusted, scenario)
-        adjusted[idx] += _shock_value(shock_pct, adjusted, initial_capital)
-        return adjusted
+        label = _label_at(idx)
+        applied_multiplier = 1.0
+        if label in {"regime_shift", "bear", "risk_off"}:
+            applied_multiplier = regime_shift_shock_multiplier
+        adjusted[idx] += _shock_value(shock_pct * applied_multiplier, adjusted, initial_capital)
+        return adjusted, {
+            "regime_label": label,
+            "shock_multiplier_applied": applied_multiplier,
+            "regime_shift_shock_multiplier": regime_shift_shock_multiplier,
+        }
 
     if scenario_type in {"vol", "volatility", "volatility_spike"}:
         multiplier = float(scenario.get("vol_multiplier", 2.0))
+        label = _label_at(len(adjusted) // 2)
+        applied_multiplier = 1.0
+        if label in {"vol_spike", "high_vol"}:
+            applied_multiplier = vol_spike_multiplier
+        effective_multiplier = multiplier * applied_multiplier
         avg = mean(adjusted)
-        return [avg + (val - avg) * multiplier for val in adjusted]
+        return [avg + (val - avg) * effective_multiplier for val in adjusted], {
+            "regime_label": label,
+            "vol_multiplier_applied": applied_multiplier,
+            "vol_spike_multiplier": vol_spike_multiplier,
+        }
 
     if scenario_type in {"drawdown", "prolonged_drawdown"}:
         window = max(int(scenario.get("window", 10)), 1)
@@ -675,9 +706,33 @@ def _apply_scenario_to_returns(
         per_step = shock_total / max(end_idx - start_idx, 1)
         for idx in range(start_idx, end_idx):
             adjusted[idx] += per_step
-        return adjusted
+        label = _label_at(start_idx)
+        return adjusted, {
+            "regime_label": label,
+            "window_start_index": start_idx,
+            "window_end_index": end_idx,
+        }
 
-    return adjusted
+    return adjusted, {"regime_label": None}
+
+
+def _normalize_regime_labels(
+    regime_labels: Any,
+    *,
+    expected_length: int,
+    warnings: List[str],
+) -> Optional[List[Optional[str]]]:
+    if regime_labels is None:
+        return None
+    if isinstance(regime_labels, (str, bytes)) or not isinstance(regime_labels, Sequence):
+        warnings.append("regime_labels must be provided as a sequence; ignoring provided value.")
+        return None
+    labels = [str(label).strip().lower() if label is not None else None for label in regime_labels]
+    if expected_length > 0 and len(labels) != expected_length:
+        warnings.append(
+            f"regime_labels length ({len(labels)}) differs from returns length ({expected_length}); clipping to available labels."
+        )
+    return labels
 
 
 def _build_equity_curve(returns: Sequence[float], initial_capital: float) -> List[float]:
@@ -765,6 +820,8 @@ def apply_scenarios_to_returns(
     volatility_weighting = str(params.get("volatility_weighting", "inverse")).lower()
     timestamp_alignment = str(params.get("timestamp_alignment", "union")).lower()
     weights_used: Optional[Dict[str, float]] = None
+    regime_shift_shock_multiplier = float(params.get("regime_shift_shock_multiplier", 1.5))
+    vol_spike_multiplier = float(params.get("vol_spike_multiplier", 1.5))
 
     scenario_results: Dict[str, Any] = {}
     scenario_metrics: Dict[str, Any] = {}
@@ -808,6 +865,7 @@ def apply_scenarios_to_returns(
             name = str(scenario_data.get("name", "scenario"))
             per_asset_results: Dict[str, Any] = {}
             adjusted_assets: Dict[str, List[float]] = {}
+            regime_labels_map: Dict[str, Optional[List[Optional[str]]]] = {}
             scenario_parameters = {
                 **scenario_data,
                 "aggregation": aggregation,
@@ -815,9 +873,32 @@ def apply_scenarios_to_returns(
                 "weights_source": weights_source,
                 "volatility_weighting": volatility_weighting if aggregation == "vol_weighted" else None,
                 "timestamp_alignment": timestamp_alignment,
+                "regime_shift_shock_multiplier": regime_shift_shock_multiplier,
+                "vol_spike_multiplier": vol_spike_multiplier,
             }
+            raw_regime_labels = params.get("regime_labels")
+            if isinstance(raw_regime_labels, Mapping):
+                regime_labels_map = {
+                    symbol: _normalize_regime_labels(
+                        labels,
+                        expected_length=len(values),
+                        warnings=warnings,
+                    )
+                    for symbol, labels in raw_regime_labels.items()
+                    if symbol in per_asset
+                    for values in [per_asset[symbol]]
+                }
+            elif raw_regime_labels is not None:
+                warnings.append("For multi-asset inputs, regime_labels should be a symbol->labels mapping.")
             for symbol, values in per_asset.items():
-                adjusted = _apply_scenario_to_returns(values, scenario_data, initial_capital=initial_capital)
+                adjusted, regime_context = _apply_scenario_to_returns(
+                    values,
+                    scenario_data,
+                    initial_capital=initial_capital,
+                    regime_labels=regime_labels_map.get(symbol),
+                    regime_shift_shock_multiplier=regime_shift_shock_multiplier,
+                    vol_spike_multiplier=vol_spike_multiplier,
+                )
                 adjusted_assets[symbol] = adjusted
                 metrics = _normalize_metric_names(
                     _compute_level1_metrics(adjusted, _build_equity_curve(adjusted, initial_capital), initial_capital)
@@ -826,7 +907,11 @@ def apply_scenarios_to_returns(
                     "returns": adjusted,
                     "timestamps": timestamps.get(symbol),
                     "metrics": metrics,
-                    "parameters": scenario_parameters,
+                    "parameters": {
+                        **scenario_parameters,
+                        "regime_labels": regime_labels_map.get(symbol),
+                        "applied_regime_context": regime_context,
+                    },
                 }
 
             portfolio_returns, portfolio_ts = _aggregate_multi_asset_returns(
@@ -845,19 +930,31 @@ def apply_scenarios_to_returns(
                     "metrics": portfolio_metrics,
                     "returns": portfolio_returns,
                     "timestamps": portfolio_ts,
-                    "parameters": scenario_parameters,
+                    "parameters": {
+                        **scenario_parameters,
+                        "regime_labels": None,
+                        "applied_regime_context": {"scope": "portfolio_aggregate"},
+                    },
                 },
                 "by_symbol": per_asset_results,
             }
             scenario_metrics[name] = portfolio_metrics
     else:
         values, timestamps = _normalize_timeseries(returns)
+        regime_labels = _normalize_regime_labels(params.get("regime_labels"), expected_length=len(values), warnings=warnings)
         if not values:
             warnings.append("No returns available for scenarios.")
         for scenario in scenarios:
             scenario_data = scenario.model_dump()
             name = str(scenario_data.get("name", "scenario"))
-            adjusted = _apply_scenario_to_returns(values, scenario_data, initial_capital=initial_capital)
+            adjusted, regime_context = _apply_scenario_to_returns(
+                values,
+                scenario_data,
+                initial_capital=initial_capital,
+                regime_labels=regime_labels,
+                regime_shift_shock_multiplier=regime_shift_shock_multiplier,
+                vol_spike_multiplier=vol_spike_multiplier,
+            )
             metrics = _normalize_metric_names(
                 _compute_level1_metrics(adjusted, _build_equity_curve(adjusted, initial_capital), initial_capital)
             )
@@ -868,6 +965,10 @@ def apply_scenarios_to_returns(
                 "weights_source": None,
                 "volatility_weighting": None,
                 "timestamp_alignment": None,
+                "regime_labels": regime_labels,
+                "regime_shift_shock_multiplier": regime_shift_shock_multiplier,
+                "vol_spike_multiplier": vol_spike_multiplier,
+                "applied_regime_context": regime_context,
             }
             scenario_results[name] = {
                 "metrics": metrics,
@@ -888,6 +989,9 @@ def apply_scenarios_to_returns(
             "weights_source": weights_source if _is_multi_asset_returns(returns) else None,
             "volatility_weighting": volatility_weighting if aggregation == "vol_weighted" else None,
             "timestamp_alignment": timestamp_alignment if _is_multi_asset_returns(returns) else None,
+            "regime_labels": params.get("regime_labels"),
+            "regime_shift_shock_multiplier": regime_shift_shock_multiplier,
+            "vol_spike_multiplier": vol_spike_multiplier,
         },
         "warnings": warnings,
     }
