@@ -14,6 +14,7 @@ import logging
 
 from . import engine
 from ..core import dataset
+from ..core.contracts import MarketIntelligenceService
 from ..core.features import atr
 from ..core.spec import DataSpec, parse_data_spec, uses_strategy_sources
 from ..filters.utils import apply_filter_stack, FilterValidationError
@@ -25,6 +26,13 @@ from ..strategies.runner import persist_payload_to_db
 
 LOGGER = logging.getLogger(__name__)
 _ROWS_CACHE: Dict[str, Tuple[List[Dict[str, Any]], Optional[str]]] = {}
+
+
+class _NullMarketIntelligenceService:
+    """Fallback adapter returning an empty snapshot when MI is not configured."""
+
+    def build_snapshot(self, symbol: str, ohlcv: pd.DataFrame) -> Mapping[str, Any]:
+        return {"symbol": symbol, "features": {}, "ohlcv_rows": len(ohlcv)}
 
 
 def load_backtest_spec(path: Path | str) -> Dict[str, Any]:
@@ -120,7 +128,11 @@ def _load_rows(
     return rows, None
 
 
-def _build_signal(spec: Mapping[str, Any], rows: List[Dict[str, Any]]) -> List[int]:
+def _build_signal(
+    spec: Mapping[str, Any],
+    rows: List[Dict[str, Any]],
+    features: Mapping[str, Any] | None = None,
+) -> List[int]:
     signal_spec = spec.get("signal", {}) or {}
     signal_type = str(signal_spec.get("type") or "").strip().lower()
     params = signal_spec.get("params", {}) or {}
@@ -129,8 +141,22 @@ def _build_signal(spec: Mapping[str, Any], rows: List[Dict[str, Any]]) -> List[i
         slow = params.get("slow", params.get("ema_slow"))
         if fast is None or slow is None:
             raise ValueError("ema_cross requires fast/slow parameters")
-        return EmaCross(int(fast), int(slow)).generate(rows)
+        signal_impl = EmaCross(int(fast), int(slow))
+        try:
+            return signal_impl.generate(rows, features=features)
+        except TypeError:
+            return signal_impl.generate(rows)
     raise ValueError(f"Unsupported signal type '{signal_type}'")
+
+
+def _resolve_market_features(
+    rows: List[Dict[str, Any]],
+    symbol: str,
+    mi_service: MarketIntelligenceService | None,
+) -> Mapping[str, Any]:
+    service = mi_service or _NullMarketIntelligenceService()
+    frame = _rows_to_frame(rows)
+    return service.build_snapshot(symbol, frame)
 
 
 def _validate_ohlc_rows(rows: List[Dict[str, Any]]) -> None:
@@ -203,7 +229,10 @@ def _apply_filter_mask(
     return gated
 
 
-def run_backtest_from_spec(spec: Mapping[str, Any]) -> Dict[str, Any]:
+def run_backtest_from_spec(
+    spec: Mapping[str, Any],
+    mi_service: MarketIntelligenceService | None = None,
+) -> Dict[str, Any]:
     """Execute a classic backtest based on a JSON specification."""
 
     data_raw = spec.get("data", {}) or {}
@@ -252,8 +281,9 @@ def run_backtest_from_spec(spec: Mapping[str, Any]) -> Dict[str, Any]:
             pruning_cfg = candidate_pruning
 
     symbol = _detect_symbol(rows)
+    features = _resolve_market_features(rows, symbol, mi_service)
     t_signal = time.monotonic()
-    signal = _build_signal(spec, rows)
+    signal = _build_signal(spec, rows, features)
     _perf_log("backtest.build_signal", t_signal)
 
     filters_spec = spec.get("filters") or (spec.get("strategy", {}) or {}).get("filters") or []
