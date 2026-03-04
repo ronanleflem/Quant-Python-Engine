@@ -103,6 +103,41 @@ def _expand_universe(spec: Mapping[str, Any]) -> Sequence[Mapping[str, Any]]:
     return list(collected.values())
 
 
+def _extract_features_rows_by_ts(df: pd.DataFrame) -> Dict[pd.Timestamp, Dict[str, Any]]:
+    """Build timestamp-aligned market-intelligence feature rows from an OHLC frame."""
+
+    if df.empty:
+        return {}
+    working = df.copy()
+    if "ts" in working.columns:
+        index = pd.to_datetime(working["ts"], utc=True)
+        working.index = index
+    elif isinstance(working.index, pd.DatetimeIndex):
+        if working.index.tz is None:
+            working.index = working.index.tz_localize("UTC")
+        else:
+            working.index = working.index.tz_convert("UTC")
+    else:
+        return {}
+    excluded = {
+        "ts",
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "symbol",
+        "asset_class",
+        "_filter_ok",
+        "_filter_score",
+    }
+    feature_cols = [col for col in working.columns if col not in excluded]
+    if not feature_cols:
+        return {}
+    features = working[feature_cols].where(pd.notna(working[feature_cols]), None)
+    return {pd.Timestamp(ts): row.to_dict() for ts, row in features.iterrows()}
+
+
 def _run_backtest_core(spec: Mapping[str, Any]) -> tuple[Dict[str, Any], Dict[str, pd.DataFrame]]:
     """Run the strategy backtest and return raw results plus OHLC cache."""
 
@@ -223,7 +258,26 @@ def _run_backtest_core(spec: Mapping[str, Any]) -> tuple[Dict[str, Any], Dict[st
         t_signals = time.monotonic()
         context = {"symbol": symbol, "asset_class": asset_class, "screening": screening_cfg}
         context = universe_adapter.adapt_context(context, universe_rules)
-        signals = strategy.backtest(df, context)
+        feature_rows_by_ts = _extract_features_rows_by_ts(df)
+        if feature_rows_by_ts:
+            context["features_by_ts"] = feature_rows_by_ts
+        on_bar = getattr(strategy, "on_bar", None)
+        if callable(on_bar):
+            normalized = df.copy()
+            if "ts" in normalized.columns:
+                normalized["ts"] = pd.to_datetime(normalized["ts"], utc=True)
+                normalized = normalized.set_index("ts")
+            elif isinstance(normalized.index, pd.DatetimeIndex):
+                if normalized.index.tz is None:
+                    normalized.index = normalized.index.tz_localize("UTC")
+                else:
+                    normalized.index = normalized.index.tz_convert("UTC")
+            signals = []
+            for ts, row in normalized.iterrows():
+                features_row = feature_rows_by_ts.get(pd.Timestamp(ts)) if feature_rows_by_ts else None
+                signals.extend(on_bar(row, context, features_row=features_row))
+        else:
+            signals = strategy.backtest(df, context)
         serialized = [_serialize_signal(sig) for sig in signals]
         signals_by_symbol[symbol] = serialized
         counts[symbol] = len(serialized)

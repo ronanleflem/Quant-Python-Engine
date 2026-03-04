@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Protocol
+from typing import Any, Dict, List, Mapping, Optional, Protocol
 
 import pandas as pd
 
@@ -22,6 +22,19 @@ class StrategySignal:
 
 class Strategy(Protocol):
     """Abstract interface implemented by every high level strategy."""
+
+    def on_bar(
+        self,
+        bar: pd.Series,
+        context: Dict[str, Any],
+        features_row: Optional[Mapping[str, Any]] = None,
+    ) -> List[StrategySignal]:
+        """Handle a single bar and return zero or more signals.
+
+        ``features_row`` provides market-intelligence features aligned with
+        ``bar`` timestamp. Implementations should accept ``None`` for backward
+        compatibility when no features are available.
+        """
 
     def backtest(self, ohlc: pd.DataFrame, context: Dict[str, Any]) -> List[StrategySignal]:
         """Return the list of signals (entries/exits/rotations) for the whole period."""
