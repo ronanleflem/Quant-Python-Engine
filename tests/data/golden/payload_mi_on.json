@@ -1,0 +1,51 @@
+{
+  "payload": {
+    "run": {
+      "assetClass": "FX",
+      "averageNetTrade": 0.0,
+      "averageSL": null,
+      "averageTP": null,
+      "averageTrade": 0.0,
+      "comparedSymbol": null,
+      "endTsUtc": "2024-01-02T00:00:00+00:00",
+      "extra": {
+        "cagr_pct": 0.0,
+        "note": "Backtest performance normalized with timeframe-aware annualization.",
+        "periods_per_year": 98280.0,
+        "risk_free_rate": 0.0
+      },
+      "finalCapital": 10000.0,
+      "initialCapital": 10000.0,
+      "lossCount": 0,
+      "maxDrawdown": 0.0,
+      "maxDrawdownPct": 0.0,
+      "netLossCount": 0,
+      "netWinCount": 0,
+      "returnPct": 0.0,
+      "rrMoyen": null,
+      "runId": "snapshot-mi-run",
+      "sharpe": null,
+      "sortino": null,
+      "startTsUtc": "2024-01-01T00:00:00+00:00",
+      "strategyId": "snapshot-mi",
+      "symbol": "EURUSD",
+      "timeframe": "1m",
+      "totalNetReturn": 0,
+      "totalReturn": 0,
+      "universe": null,
+      "volatilityPct": null,
+      "winCount": 0,
+      "winratePct": null
+    },
+    "trades": []
+  },
+  "signal_features": {
+    "features": {
+      "feat_liquidity": "high",
+      "feat_regime": "trend",
+      "mi_mode": "on"
+    },
+    "ohlcv_rows": 2,
+    "symbol": "EURUSD"
+  }
+}
