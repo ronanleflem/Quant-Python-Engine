@@ -23,6 +23,46 @@ from .stress_tests import (
 )
 
 
+def _segment_value(meta: Mapping[str, Any], key: str) -> str:
+    value = meta.get(key)
+    if value is None:
+        return "unknown"
+    text = str(value).strip()
+    return text if text else "unknown"
+
+
+def _build_segmented_metrics(trades: List[CompletedTrade]) -> Dict[str, Dict[str, Dict[str, Any]]]:
+    segmented: Dict[str, Dict[str, Dict[str, Any]]] = {"regime": {}, "magnet_failure": {}}
+    for trade in trades:
+        trade_meta = trade.meta if isinstance(trade.meta, Mapping) else {}
+        for segment_key in segmented.keys():
+            bucket = _segment_value(trade_meta, segment_key)
+            groups = segmented[segment_key]
+            if bucket not in groups:
+                groups[bucket] = {
+                    "trades": 0,
+                    "wins": 0,
+                    "losses": 0,
+                    "total_return_pct": 0.0,
+                    "average_trade_pct": 0.0,
+                    "winrate_pct": None,
+                }
+            row = groups[bucket]
+            row["trades"] += 1
+            if trade.gross_pnl_pct > 0:
+                row["wins"] += 1
+            else:
+                row["losses"] += 1
+            row["total_return_pct"] += float(trade.gross_pnl_pct)
+
+    for groups in segmented.values():
+        for row in groups.values():
+            trades_count = int(row["trades"])
+            row["average_trade_pct"] = (row["total_return_pct"] / trades_count) if trades_count else 0.0
+            row["winrate_pct"] = (row["wins"] / trades_count * 100.0) if trades_count else None
+    return segmented
+
+
 def _maybe_dt(value: Any) -> Optional[datetime]:
     if isinstance(value, datetime):
         return value
@@ -174,9 +214,13 @@ def build_backtest_performance(
         pnl = float(tr.get("pnl") or 0.0)
         pnl_pct = (pnl / entry_price * 100.0) if entry_price else 0.0
         returns_pct.append(pnl_pct)
-        meta = {
-            "r_multiple": tr.get("r_multiple"),
-        }
+        raw_meta = tr.get("meta") if isinstance(tr.get("meta"), Mapping) else {}
+        meta = dict(raw_meta)
+        meta.setdefault("r_multiple", tr.get("r_multiple"))
+        if "regime" not in meta:
+            meta["regime"] = tr.get("regime")
+        if "magnet_failure" not in meta:
+            meta["magnet_failure"] = tr.get("magnet_failure")
         completed.append(
             CompletedTrade(
                 strategy_id=strategy_id,
@@ -318,6 +362,7 @@ def build_backtest_performance(
             "periods_per_year": periods_per_year,
             "risk_free_rate": risk_free_rate,
             "cagr_pct": cagr_pct,
+            "segmentation": _build_segmented_metrics(completed),
         },
     )
     _perf_log("payload.build_backtest_performance", t0)
