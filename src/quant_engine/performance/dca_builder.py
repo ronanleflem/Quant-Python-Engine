@@ -10,7 +10,7 @@ rester cohérentes entre backtests et exécution live.
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Protocol, Tuple
 
 import pandas as pd
@@ -20,6 +20,10 @@ from ..backtest import metrics as backtest_metrics
 from .stress_tests import run_monte_carlo_on_trades
 
 LOGGER = logging.getLogger(__name__)
+
+
+def _utc_now() -> datetime:
+    return datetime.now(timezone.utc)
 
 
 class SignalLike(Protocol):
@@ -246,7 +250,7 @@ def build_dca_performance_from_signals(
             end_ts = ec_end
 
     if start_ts is None or end_ts is None:
-        now = datetime.utcnow()
+        now = _utc_now()
         start_ts = start_ts or now
         end_ts = end_ts or now
 
@@ -275,7 +279,7 @@ def build_dca_performance_from_signals(
     trades: List[CompletedTrade] = []
     trades_by_symbol: Dict[str, int] = {}
     for symbol, sigs in signals_by_symbol.items():
-        ordered = sorted(sigs, key=lambda s: _maybe_dt(getattr(s, "ts_open_utc", None)) or datetime.utcnow())
+        ordered = sorted(sigs, key=lambda s: _maybe_dt(getattr(s, "ts_open_utc", None)) or _utc_now())
         by_cycle: Dict[int, List[SignalLike]] = {}
         missing_cycle = 0
         for s in ordered:

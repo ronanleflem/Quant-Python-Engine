@@ -158,3 +158,43 @@ def test_dca_payload_exposes_segmentation_by_regime_and_magnet_failure() -> None
     assert bear["losses"] == 1
     assert failed["trades"] == 1
     assert stable["trades"] == 1
+
+
+def test_dca_payload_default_timestamps_are_utc_aware() -> None:
+    payload = build_backend_payload_for_java(
+        strategy_id="dca",
+        run_id="run-empty",
+        asset_class="EQUITY",
+        universe="ABC",
+        timeframe="1D",
+        signals_by_symbol={},
+        ohlc_by_symbol={},
+        config={"capital_per_unit": 100.0},
+    )
+
+    start = datetime.fromisoformat(payload["run"]["startTsUtc"])
+    end = datetime.fromisoformat(payload["run"]["endTsUtc"])
+
+    assert start.tzinfo == timezone.utc
+    assert end.tzinfo == timezone.utc
+
+
+def test_backtest_payload_fallback_trade_timestamps_are_utc_aware() -> None:
+    payload = build_backtest_payload(
+        strategy_id="seg",
+        run_id="run-fallback-ts",
+        asset_class="EQUITY",
+        symbol="ABC",
+        timeframe="1D",
+        trades=[{"pnl": 0.0, "quantity": 1.0, "price_entry": 100.0, "price_exit": 100.0}],
+        equity=[0.0],
+        start_ts=None,
+        end_ts=None,
+    )
+
+    trade = payload["trades"][0]
+    entry = datetime.fromisoformat(trade["entryTimeUtc"])
+    exit_ = datetime.fromisoformat(trade["exitTimeUtc"])
+
+    assert entry.tzinfo == timezone.utc
+    assert exit_.tzinfo == timezone.utc

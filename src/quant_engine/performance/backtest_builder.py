@@ -5,7 +5,7 @@ annualizing risk metrics and applying a configurable risk-free rate.
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 import math
 import os
 import re
@@ -229,8 +229,8 @@ def build_backtest_performance(
                 asset_class=asset_class,
                 side=str(tr.get("side") or "LONG").upper(),
                 cycle_id=None,
-                entry_time_utc=entry_time or start_dt or datetime.utcnow(),
-                exit_time_utc=exit_time or end_dt or datetime.utcnow(),
+                entry_time_utc=entry_time or start_dt or datetime.now(timezone.utc),
+                exit_time_utc=exit_time or end_dt or datetime.now(timezone.utc),
                 entry_price=entry_price,
                 exit_price=exit_price,
                 quantity=quantity,
@@ -335,8 +335,8 @@ def build_backtest_performance(
         timeframe=timeframe,
         symbol=symbol,
         compared_symbol=None,
-        start_ts_utc=start_dt or datetime.utcnow(),
-        end_ts_utc=end_dt or datetime.utcnow(),
+        start_ts_utc=start_dt or datetime.now(timezone.utc),
+        end_ts_utc=end_dt or datetime.now(timezone.utc),
         win_count=win_count,
         loss_count=loss_count,
         total_return=total_return,
