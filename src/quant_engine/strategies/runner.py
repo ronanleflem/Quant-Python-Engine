@@ -165,7 +165,6 @@ def _run_backtest_core(spec: Mapping[str, Any]) -> tuple[Dict[str, Any], Dict[st
     screening_cfg = optimization_cfg.get("screening") or spec.get("screening") or {}
     cache_cfg = optimization_cfg.get("cache_features") or {}
     cache_enabled = bool(cache_cfg) and cache_cfg.get("enabled", True) is not False
-    mi_enabled = _market_intelligence_enabled(spec)
     universe: Iterable[Mapping[str, Any]] = _expand_universe(spec)
     signals_by_symbol: Dict[str, List[Dict[str, Any]]] = {}
     counts: Dict[str, int] = {}
@@ -269,7 +268,7 @@ def _run_backtest_core(spec: Mapping[str, Any]) -> tuple[Dict[str, Any], Dict[st
         t_signals = time.monotonic()
         context = {"symbol": symbol, "asset_class": asset_class, "screening": screening_cfg}
         context = universe_adapter.adapt_context(context, universe_rules)
-        feature_rows_by_ts = _extract_features_rows_by_ts(df) if mi_enabled else {}
+        feature_rows_by_ts = _extract_features_rows_by_ts(df)
         if feature_rows_by_ts:
             context["features_by_ts"] = feature_rows_by_ts
         on_bar = getattr(strategy, "on_bar", None)
