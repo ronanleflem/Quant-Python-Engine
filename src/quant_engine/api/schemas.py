@@ -354,6 +354,7 @@ class SeasonalityProfileSpec(BaseModel):
     by_month_last_days: bool = False
     by_quarter: bool = False
     by_month_flags: bool = False
+    segment_by_mi_labels: bool = False
     # mesure : 'direction' (P(close_{t+1} > close_t)) ou 'return'
     measure: Literal["direction", "return"] = "direction"
     ret_horizon: int = 1  # nb de barres Ã  regarder

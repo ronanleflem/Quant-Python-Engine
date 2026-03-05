@@ -19,6 +19,7 @@ from ..core.dataset import load_ohlcv
 from ..core.features import atr
 from ..io import artifacts, ids
 from ..signals.seasonality_signal import DIMENSION_TO_COLUMN, make_seasonality_signals
+from ..market_intelligence.pipeline import compute_features as mi_compute_features, label_regimes as mi_label_regimes
 from ..validate import splitter
 from ..persistence import db
 from ..persistence.repo import (
@@ -295,12 +296,45 @@ def _default_rules_metadata(rules: profiles.SeasonalityRules) -> Dict[str, Any]:
     return meta
 
 
+def _attach_mi_labels(dataset: pl.DataFrame, enabled: bool) -> pl.DataFrame:
+    """Attach market-intelligence label columns keyed by symbol/timestamp."""
+
+    if not enabled or dataset.is_empty() or "timestamp" not in dataset.columns or "symbol" not in dataset.columns:
+        return dataset
+
+    labels_frames: list[pl.DataFrame] = []
+    for symbol in dataset.get_column("symbol").drop_nulls().unique().to_list():
+        symbol_df = dataset.filter(pl.col("symbol") == symbol).sort("timestamp")
+        if symbol_df.is_empty():
+            continue
+        symbol_pd = symbol_df.select(["timestamp", "open", "high", "low", "close", "volume"]).to_pandas()
+        symbol_pd = symbol_pd.rename(columns={"timestamp": "ts"})
+        features = mi_compute_features(symbol_pd)
+        labels = mi_label_regimes(features).reset_index().rename(columns={"ts": "timestamp"})
+        labels["symbol"] = symbol
+        labels_pl = pl.from_pandas(labels)
+        if "timestamp" in labels_pl.columns and labels_pl.schema.get("timestamp") != pl.Datetime:
+            labels_pl = labels_pl.with_columns(pl.col("timestamp").cast(pl.Datetime))
+        labels_frames.append(labels_pl)
+
+    if not labels_frames:
+        return dataset
+
+    all_labels = pl.concat(labels_frames, how="vertical", rechunk=True)
+    join_cols = ["symbol", "timestamp"]
+    label_cols = [col for col in all_labels.columns if col.startswith("label_")]
+    if not label_cols:
+        return dataset
+    return dataset.join(all_labels.select(join_cols + label_cols), on=join_cols, how="left", coalesce=True)
+
+
 def _compute_profiles(
     dataset: pl.DataFrame,
     cfg: spec.NormalisedSeasonalitySpec,
     fold_dir: Path | None,
 ) -> pl.DataFrame:
     horizon_features = compute.prepare_features(dataset, cfg.profile)
+    horizon_features = _attach_mi_labels(horizon_features, bool(getattr(cfg.profile, "segment_by_mi_labels", False)))
     profiles_path = str(fold_dir) if fold_dir is not None else None
     return compute.compute_profiles(
         horizon_features,
@@ -309,6 +343,7 @@ def _compute_profiles(
         period_start=None,
         period_end=None,
         artifacts_out_dir=profiles_path,
+        segment_by_mi_labels=bool(getattr(cfg.profile, "segment_by_mi_labels", False)),
     )
 
 
