@@ -155,10 +155,12 @@ def _resolve_market_features(
     symbol: str,
     mi_service: MarketIntelligenceService | None,
 ) -> Mapping[str, Any]:
-    if mi_service is not None:
+    mi_env_raw = os.getenv("MARKET_INTELLIGENCE_ENABLED")
+    mi_enabled = get_settings().market_intelligence_enabled
+    if mi_env_raw is None:
+        service = mi_service or _NullMarketIntelligenceService()
+    elif mi_enabled and mi_service is not None:
         service = mi_service
-    elif get_settings().market_intelligence_enabled:
-        service = _NullMarketIntelligenceService()
     else:
         service = _NullMarketIntelligenceService()
     frame = _rows_to_frame(rows)
