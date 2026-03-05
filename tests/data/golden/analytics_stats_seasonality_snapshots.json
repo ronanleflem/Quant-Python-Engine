@@ -1,0 +1,167 @@
+{
+  "analytics": {
+    "metrics": {
+      "aggregated": {
+        "max_dd": 0.12,
+        "return": 0.31,
+        "sharpe": 1.42
+      },
+      "folds": {}
+    },
+    "run": {
+      "metrics": {
+        "aggregated": {
+          "max_dd": 0.12,
+          "return": 0.31,
+          "sharpe": 1.42
+        },
+        "folds": {}
+      },
+      "run": {
+        "dataset_id": "analytics-dataset",
+        "objective": "sharpe",
+        "out_dir": "/tmp/analytics",
+        "run_id": "analytics-snapshot-run",
+        "spec_id": "analytics-spec",
+        "status": "FINISHED"
+      }
+    }
+  },
+  "seasonality": {
+    "detail": {
+      "best_summary": {
+        "best_metrics": {
+          "sharpe": 1.1,
+          "sortino": 1.6
+        }
+      },
+      "dataset_id": "seasonality-dataset-snapshot",
+      "out_dir": "/tmp/seasonality-snapshot",
+      "run_id": "seasonality-snapshot-run",
+      "spec_id": "seasonality-spec-snapshot",
+      "status": "completed"
+    },
+    "profiles": [
+      {
+        "baseline": 0.52,
+        "bin": 9,
+        "dataset_id": "seasonality-dataset-snapshot",
+        "dim": "hour",
+        "end": "2024-01-01",
+        "lift": 0.12,
+        "measure": "direction",
+        "metrics": {
+          "p_breakout_up": 0.33,
+          "run_len_up_mean": 2.5
+        },
+        "n": 480,
+        "score": 0.64,
+        "spec_id": "seasonality-spec-snapshot",
+        "start": "2023-01-01",
+        "symbol": "BTCUSDT",
+        "timeframe": "1h"
+      }
+    ],
+    "runs": [
+      {
+        "best_summary": {
+          "best_metrics": {
+            "sharpe": 1.1,
+            "sortino": 1.6
+          }
+        },
+        "dataset_id": "seasonality-dataset-snapshot",
+        "out_dir": "/tmp/seasonality-snapshot",
+        "run_id": "seasonality-snapshot-run",
+        "spec_id": "seasonality-spec-snapshot",
+        "status": "completed"
+      }
+    ]
+  },
+  "stats": {
+    "heatmap": [
+      {
+        "bin": "high",
+        "ci_high": 0.58,
+        "ci_low": 0.24,
+        "lift": -0.08,
+        "n": 25,
+        "p_hat": 0.4
+      },
+      {
+        "bin": "low",
+        "ci_high": 0.75,
+        "ci_low": 0.42,
+        "lift": 0.12,
+        "n": 30,
+        "p_hat": 0.6
+      }
+    ],
+    "summary": [
+      {
+        "ci_high": 0.5926054264103301,
+        "ci_low": 0.23403302377747975,
+        "condition_name": "volatility_bin",
+        "condition_value": "high",
+        "n": 25,
+        "p_hat": 0.4,
+        "successes": 10,
+        "target": "up"
+      },
+      {
+        "ci_high": 0.7540937188319815,
+        "ci_low": 0.4232036025332248,
+        "condition_name": "volatility_bin",
+        "condition_value": "low",
+        "n": 30,
+        "p_hat": 0.6,
+        "successes": 18,
+        "target": "up"
+      }
+    ],
+    "top": [
+      {
+        "ci_high": 0.75,
+        "ci_low": 0.42,
+        "condition_name": "volatility_bin",
+        "condition_value": "low",
+        "dataset_id": null,
+        "end": "2024-02-01",
+        "event": "breakout",
+        "lift": 0.12,
+        "lift_bayes": 0.12,
+        "lift_freq": 0.12,
+        "n": 30,
+        "p_hat": 0.6,
+        "spec_id": null,
+        "split": "test",
+        "start": "2024-01-01",
+        "successes": 18,
+        "symbol": "BTCUSDT",
+        "target": "up",
+        "timeframe": "1h"
+      },
+      {
+        "ci_high": 0.58,
+        "ci_low": 0.24,
+        "condition_name": "volatility_bin",
+        "condition_value": "high",
+        "dataset_id": null,
+        "end": "2024-02-01",
+        "event": "breakout",
+        "lift": -0.08,
+        "lift_bayes": -0.08,
+        "lift_freq": -0.08,
+        "n": 25,
+        "p_hat": 0.4,
+        "spec_id": null,
+        "split": "test",
+        "start": "2024-01-01",
+        "successes": 10,
+        "symbol": "BTCUSDT",
+        "target": "up",
+        "timeframe": "1h"
+      }
+    ]
+  }
+}
