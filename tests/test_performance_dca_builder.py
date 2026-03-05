@@ -339,3 +339,34 @@ def test_build_dca_performance_includes_rolling_regimes_and_underperformance() -
     assert rolling["series"][0]["regime"] in {"bull", "bear", "sideways"}
     assert "duration_windows" in rolling["underperformance"]
     assert "severity_pct_points" in rolling["underperformance"]
+
+
+def test_build_dca_performance_sort_handles_naive_and_missing_timestamps() -> None:
+    base = datetime(2024, 1, 1)
+    signals = [
+        _make_signal(cycle_id=1, side="BUY", ts=base, qty=1.0),
+        _make_signal(cycle_id=1, side="SELL", ts=base.replace(day=2), action="take_profit"),
+        FakeSignal(
+            strategy_id="dca",
+            symbol="ABC",
+            asset_class="EQUITY",
+            side="BUY",
+            ts_open_utc=None,  # type: ignore[arg-type]
+            qty=1.0,
+            meta={"cycle_id": 2},
+        ),
+    ]
+
+    run, trades = build_dca_performance_from_signals(
+        strategy_id="dca",
+        run_id="run-naive-sort",
+        asset_class="EQUITY",
+        universe="ABC",
+        timeframe="1D",
+        signals_by_symbol={"ABC": signals},
+        ohlc_by_symbol={"ABC": _make_ohlc([100.0, 101.0])},
+        config={"capital_per_unit": 100.0},
+    )
+
+    assert run is not None
+    assert len(trades) == 1

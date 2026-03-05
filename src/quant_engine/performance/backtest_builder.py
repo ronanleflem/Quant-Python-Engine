@@ -80,6 +80,12 @@ def _maybe_dt(value: Any) -> Optional[datetime]:
         return None
 
 
+def _coerce_utc(dt: datetime) -> datetime:
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
 def _equity_value_curve(equity: Iterable[float], initial_capital: float) -> List[float]:
     values: List[float] = []
     running = float(initial_capital)
@@ -221,6 +227,8 @@ def build_backtest_performance(
             meta["regime"] = tr.get("regime")
         if "magnet_failure" not in meta:
             meta["magnet_failure"] = tr.get("magnet_failure")
+        effective_entry_time = entry_time or start_dt or datetime.now(timezone.utc)
+        effective_exit_time = exit_time or end_dt or datetime.now(timezone.utc)
         completed.append(
             CompletedTrade(
                 strategy_id=strategy_id,
@@ -229,8 +237,8 @@ def build_backtest_performance(
                 asset_class=asset_class,
                 side=str(tr.get("side") or "LONG").upper(),
                 cycle_id=None,
-                entry_time_utc=entry_time or start_dt or datetime.now(timezone.utc),
-                exit_time_utc=exit_time or end_dt or datetime.now(timezone.utc),
+                entry_time_utc=_coerce_utc(effective_entry_time),
+                exit_time_utc=_coerce_utc(effective_exit_time),
                 entry_price=entry_price,
                 exit_price=exit_price,
                 quantity=quantity,
