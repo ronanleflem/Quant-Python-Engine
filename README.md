@@ -63,6 +63,19 @@ export $(grep -v '^#' .env | xargs)
 - [Live Trading Runner](docs/live.md)
 - [High-level Strategies](docs/strategies_overview.md)
 
+## Reproduire la gate de régression CI en local
+Exécuter la suite complète de tests comme dans la CI :
+
+```bash
+poetry run pytest -q
+```
+
+Optionnel (si installé/projet configuré) :
+
+```bash
+poetry run ruff check src tests
+```
+
 ## Lancer l'API
 ```bash
 poetry run uvicorn quant_engine.api.app:app --reload --app-dir src
@@ -1150,4 +1163,3 @@ Outre `month` / `month_of_year`, vous pouvez analyser `quarter` (1–4) et les f
 
 - [Architecture & Récap Fonctionnel](docs/architecture_overview.md)
 - [Market Stats – Notes & Garde-fous](docs/market_stats_guidelines.md)
-
