@@ -35,11 +35,18 @@ Ce document décrit la migration progressive des wrappers legacy vers les module
 - `quant_engine.stats.events.gap_down` -> `quant_engine.market_intelligence.events.gap_down`
 - `quant_engine.stats.events.always_true` -> `quant_engine.market_intelligence.events.always_true`
 
+### Market Intelligence adapters
+
+- `quant_engine.market_intelligence.adapters.LegacyFiltersAdapter` -> `quant_engine.filters.trade_filter_service.score_filter_rules`
+- `quant_engine.market_intelligence.adapters.LegacyStatsAdapter` -> `quant_engine.stats.runner.run_stats`
+
 ## Exemple de warning
 
 Message attendu :
 
 `quant_engine.stats.events.gap_up is deprecated and will be removed in v0.15.0 (target date: 2026-04-30); use quant_engine.market_intelligence.events instead.`
+
+`quant_engine.market_intelligence.adapters.LegacyFiltersAdapter is deprecated and will be removed in v0.15.0 (target date: 2026-04-30); use quant_engine.filters.trade_filter_service.score_filter_rules instead.`
 
 ## Recommandation projet
 
