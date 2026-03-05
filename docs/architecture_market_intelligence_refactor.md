@@ -321,6 +321,8 @@ FORBIDDEN = {
 - `qe features inspect --feature-set mi_v1 --symbol BTCUSDT --tf 1h`
 - `qe backtest run --with-features mi_v1`
 
+Runbook opératoire associé : `docs/market_intelligence_runbook.md`.
+
 ---
 
 ## 7) Clarification importante — capacités métier vs modules Python
