@@ -57,8 +57,6 @@ def _ensure_utc_timestamp(dataset: pl.DataFrame, column: str) -> pl.DataFrame:
     dtype = dataset.schema.get(column)
     if dtype == pl.Utf8:
         expr = pl.col(column).str.to_datetime(strict=False, utc=True)
-    elif dtype == pl.Datetime:
-        expr = pl.col(column).dt.replace_time_zone("UTC")
     elif isinstance(dtype, pl.Datetime):
         tz = getattr(dtype, "time_zone", None)
         if tz == "UTC":

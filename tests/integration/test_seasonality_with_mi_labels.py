@@ -96,3 +96,23 @@ def test_timestamp_keys_are_normalized_to_utc_before_join() -> None:
 
     assert isinstance(timestamp_dtype, pl.Datetime)
     assert timestamp_dtype.time_zone == "UTC"
+
+
+def test_existing_time_zones_are_converted_to_utc_without_shifting_instants() -> None:
+    df = pl.DataFrame(
+        {
+            "timestamp": [
+                datetime(2025, 1, 1, 0, 0, tzinfo=timezone.utc),
+                datetime(2025, 1, 1, 1, 0, tzinfo=timezone.utc),
+            ],
+            "symbol": ["BTC-USD", "BTC-USD"],
+        }
+    ).with_columns(pl.col("timestamp").dt.convert_time_zone("America/New_York"))
+
+    normalized = runner._ensure_utc_timestamp(df, "timestamp")
+
+    assert normalized.schema["timestamp"].time_zone == "UTC"
+    assert normalized.get_column("timestamp").to_list() == [
+        datetime(2025, 1, 1, 0, 0, tzinfo=timezone.utc),
+        datetime(2025, 1, 1, 1, 0, tzinfo=timezone.utc),
+    ]
