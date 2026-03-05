@@ -14,13 +14,16 @@ from quant_engine.market_intelligence import conditions as mi_conditions
 
 LEVELS_TABLE = "marketdata.levels"
 _LEVELS_CACHE: Dict[Tuple[str, Optional[pd.Timestamp], Optional[pd.Timestamp], Tuple[str, ...]], pd.DataFrame] = {}
+_DEPRECATION_TARGET_VERSION = "v0.15.0"
+_DEPRECATION_TARGET_DATE = "2026-04-30"
 
 
 def _warn_deprecated(func_name: str) -> None:
     warnings.warn(
         (
             f"quant_engine.stats.conditions.{func_name} is deprecated and will be removed "
-            "in a future release; use quant_engine.market_intelligence.conditions instead."
+            f"in {_DEPRECATION_TARGET_VERSION} (target date: {_DEPRECATION_TARGET_DATE}); "
+            "use quant_engine.market_intelligence.conditions instead."
         ),
         DeprecationWarning,
         stacklevel=2,

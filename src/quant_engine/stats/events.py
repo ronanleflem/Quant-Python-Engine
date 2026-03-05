@@ -10,12 +10,16 @@ import pandas as pd
 
 from quant_engine.market_intelligence import events as mi_events
 
+_DEPRECATION_TARGET_VERSION = "v0.15.0"
+_DEPRECATION_TARGET_DATE = "2026-04-30"
+
 
 def _warn_deprecated(func_name: str) -> None:
     warnings.warn(
         (
             f"quant_engine.stats.events.{func_name} is deprecated and will be removed "
-            "in a future release; use quant_engine.market_intelligence.events instead."
+            f"in {_DEPRECATION_TARGET_VERSION} (target date: {_DEPRECATION_TARGET_DATE}); "
+            "use quant_engine.market_intelligence.events instead."
         ),
         DeprecationWarning,
         stacklevel=2,
