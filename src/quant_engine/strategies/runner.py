@@ -17,7 +17,7 @@ import requests
 from sqlalchemy import create_engine, inspect, text
 
 from . import create_strategy
-from .base import StrategySignal
+from .base import Strategy, StrategySignal
 from ..config import resolve_market_intelligence_enabled
 from ..integrations import java_client
 from ..filters.utils import apply_filter_stack, FilterValidationError
@@ -271,7 +271,9 @@ def _run_backtest_core(spec: Mapping[str, Any]) -> tuple[Dict[str, Any], Dict[st
             if feature_rows_by_ts:
                 context["features_by_ts"] = feature_rows_by_ts
         on_bar = getattr(strategy, "on_bar", None)
-        if callable(on_bar):
+        on_bar_impl = getattr(type(strategy), "on_bar", None)
+        has_custom_on_bar = callable(on_bar) and callable(on_bar_impl) and on_bar_impl is not Strategy.on_bar
+        if has_custom_on_bar:
             normalized = df.copy()
             if "ts" in normalized.columns:
                 normalized["ts"] = pd.to_datetime(normalized["ts"], utc=True)
