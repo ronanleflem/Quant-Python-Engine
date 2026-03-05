@@ -463,3 +463,26 @@ Statut: **accepté**.
 
 Résultat: les signatures v1 sont explicites et non ambiguës pour les implémenteurs; la convergence future est planifiée sans rupture immédiate.
 
+
+## API thin-handlers checklist (PY-MI-5.9)
+
+### Cible
+
+- Les endpoints `FastAPI` dans `api/app.py` ne font que:
+  1. validation HTTP/Pydantic,
+  2. mapping I/O (`Request`/`Response`),
+  3. appel d’un service `api/services/*`.
+- La logique métier (idempotence `request_id`, règles spécifiques `market_stats`, orchestration d’enqueue) est centralisée dans des services unit-testables.
+
+### Preuves de découplage
+
+- `api/services/run_requests.py` porte désormais l’enqueue canonique et la validation métier `market_stats`.
+- `api/app.py` conserve des wrappers de compatibilité (`enqueue_run_request`, `_validate_canonical_market_stats_params`) pour rollback rapide sans casser le contrat public Python.
+- Les tests `tests/api/test_run_requests_service.py` valident directement le service (sans HTTP), en complément des tests de contrat endpoint existants.
+
+### Checklist review PR
+
+- [ ] Handler endpoint sans branchement métier complexe (pas d’accès DB direct dans le handler).
+- [ ] Règles métier testées dans `tests/api/*service*`.
+- [ ] Contrats HTTP inchangés (status/payload) via tests endpoint.
+- [ ] Point de rollback: re-router temporairement un endpoint vers implémentation legacy tout en conservant les services extraits.
