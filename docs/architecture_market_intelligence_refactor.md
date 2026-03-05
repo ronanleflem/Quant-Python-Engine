@@ -387,3 +387,41 @@ les packages cibles avec des adapters pour éviter la casse.
 ```
 
 Principe : tout calcul de contexte marché (corrélation/régime/liquidité/structure) vit dans `market_intelligence`; les stratégies et moteurs **consomment** ce contexte via contrats stables.
+
+## 7) Contrat de stabilité des features MI v1 (garanti)
+
+Le contrat entre `core.contracts.MarketIntelligenceService` et `market_intelligence.service.MarketIntelligenceServiceV1` est verrouillé par tests :
+
+- `build_snapshot(symbol, ohlcv)` doit exister et retourner un mapping.
+- Clés minimales garanties du snapshot: `symbol`, `timeframe`, `feature_version`, `features`, `regimes`, `liquidity`.
+- Les index temporels des DataFrames retournés sont en `DatetimeIndex` UTC, triés croissants.
+
+### Colonnes garanties (snapshot v1)
+
+Les noms et l’ordre des colonnes sont contractuels :
+
+- `features`
+  - `feat_return_1`
+  - `feat_volatility_5`
+  - `feat_corr_close_volume_5`
+- `regimes`
+  - `label_regime`
+- `liquidity`
+  - `liq_low_volume`
+  - `liq_wide_spread`
+  - `liq_illiquid`
+
+### Policy de naming, timezone et NaN
+
+- **Naming**:
+  - features numériques préfixées par `feat_`.
+  - labels catégoriels préfixés par `label_`.
+  - flags de liquidité préfixés par `liq_`.
+- **Timezone**:
+  - tous les outputs MI sont normalisés en UTC (`DatetimeIndex.tz == UTC`).
+- **NaN policy**:
+  - `feat_return_1`: NaN initiaux remplacés par `0.0`.
+  - `feat_volatility_5`: NaN de fenêtre roulante remplacés par `0.0`.
+  - `feat_corr_close_volume_5`: NaN de corrélation roulante remplacés par `0.0`.
+
+Cette politique garantit des features immédiatement consommables par les couches stratégie, filtre et risque sans nettoyage supplémentaire.
