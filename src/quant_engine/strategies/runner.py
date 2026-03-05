@@ -18,7 +18,7 @@ from sqlalchemy import create_engine, inspect, text
 
 from . import create_strategy
 from .base import StrategySignal
-from ..config import get_settings
+from ..config import resolve_market_intelligence_enabled
 from ..integrations import java_client
 from ..filters.utils import apply_filter_stack, FilterValidationError
 from ..filters.trade_filter_service import score_filter_rules
@@ -142,15 +142,7 @@ def _extract_features_rows_by_ts(df: pd.DataFrame) -> Dict[pd.Timestamp, Dict[st
 
 
 def _market_intelligence_enabled(spec: Mapping[str, Any]) -> bool:
-    mi_cfg = spec.get("market_intelligence") or {}
-    if isinstance(mi_cfg, Mapping) and "enabled" in mi_cfg:
-        value = mi_cfg.get("enabled")
-        if isinstance(value, bool):
-            return value
-    mi_env_raw = os.getenv("MARKET_INTELLIGENCE_ENABLED")
-    if mi_env_raw is None:
-        return True
-    return get_settings().market_intelligence_enabled
+    return resolve_market_intelligence_enabled(spec, default_enabled=True)
 
 
 def _run_backtest_core(spec: Mapping[str, Any]) -> tuple[Dict[str, Any], Dict[str, pd.DataFrame]]:

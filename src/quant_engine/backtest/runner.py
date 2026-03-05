@@ -17,7 +17,7 @@ from ..core import dataset
 from ..core.contracts import MarketIntelligenceService
 from ..core.features import atr
 from ..core.spec import DataSpec, parse_data_spec, uses_strategy_sources
-from ..config import get_settings
+from ..config import resolve_market_intelligence_enabled
 from ..filters.utils import apply_filter_stack, FilterValidationError
 from ..filters.trade_filter_service import score_filter_rules
 from ..performance.backtest_builder import build_backtest_payload
@@ -154,12 +154,10 @@ def _resolve_market_features(
     rows: List[Dict[str, Any]],
     symbol: str,
     mi_service: MarketIntelligenceService | None,
+    spec: Mapping[str, Any],
 ) -> Mapping[str, Any]:
-    mi_env_raw = os.getenv("MARKET_INTELLIGENCE_ENABLED")
-    mi_enabled = get_settings().market_intelligence_enabled
-    if mi_env_raw is None:
-        service = mi_service or _NullMarketIntelligenceService()
-    elif mi_enabled and mi_service is not None:
+    mi_enabled = resolve_market_intelligence_enabled(spec, default_enabled=True)
+    if mi_enabled and mi_service is not None:
         service = mi_service
     else:
         service = _NullMarketIntelligenceService()
@@ -289,7 +287,7 @@ def run_backtest_from_spec(
             pruning_cfg = candidate_pruning
 
     symbol = _detect_symbol(rows)
-    features = _resolve_market_features(rows, symbol, mi_service)
+    features = _resolve_market_features(rows, symbol, mi_service, spec)
     t_signal = time.monotonic()
     signal = _build_signal(spec, rows, features)
     _perf_log("backtest.build_signal", t_signal)
