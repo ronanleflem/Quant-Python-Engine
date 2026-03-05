@@ -11,8 +11,29 @@ class FakeMarketIntelligence:
 
 
 class FakeFeatureStore:
-    def get_or_compute(self, name: str, dataset: Sequence[Mapping[str, Any]], params: Mapping[str, Any], compute_fn):
-        return list(compute_fn(dataset, params))
+    def __init__(self) -> None:
+        self._store: dict[tuple[str, str, str, str], Any] = {}
+
+    def get(self, feature_set: str, symbol: str, timeframe: str, version: str) -> Any:
+        return self._store[(feature_set, symbol, timeframe, version)]
+
+    def put(
+        self,
+        feature_set: str,
+        symbol: str,
+        timeframe: str,
+        version: str,
+        payload: Any,
+        *,
+        overwrite: bool = False,
+    ) -> None:
+        key = (feature_set, symbol, timeframe, version)
+        if key in self._store and not overwrite:
+            raise KeyError(key)
+        self._store[key] = payload
+
+    def exists(self, feature_set: str, symbol: str, timeframe: str, version: str) -> bool:
+        return (feature_set, symbol, timeframe, version) in self._store
 
 
 class FakeStrategy:
@@ -39,13 +60,11 @@ def test_fake_implementations_conform_to_contracts() -> None:
     assert snapshot["symbol"] == "BTC-USD"
     assert snapshot["rows"] == 2
 
-    values = fs.get_or_compute(
-        "ema_2",
-        [{"close": 1.0}, {"close": 2.0}],
-        {"period": 2},
-        lambda dataset, _: [float(row["close"]) for row in dataset],
-    )
-    assert values == [1.0, 2.0]
+    assert fs.exists("market_intelligence", "BTC-USD", "1h", "1.0.0") is False
+    fs.put("market_intelligence", "BTC-USD", "1h", "1.0.0", {"features": [1.0, 2.0]})
+    assert fs.exists("market_intelligence", "BTC-USD", "1h", "1.0.0") is True
+    payload = fs.get("market_intelligence", "BTC-USD", "1h", "1.0.0")
+    assert payload["features"] == [1.0, 2.0]
 
     signals = st.evaluate([{"close": 1.0}], {"mode": "backtest"})
     assert signals[0]["signal"] == "BUY"

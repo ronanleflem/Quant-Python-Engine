@@ -180,8 +180,18 @@ from typing import Protocol
 import pandas as pd
 
 class FeatureStore(Protocol):
-    def get(self, feature_set: str, symbol: str, timeframe: str) -> pd.DataFrame | None: ...
-    def put(self, feature_set: str, symbol: str, timeframe: str, frame: pd.DataFrame) -> None: ...
+    def get(self, feature_set: str, symbol: str, timeframe: str, version: str) -> object: ...
+    def put(
+        self,
+        feature_set: str,
+        symbol: str,
+        timeframe: str,
+        version: str,
+        payload: object,
+        *,
+        overwrite: bool = False,
+    ) -> None: ...
+    def exists(self, feature_set: str, symbol: str, timeframe: str, version: str) -> bool: ...
 
 class FeaturePipeline(Protocol):
     name: str
@@ -425,3 +435,31 @@ Les noms et l’ordre des colonnes sont contractuels :
   - `feat_corr_close_volume_5`: NaN de corrélation roulante remplacés par `0.0`.
 
 Cette politique garantit des features immédiatement consommables par les couches stratégie, filtre et risque sans nettoyage supplémentaire.
+
+## 8) ADR courte — convergence des signatures (PY-MI-1.5)
+
+Statut: **accepté**.
+
+### Comparaison cible vs contrats actuels
+
+- `core.contracts.MarketIntelligenceService`:
+  - cible historique du doc: API riche (`compute_features`, `get_feature_slice`, `label_regimes`, `liquidity_flags`).
+  - contrat actuel: `build_snapshot(symbol, ohlcv) -> Mapping[str, Any]`.
+  - décision: **on fige `build_snapshot` en v1** (déjà consommé par `backtest` et tests d’intégration).
+- `core.contracts.FeatureStore`:
+  - cible historique du doc: `get/put` sans version.
+  - implémentation v1 (`InMemoryFeatureStore`): `get/put/exists(feature_set, symbol, timeframe, version, ...)`.
+  - décision: **alignement immédiat du contrat core** sur la signature versionnée avec `exists`.
+- `core.contracts.StrategyContract`:
+  - cible historique du doc: `Strategy.on_bar(...)`.
+  - contrat core actuel: `evaluate(ohlcv, context)`.
+  - décision: **divergence documentée**: `StrategyContract` couvre l’interface moteur/batch, tandis que `strategies.base.Strategy` couvre l’interface orientée barre (`on_bar`).
+
+### Plan de migration
+
+1. Introduire un adaptateur explicite `on_bar -> evaluate` dans `strategy_engine` pour unifier la consommation côté moteurs.
+2. Ajouter `StrategyContractV2` (ou renommer en `ExecutionStrategyContract`) quand les implémenteurs auront migré.
+3. Déprécier ensuite l’interface redondante restante avec fenêtre de compatibilité documentée.
+
+Résultat: les signatures v1 sont explicites et non ambiguës pour les implémenteurs; la convergence future est planifiée sans rupture immédiate.
+
