@@ -1,5 +1,5 @@
 """Application service layer for API endpoints."""
 
-from . import runs
+from . import run_requests, runs, stats
 
-__all__ = ["runs"]
+__all__ = ["run_requests", "runs", "stats"]

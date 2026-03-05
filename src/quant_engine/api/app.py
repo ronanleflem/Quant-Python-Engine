@@ -42,6 +42,7 @@ from ..performance import stress_tests as stress_tests_runner
 from ..filters import list_filter_types
 from . import schemas
 from .services import runs as runs_service
+from .services import run_requests as run_requests_service
 from .services import stats as stats_service
 from .run_request_input import validate_run_request_input
 from .validation_errors import (
@@ -2058,131 +2059,24 @@ def result(job_id: str) -> schemas.ResultResponse:
 def enqueue_run_request(payload: Dict[str, Any]) -> schemas.RunEnqueueResponse:
     """Validate and enqueue a canonical run request."""
 
-    try:
-        parsed = validate_run_request_input(payload)
-    except ValidationError as exc:
-        raise ApiValidationException(normalize_pydantic_errors(exc)) from exc
-
-    canonical_payload = parsed.model_dump(mode="json")
-    _validate_canonical_market_stats_params(canonical_payload)
-    request_id = _normalize_request_id(canonical_payload.get("request_id"))
-    reused = False
-    if request_id is not None:
-        existing = _get_job(request_id)
-        if existing and existing.get("job_type") == JOB_TYPE_CANONICAL_RUN:
-            reused = True
-            status = _external_job_status(str(existing.get("status", "pending")))
-            return schemas.RunEnqueueResponse(run_id=request_id, status=status, reused=True)
-        if existing and existing.get("job_type") != JOB_TYPE_CANONICAL_RUN:
-            raise ApiValidationException(
-                single_validation_error("request_id", "conflict", "request_id already exists")
-            )
-    else:
-        request_id = ids.generate_id()
-
-    max_attempts, timeout_seconds = _canonical_job_defaults()
-    _init_job(
-        request_id,
-        JOB_TYPE_CANONICAL_RUN,
-        payload={"request": canonical_payload},
-        status=JOB_STATUS_QUEUED,
-        max_attempts=max_attempts,
-        timeout_seconds=timeout_seconds,
+    return run_requests_service.enqueue_run_request(
+        payload,
+        validate_input=validate_run_request_input,
+        validate_market_stats_params=_validate_canonical_market_stats_params,
+        normalize_request_id=_normalize_request_id,
+        get_job=_get_job,
+        init_job=_init_job,
+        canonical_job_defaults=_canonical_job_defaults,
+        external_job_status=_external_job_status,
+        canonical_job_type=JOB_TYPE_CANONICAL_RUN,
+        queued_status=JOB_STATUS_QUEUED,
     )
-    status = JOB_STATUS_QUEUED
-    return schemas.RunEnqueueResponse(run_id=request_id, status=status, reused=reused)
-
-
-def _coerce_int(value: Any) -> int | None:
-    if isinstance(value, bool):
-        return None
-    if isinstance(value, int):
-        return value
-    if isinstance(value, float):
-        if value.is_integer():
-            return int(value)
-        return None
-    if isinstance(value, str):
-        text = value.strip()
-        if not text:
-            return None
-        try:
-            if "." in text:
-                maybe_float = float(text)
-                if maybe_float.is_integer():
-                    return int(maybe_float)
-                return None
-            return int(text)
-        except Exception:
-            return None
-    return None
 
 
 def _validate_canonical_market_stats_params(canonical_payload: Dict[str, Any]) -> None:
-    if str(canonical_payload.get("spec_type") or "").strip().lower() != "market_stats":
-        return
+    """Backwards-compatible wrapper around run request service validation."""
 
-    stats_block = canonical_payload.get("stats")
-    if not isinstance(stats_block, dict):
-        return
-
-    errors: List[Dict[str, str]] = []
-
-    def _require_positive_int(params: Dict[str, Any], field_prefix: str, name: str) -> None:
-        value = params.get(name)
-        field = f"{field_prefix}.{name}"
-        if value in (None, ""):
-            errors.append({"field": field, "code": "missing", "message": "Field required"})
-            return
-        coerced = _coerce_int(value)
-        if coerced is None:
-            errors.append({"field": field, "code": "int_parsing", "message": "Input should be a valid integer"})
-            return
-        if coerced < 1:
-            errors.append({"field": field, "code": "greater_than_equal", "message": "Input should be >= 1"})
-
-    def _require_direction(params: Dict[str, Any], field_prefix: str, name: str = "direction") -> None:
-        value = params.get(name)
-        field = f"{field_prefix}.{name}"
-        if value in (None, ""):
-            errors.append({"field": field, "code": "missing", "message": "Field required"})
-            return
-        token = str(value).strip().lower()
-        if token not in {"up", "down"}:
-            errors.append({"field": field, "code": "literal_error", "message": "Input should be 'up' or 'down'"})
-
-    event = stats_block.get("event")
-    if isinstance(event, dict):
-        event_id = str(event.get("id") or "").strip().lower()
-        event_params = event.get("params") if isinstance(event.get("params"), dict) else {}
-        if event_id == "k_consecutive":
-            base = "market_stats.stats.event.params"
-            _require_positive_int(event_params, base, "k")
-            _require_direction(event_params, base)
-
-    condition = stats_block.get("condition")
-    if isinstance(condition, dict):
-        condition_id = str(condition.get("id") or "").strip().lower()
-        condition_params = condition.get("params") if isinstance(condition.get("params"), dict) else {}
-        if condition_id == "htf_trend":
-            base = "market_stats.stats.condition.params"
-            _require_positive_int(condition_params, base, "tf_multiplier")
-            _require_positive_int(condition_params, base, "ema_period")
-
-    target = stats_block.get("target")
-    if isinstance(target, dict):
-        target_id = str(target.get("id") or "").strip().lower()
-        target_params = target.get("params") if isinstance(target.get("params"), dict) else {}
-        if target_id == "continuation_n":
-            base = "market_stats.stats.target.params"
-            _require_positive_int(target_params, base, "n")
-            _require_direction(target_params, base)
-        elif target_id == "time_to_reversal":
-            base = "market_stats.stats.target.params"
-            _require_positive_int(target_params, base, "max_horizon")
-
-    if errors:
-        raise ApiValidationException(errors)
+    run_requests_service.validate_market_stats_params(canonical_payload)
 
 
 def _normalize_request_id(request_id: Any) -> str | None:
