@@ -676,6 +676,8 @@ def _empty_profiles_table(
     symbol_type = df.schema.get("symbol", pl.Utf8)
     base_schema: list[tuple[str, pl.PolarsDataType]] = [
         ("symbol", symbol_type),
+        ("mi_label_name", pl.Utf8),
+        ("mi_label_value", pl.Utf8),
         ("dim", pl.Utf8),
         ("bin", pl.Int64),
         ("n", pl.Int64),
@@ -753,6 +755,7 @@ def compute_profiles(
     period_start: datetime | None = None,
     period_end: datetime | None = None,
     artifacts_out_dir: str | None = None,
+    segment_by_mi_labels: bool = False,
 ) -> pl.DataFrame:
     """Compute seasonality profiles and optionally persist them to parquet."""
 
@@ -766,23 +769,47 @@ def compute_profiles(
 
     dims = _collect_profile_dimensions(profile)
 
+    mi_label_columns = [col for col in dataset.columns if str(col).startswith("label_")]
+
     tables: list[pl.DataFrame] = []
     for dim in dims:
         if dim not in dataset.columns:
             continue
-        group_cols: list[str] = ["symbol", dim]
-        if profile.measure == "direction":
-            table = profile_direction(dataset, group_cols, horizon, profile.min_samples_bin)
-        else:
-            table = profile_return(dataset, group_cols, horizon, profile.min_samples_bin)
-        if table.is_empty():
-            continue
-        table = table.rename({dim: "bin"})
-        table = table.with_columns(
-            pl.col("bin").cast(pl.Utf8),
-            pl.lit(dim).alias("dim"),
-        )
-        tables.append(table)
+        aggregation_specs: list[tuple[list[str], str | None]] = [(["symbol", dim], None)]
+        if segment_by_mi_labels:
+            aggregation_specs.extend(
+                (["symbol", label_col, dim], label_col) for label_col in mi_label_columns
+            )
+
+        for group_cols, mi_label_col in aggregation_specs:
+            if mi_label_col is not None:
+                filtered_dataset = dataset.filter(pl.col(mi_label_col).is_not_null())
+            else:
+                filtered_dataset = dataset
+            if filtered_dataset.is_empty():
+                continue
+
+            if profile.measure == "direction":
+                table = profile_direction(filtered_dataset, group_cols, horizon, profile.min_samples_bin)
+            else:
+                table = profile_return(filtered_dataset, group_cols, horizon, profile.min_samples_bin)
+            if table.is_empty():
+                continue
+
+            rename_map = {dim: "bin"}
+            if mi_label_col is not None:
+                rename_map[mi_label_col] = "mi_label_value"
+            table = table.rename(rename_map)
+            table = table.with_columns(
+                pl.col("bin").cast(pl.Utf8),
+                pl.lit(dim).alias("dim"),
+                pl.lit(mi_label_col, dtype=pl.Utf8).alias("mi_label_name"),
+            )
+            if mi_label_col is None:
+                table = table.with_columns(pl.lit(None, dtype=pl.Utf8).alias("mi_label_value"))
+            else:
+                table = table.with_columns(pl.col("mi_label_value").cast(pl.Utf8))
+            tables.append(table)
 
     if tables:
         combined = pl.concat(tables, how="vertical", rechunk=True)
@@ -802,6 +829,8 @@ def compute_profiles(
         ordered_cols = [
             "symbol",
             "timeframe",
+            "mi_label_name",
+            "mi_label_value",
             "dim",
             "bin",
             "n",
@@ -821,6 +850,8 @@ def compute_profiles(
         ordered_cols = [
             "symbol",
             "timeframe",
+            "mi_label_name",
+            "mi_label_value",
             "dim",
             "bin",
             "n",
