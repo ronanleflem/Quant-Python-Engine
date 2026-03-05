@@ -155,11 +155,12 @@ def _resolve_market_features(
     symbol: str,
     mi_service: MarketIntelligenceService | None,
 ) -> Mapping[str, Any]:
-    settings = get_settings()
-    if not settings.market_intelligence_enabled:
+    if mi_service is not None:
+        service = mi_service
+    elif get_settings().market_intelligence_enabled:
         service = _NullMarketIntelligenceService()
     else:
-        service = mi_service or _NullMarketIntelligenceService()
+        service = _NullMarketIntelligenceService()
     frame = _rows_to_frame(rows)
     return service.build_snapshot(symbol, frame)
 
