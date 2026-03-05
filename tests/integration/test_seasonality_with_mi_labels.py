@@ -76,3 +76,23 @@ def test_seasonality_profiles_include_global_and_mi_segmented_stats() -> None:
     assert segmented_rows.height > 0
     assert set(segmented_rows.get_column("mi_label_name").unique().to_list()) == {"label_regime"}
     assert all(v is not None for v in segmented_rows.get_column("mi_label_value").to_list())
+
+
+def test_timestamp_keys_are_normalized_to_utc_before_join() -> None:
+    df = pl.DataFrame(
+        {
+            "timestamp": ["2025-01-01T00:00:00", "2025-01-01T01:00:00"],
+            "symbol": ["BTC-USD", "BTC-USD"],
+            "open": [100.0, 100.5],
+            "high": [101.0, 101.2],
+            "low": [99.8, 100.1],
+            "close": [100.5, 100.8],
+            "volume": [1000, 1001],
+        }
+    )
+
+    normalized = runner._ensure_utc_timestamp(df, "timestamp")
+    timestamp_dtype = normalized.schema["timestamp"]
+
+    assert isinstance(timestamp_dtype, pl.Datetime)
+    assert timestamp_dtype.time_zone == "UTC"

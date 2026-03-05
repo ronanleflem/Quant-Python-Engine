@@ -44,14 +44,33 @@ def _rows_to_polars(rows: Sequence[Dict[str, Any]]) -> pl.DataFrame:
         return pl.DataFrame()
     df = pl.DataFrame(rows)
     if "timestamp" in df.columns:
-        ts_dtype = df.schema.get("timestamp")
-        if ts_dtype == pl.Utf8:
-            df = df.with_columns(
-                pl.col("timestamp").str.strptime(pl.Datetime, strict=False)
-            )
-        elif ts_dtype != pl.Datetime:
-            df = df.with_columns(pl.col("timestamp").cast(pl.Datetime))
+        df = _ensure_utc_timestamp(df, "timestamp")
     return df
+
+
+def _ensure_utc_timestamp(dataset: pl.DataFrame, column: str) -> pl.DataFrame:
+    """Normalise a Polars datetime column to timezone-aware UTC."""
+
+    if column not in dataset.columns:
+        return dataset
+
+    dtype = dataset.schema.get(column)
+    if dtype == pl.Utf8:
+        expr = pl.col(column).str.to_datetime(strict=False, utc=True)
+    elif dtype == pl.Datetime:
+        expr = pl.col(column).dt.replace_time_zone("UTC")
+    elif isinstance(dtype, pl.Datetime):
+        tz = getattr(dtype, "time_zone", None)
+        if tz == "UTC":
+            return dataset
+        expr = (
+            pl.col(column).dt.replace_time_zone("UTC")
+            if tz is None
+            else pl.col(column).dt.convert_time_zone("UTC")
+        )
+    else:
+        expr = pl.col(column).cast(pl.Datetime).dt.replace_time_zone("UTC")
+    return dataset.with_columns(expr.alias(column))
 
 
 def _rows_to_pandas(rows: Sequence[Dict[str, Any]]) -> pd.DataFrame:
@@ -302,6 +321,8 @@ def _attach_mi_labels(dataset: pl.DataFrame, enabled: bool) -> pl.DataFrame:
     if not enabled or dataset.is_empty() or "timestamp" not in dataset.columns or "symbol" not in dataset.columns:
         return dataset
 
+    dataset = _ensure_utc_timestamp(dataset, "timestamp")
+
     labels_frames: list[pl.DataFrame] = []
     for symbol in dataset.get_column("symbol").drop_nulls().unique().to_list():
         symbol_df = dataset.filter(pl.col("symbol") == symbol).sort("timestamp")
@@ -313,14 +334,14 @@ def _attach_mi_labels(dataset: pl.DataFrame, enabled: bool) -> pl.DataFrame:
         labels = mi_label_regimes(features).reset_index().rename(columns={"ts": "timestamp"})
         labels["symbol"] = symbol
         labels_pl = pl.from_pandas(labels)
-        if "timestamp" in labels_pl.columns and labels_pl.schema.get("timestamp") != pl.Datetime:
-            labels_pl = labels_pl.with_columns(pl.col("timestamp").cast(pl.Datetime))
+        labels_pl = _ensure_utc_timestamp(labels_pl, "timestamp")
         labels_frames.append(labels_pl)
 
     if not labels_frames:
         return dataset
 
     all_labels = pl.concat(labels_frames, how="vertical", rechunk=True)
+    all_labels = _ensure_utc_timestamp(all_labels, "timestamp")
     join_cols = ["symbol", "timestamp"]
     label_cols = [col for col in all_labels.columns if col.startswith("label_")]
     if not label_cols:
