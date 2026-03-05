@@ -1,28 +1,38 @@
-"""Contract for feature-store components used to cache and retrieve engineered features."""
+"""Contract for feature-store components used by market-intelligence services."""
 from __future__ import annotations
 
-from typing import Any, Callable, Mapping, Protocol, Sequence, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 
 @runtime_checkable
 class FeatureStore(Protocol):
-    """Store and retrieve computed feature vectors.
+    """Store and retrieve feature payloads identified by deterministic keys.
 
     Inputs:
-        name: Feature name (e.g. ``"ema_20"``).
-        dataset: Source rows used to compute feature values.
-        params: Deterministic feature parameters.
-        compute_fn: Callable used when values are not already available.
+        feature_set: Feature family identifier (e.g. ``"market_intelligence"``).
+        symbol: Canonical instrument identifier (e.g. ``"BTC-USD"``).
+        timeframe: Candle timeframe identifier (e.g. ``"1h"``).
+        version: Feature contract version (e.g. ``"1.0.0"``).
+        payload: Any serializable or in-memory object.
 
     Output:
-        Ordered sequence of numeric feature values aligned with ``dataset``.
+        Implementations define payload persistence and retrieval semantics.
     """
 
-    def get_or_compute(
+    def get(self, feature_set: str, symbol: str, timeframe: str, version: str) -> Any:
+        """Return stored payload for the key or raise ``KeyError`` when missing."""
+
+    def put(
         self,
-        name: str,
-        dataset: Sequence[Mapping[str, Any]],
-        params: Mapping[str, Any],
-        compute_fn: Callable[[Sequence[Mapping[str, Any]], Mapping[str, Any]], Sequence[float]],
-    ) -> Sequence[float]:
-        """Return cached values or compute and persist them."""
+        feature_set: str,
+        symbol: str,
+        timeframe: str,
+        version: str,
+        payload: Any,
+        *,
+        overwrite: bool = False,
+    ) -> None:
+        """Persist payload for the key."""
+
+    def exists(self, feature_set: str, symbol: str, timeframe: str, version: str) -> bool:
+        """Return whether a key is present in the store."""
