@@ -12,7 +12,11 @@
         "cagr_pct": 0.0,
         "note": "Backtest performance normalized with timeframe-aware annualization.",
         "periods_per_year": 98280.0,
-        "risk_free_rate": 0.0
+        "risk_free_rate": 0.0,
+        "segmentation": {
+          "magnet_failure": {},
+          "regime": {}
+        }
       },
       "finalCapital": 10000.0,
       "initialCapital": 10000.0,

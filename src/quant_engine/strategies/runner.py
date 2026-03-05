@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import inspect as pyinspect
 import logging
 import os
 import re
@@ -132,7 +133,8 @@ def _extract_features_rows_by_ts(df: pd.DataFrame) -> Dict[pd.Timestamp, Dict[st
         "_filter_ok",
         "_filter_score",
     }
-    feature_cols = [col for col in working.columns if col not in excluded]
+    candidate_cols = [col for col in working.columns if col not in excluded]
+    feature_cols = [col for col in candidate_cols if str(col).startswith(("feat_", "mi_"))]
     if not feature_cols:
         return {}
     features = working[feature_cols].where(pd.notna(working[feature_cols]), None)
@@ -145,6 +147,9 @@ def _market_intelligence_enabled(spec: Mapping[str, Any]) -> bool:
         value = mi_cfg.get("enabled")
         if isinstance(value, bool):
             return value
+    mi_env_raw = os.getenv("MARKET_INTELLIGENCE_ENABLED")
+    if mi_env_raw is None:
+        return True
     return get_settings().market_intelligence_enabled
 
 
@@ -268,9 +273,11 @@ def _run_backtest_core(spec: Mapping[str, Any]) -> tuple[Dict[str, Any], Dict[st
         t_signals = time.monotonic()
         context = {"symbol": symbol, "asset_class": asset_class, "screening": screening_cfg}
         context = universe_adapter.adapt_context(context, universe_rules)
-        feature_rows_by_ts = _extract_features_rows_by_ts(df)
-        if feature_rows_by_ts:
-            context["features_by_ts"] = feature_rows_by_ts
+        feature_rows_by_ts: Dict[pd.Timestamp, Dict[str, Any]] = {}
+        if _market_intelligence_enabled(spec):
+            feature_rows_by_ts = _extract_features_rows_by_ts(df)
+            if feature_rows_by_ts:
+                context["features_by_ts"] = feature_rows_by_ts
         on_bar = getattr(strategy, "on_bar", None)
         if callable(on_bar):
             normalized = df.copy()
@@ -283,9 +290,16 @@ def _run_backtest_core(spec: Mapping[str, Any]) -> tuple[Dict[str, Any], Dict[st
                 else:
                     normalized.index = normalized.index.tz_convert("UTC")
             signals = []
+            on_bar_signature = pyinspect.signature(on_bar)
+            supports_features_row = "features_row" in on_bar_signature.parameters
             for ts, row in normalized.iterrows():
                 features_row = feature_rows_by_ts.get(pd.Timestamp(ts)) if feature_rows_by_ts else None
-                signals.extend(on_bar(row, context, features_row=features_row))
+                if supports_features_row:
+                    bar_signals = on_bar(row, context, features_row=features_row)
+                else:
+                    bar_signals = on_bar(row, context)
+                if bar_signals:
+                    signals.extend(bar_signals)
         else:
             signals = strategy.backtest(df, context)
         serialized = [_serialize_signal(sig) for sig in signals]
