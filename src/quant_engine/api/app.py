@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import json
 import os
-from pathlib import Path
 import time
 import threading
 import re
@@ -43,6 +42,7 @@ from ..strategies import runner as strategies_runner
 from ..performance import stress_tests as stress_tests_runner
 from ..filters import list_filter_types
 from . import schemas
+from .services import runs as runs_service
 from .run_request_input import validate_run_request_input
 from .validation_errors import (
     ApiValidationException,
@@ -3694,15 +3694,17 @@ def runs_cancel_endpoint(run_id: str, request: Request) -> schemas.StatusRespons
         }
     )
 
-    job = _get_job(run_id)
-    if not job:
-        return _json_error(404, "not_found", "Run not found")
-    status = _external_job_status(job.get("status", ""))
-    if status in {JOB_STATUS_SUCCEEDED, JOB_STATUS_FAILED_CANONICAL}:
-        return _json_error(409, "already_finished", "Run already finished")
-    request_job_cancel(run_id)
-    job = _get_job(run_id) or job
-    status = _external_job_status(job.get("status", ""))
+    response = runs_service.cancel_run(
+        run_id,
+        get_job=_get_job,
+        external_job_status=_external_job_status,
+        request_job_cancel=request_job_cancel,
+        json_error=_json_error,
+    )
+    if isinstance(response, JSONResponse):
+        return response
+
+    status = response.status
     request.state.request_id = run_id
     _log_event(
         {
@@ -3714,7 +3716,7 @@ def runs_cancel_endpoint(run_id: str, request: Request) -> schemas.StatusRespons
             "client_host": client_host,
         }
     )
-    return schemas.StatusResponse(status=status, id=run_id)
+    return response
 
 
 @fastapi_app.get('/status/{job_id}', response_model=schemas.StatusResponse)
@@ -4035,13 +4037,12 @@ def runs_capabilities_endpoint(spec_type: str = Query(..., description="Canonica
 def run_detail_endpoint(run_id: str) -> Dict[str, Any]:
     """Return a single run and aggregated metrics."""
 
-    job = _get_job(run_id)
-    if job and job.get("job_type") == JOB_TYPE_CANONICAL_RUN:
-        return _canonical_run_payload(job)
-    payload = get_run(run_id)
-    if payload is None:
-        raise HTTPException(status_code=404, detail='Run not found')
-    return payload
+    return runs_service.run_detail(
+        run_id,
+        get_job=_get_job,
+        get_legacy_run=get_run,
+        canonical_run_payload=_canonical_run_payload,
+    )
 
 
 
@@ -4049,66 +4050,23 @@ def run_detail_endpoint(run_id: str) -> Dict[str, Any]:
 def get_run_artifacts(run_id: str) -> Dict[str, Any]:
     """Return artifact listing for a canonical run output directory."""
 
-    job = _get_job(run_id)
-    if not job or job.get("job_type") != JOB_TYPE_CANONICAL_RUN:
-        raise HTTPException(status_code=404, detail='Run not found')
-
-    payload = job.get("payload") if isinstance(job.get("payload"), dict) else {}
-    request = payload.get("request") if isinstance(payload.get("request"), dict) else {}
-    output = request.get("output") if isinstance(request.get("output"), dict) else {}
-    out_dir_raw = output.get("out_dir")
-    out_dir = Path(str(out_dir_raw)).expanduser() if isinstance(out_dir_raw, str) and out_dir_raw.strip() else None
-
-    files: List[Dict[str, Any]] = []
-    if out_dir and out_dir.exists() and out_dir.is_dir():
-        for item in sorted(out_dir.iterdir()):
-            if item.is_file():
-                files.append({"name": item.name, "path": str(item), "size_bytes": item.stat().st_size})
-
-    file_names = {entry["name"] for entry in files}
-    contract_artifacts = {
-        "best_plausible_passive_ex_ante": {
-            "json": "best_plausible_passive_ex_ante.json" if "best_plausible_passive_ex_ante.json" in file_names else None,
-            "parquet": "best_plausible_passive_ex_ante.parquet" if "best_plausible_passive_ex_ante.parquet" in file_names else None,
-        }
-    }
-    return {
-        "run_id": run_id,
-        "schema_version": SCHEMA_VERSION,
-        "out_dir": str(out_dir) if out_dir is not None else None,
-        "files": files,
-        "contract_artifacts": contract_artifacts,
-        "audit_trail": {
-            "run_manifest": "run_manifest.json" if "run_manifest.json" in file_names else None,
-            "checksums": "checksums.txt" if "checksums.txt" in file_names else None,
-        },
-    }
+    return runs_service.run_artifacts(
+        run_id,
+        get_job=_get_job,
+        schema_version=SCHEMA_VERSION,
+    )
 
 @fastapi_app.get('/runs/{run_id}/result', response_model=Dict[str, Any])
 def run_result_endpoint(run_id: str) -> Dict[str, Any]:
     """Return the result for a canonical run."""
 
-    job = _get_job(run_id)
-    if not job or job.get("job_type") != JOB_TYPE_CANONICAL_RUN:
-        return _json_error(404, "not_found", "Run not found")
-    status = _external_job_status(job.get("status", ""))
-    payload: Dict[str, Any] = {
-        "run_id": job.get("job_id"),
-        "request_id": job.get("job_id"),
-        "requestId": job.get("job_id"),
-        "status": status,
-    }
-    if not _is_terminal_status(status):
-        payload["message"] = "Result not available yet"
-        return payload
-    result = job.get("result")
-    if result is not None:
-        payload["result"] = result
-    if job.get("error_message"):
-        payload["error"] = {"code": "execution_error", "message": job.get("error_message")}
-    if isinstance(result, dict) and "error" in result:
-        payload["error"] = result.get("error")
-    return payload
+    return runs_service.run_result(
+        run_id,
+        get_job=_get_job,
+        external_job_status=_external_job_status,
+        is_terminal_status=_is_terminal_status,
+        json_error=_json_error,
+    )
 
 
 @fastapi_app.get('/runs/{run_id}/artifacts', response_model=Dict[str, Any])
