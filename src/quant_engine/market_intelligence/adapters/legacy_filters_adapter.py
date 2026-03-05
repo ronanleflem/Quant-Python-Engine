@@ -2,11 +2,27 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
+import warnings
 from typing import Any
 
 import pandas as pd
 
 _FILTER_COLUMNS = ("hard_mask", "score", "score_pct", "final_mask")
+_DEPRECATION_TARGET_VERSION = "v0.15.0"
+_DEPRECATION_TARGET_DATE = "2026-04-30"
+
+
+def _warn_deprecated() -> None:
+    warnings.warn(
+        (
+            "quant_engine.market_intelligence.adapters.LegacyFiltersAdapter is deprecated "
+            f"and will be removed in {_DEPRECATION_TARGET_VERSION} "
+            f"(target date: {_DEPRECATION_TARGET_DATE}); use "
+            "quant_engine.filters.trade_filter_service.score_filter_rules instead."
+        ),
+        DeprecationWarning,
+        stacklevel=2,
+    )
 
 
 def _default_runner(*args: Any, **kwargs: Any) -> Mapping[str, Any]:
@@ -34,6 +50,7 @@ class LegacyFiltersAdapter:
         self,
         runner: Callable[..., Mapping[str, Any]] = _default_runner,
     ) -> None:
+        _warn_deprecated()
         self._runner = runner
 
     def run(

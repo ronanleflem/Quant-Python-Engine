@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+import warnings
 from typing import Any
 
 import pandas as pd
@@ -30,12 +31,29 @@ _DEFAULT_COLUMNS = [
     "significant",
 ]
 
+
 _RENAME_MAP = {
     "p": "p_hat",
     "probability": "p_hat",
     "count": "n",
     "wins": "successes",
 }
+
+_DEPRECATION_TARGET_VERSION = "v0.15.0"
+_DEPRECATION_TARGET_DATE = "2026-04-30"
+
+
+def _warn_deprecated() -> None:
+    warnings.warn(
+        (
+            "quant_engine.market_intelligence.adapters.LegacyStatsAdapter is deprecated "
+            f"and will be removed in {_DEPRECATION_TARGET_VERSION} "
+            f"(target date: {_DEPRECATION_TARGET_DATE}); use "
+            "quant_engine.stats.runner.run_stats instead."
+        ),
+        DeprecationWarning,
+        stacklevel=2,
+    )
 
 
 def _default_runner(spec: Any) -> pd.DataFrame:
@@ -48,6 +66,7 @@ class LegacyStatsAdapter:
     """Execute legacy stats runner and normalize output for market-intelligence consumers."""
 
     def __init__(self, runner: Callable[[Any], pd.DataFrame] = _default_runner) -> None:
+        _warn_deprecated()
         self._runner = runner
 
     def run(self, spec: Any) -> pd.DataFrame:
