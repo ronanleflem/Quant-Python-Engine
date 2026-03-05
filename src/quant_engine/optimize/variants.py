@@ -454,6 +454,16 @@ def _trial_metadata(spec: Mapping[str, Any], cfg: Mapping[str, Any]) -> Dict[str
     strategy = spec.get("strategy") or {}
     data_hash = _data_hash(spec)
     config_hash = _json_hash(spec)
+    mi_contract = spec.get("market_intelligence")
+    if mi_contract is None:
+        mi_contract = spec.get("mi")
+    if isinstance(mi_contract, Mapping):
+        mi_contract_payload: Dict[str, Any] = dict(mi_contract)
+    else:
+        mi_contract_payload = {}
+    mi_enabled_raw = mi_contract_payload.get("enabled")
+    mi_enabled = bool(mi_enabled_raw) if isinstance(mi_enabled_raw, bool) else None
+
     meta = {
         "seed": cfg.get("seed"),
         "dataset_id": _dataset_id(spec),
@@ -464,6 +474,10 @@ def _trial_metadata(spec: Mapping[str, Any], cfg: Mapping[str, Any]) -> Dict[str
         "data_hash": data_hash,
         "config_hash": config_hash,
         "lib_versions": _collect_lib_versions(),
+        "mi": {
+            "enabled": mi_enabled,
+            "contract": mi_contract_payload,
+        },
     }
     root = Path.cwd()
     code_version = _git_head_sha(root)
