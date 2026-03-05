@@ -35,7 +35,6 @@ from ..io.dca_artifacts import SCHEMA_VERSION
 from ..persistence import db, RunsRepository, MetricsRepository, TrialsRepository, extract_dca_run_metrics
 from ..stats import runner as stats_runner
 from ..stats import conditions as stats_conditions
-from ..stats.estimators import freq_with_wilson
 from ..seasonality import runner as seasonality_runner
 from ..seasonality.optimize import run_optimization as seasonality_run_optimization
 from ..strategies import runner as strategies_runner
@@ -43,6 +42,7 @@ from ..performance import stress_tests as stress_tests_runner
 from ..filters import list_filter_types
 from . import schemas
 from .services import runs as runs_service
+from .services import stats as stats_service
 from .run_request_input import validate_run_request_input
 from .validation_errors import (
     ApiValidationException,
@@ -3330,59 +3330,20 @@ def list_stats(
     page_size: int = 50,
 ) -> List[Dict[str, Any]]:
     """Return statistics rows filtered and ordered according to parameters."""
-
-    with db.session() as conn:
-        query = "SELECT * FROM market_stats"
-        params: List[Any] = []
-        clauses: List[str] = []
-        if symbol:
-            clauses.append("symbol = ?")
-            params.append(symbol)
-        if timeframe:
-            clauses.append("timeframe = ?")
-            params.append(timeframe)
-        if event:
-            clauses.append("event = ?")
-            params.append(event)
-        if condition_name:
-            clauses.append("condition_name = ?")
-            params.append(condition_name)
-        if target:
-            clauses.append("target = ?")
-            params.append(target)
-        if split:
-            clauses.append("split = ?")
-            params.append(split)
-        if min_n is not None:
-            clauses.append("n >= ?")
-            params.append(min_n)
-        if clauses:
-            query += " WHERE " + " AND ".join(clauses)
-
-        rows = conn.execute(query, params).fetchall()
-
-    out = [dict(r) for r in rows]
-
-    for r in out:
-        if "lift_freq" not in r and "lift" in r:
-            r["lift_freq"] = r.get("lift")
-        if "lift_bayes" not in r:
-            r["lift_bayes"] = r.get("lift_freq")
-
-    if significant_only:
-        out = [
-            r
-            for r in out
-            if r.get("significant")
-            or (r.get("q_value") is not None and r["q_value"] <= alpha)
-        ]
-
-    key = "lift_bayes" if method == "bayes" else "lift_freq"
-    out.sort(key=lambda r: r.get(key, 0), reverse=True)
-
-    start = (page - 1) * page_size
-    end = start + page_size
-    return out[start:end]
+    return stats_service.list_stats(
+        symbol=symbol,
+        timeframe=timeframe,
+        event=event,
+        condition_name=condition_name,
+        target=target,
+        split=split,
+        min_n=min_n,
+        significant_only=significant_only,
+        method=method,
+        alpha=alpha,
+        page=page,
+        page_size=page_size,
+    )
 
 
 def stats_summary(
@@ -3390,44 +3351,7 @@ def stats_summary(
     timeframe: str | None = None,
     event: str | None = None,
 ) -> List[Dict[str, Any]]:
-    with db.session() as conn:
-        query = (
-            "SELECT condition_name, condition_value, target, SUM(n) as n, "
-            "SUM(successes) as successes FROM market_stats"
-        )
-        params: List[Any] = []
-        clauses: List[str] = []
-        if symbol:
-            clauses.append("symbol = ?")
-            params.append(symbol)
-        if timeframe:
-            clauses.append("timeframe = ?")
-            params.append(timeframe)
-        if event:
-            clauses.append("event = ?")
-            params.append(event)
-        if clauses:
-            query += " WHERE " + " AND ".join(clauses)
-        query += " GROUP BY condition_name, condition_value, target"
-        rows = conn.execute(query, params).fetchall()
-        out: List[Dict[str, Any]] = []
-        for r in rows:
-            n = int(r["n"])
-            successes = int(r["successes"])
-            p_hat, ci_low, ci_high = freq_with_wilson(successes, n)
-            out.append(
-                {
-                    "condition_name": r["condition_name"],
-                    "condition_value": r["condition_value"],
-                    "target": r["target"],
-                    "n": n,
-                    "successes": successes,
-                    "p_hat": p_hat,
-                    "ci_low": ci_low,
-                    "ci_high": ci_high,
-                }
-            )
-        return out
+    return stats_service.stats_summary(symbol=symbol, timeframe=timeframe, event=event)
 
 
 def stats_heatmap(
@@ -3438,27 +3362,13 @@ def stats_heatmap(
     condition_name: str,
 ) -> List[Dict[str, Any]]:
     """Return heatmap-style bins for a condition."""
-
-    base_query = (
-        "SELECT condition_value as bin, p_hat, ci_low, ci_high, n, lift "
-        "FROM market_stats WHERE symbol = ? AND timeframe = ? AND event = ? "
-        "AND target = ? AND condition_name = ?"
+    return stats_service.stats_heatmap(
+        symbol=symbol,
+        timeframe=timeframe,
+        event=event,
+        target=target,
+        condition_name=condition_name,
     )
-    params = [symbol, timeframe, event, target, condition_name]
-    with db.session() as conn:
-        rows = conn.execute(base_query + " AND split = 'test'", params).fetchall()
-        if not rows:
-            rows = conn.execute(base_query, params).fetchall()
-    out = [dict(r) for r in rows]
-
-    def sort_key(r: Dict[str, Any]):
-        try:
-            return float(r["bin"])
-        except (TypeError, ValueError):
-            return r["bin"]
-
-    out.sort(key=sort_key)
-    return out
 
 
 def stats_top(
@@ -3469,32 +3379,13 @@ def stats_top(
     significant_only: bool = False,
 ) -> List[Dict[str, Any]]:
     """Return top-k patterns ordered by lift for the chosen method."""
-
-    base_query = "SELECT * FROM market_stats WHERE symbol = ? AND timeframe = ?"
-    params = [symbol, timeframe]
-    with db.session() as conn:
-        rows = conn.execute(base_query + " AND split = 'test'", params).fetchall()
-        if not rows:
-            rows = conn.execute(base_query, params).fetchall()
-
-    data = [dict(r) for r in rows]
-
-    for r in data:
-        if "lift_freq" not in r and "lift" in r:
-            r["lift_freq"] = r.get("lift")
-        if "lift_bayes" not in r:
-            r["lift_bayes"] = r.get("lift_freq")
-
-    if significant_only:
-        data = [
-            r
-            for r in data
-            if r.get("significant") or (r.get("q_value") is not None and r["q_value"] <= 0.05)
-        ]
-
-    key = "lift_bayes" if method == "bayes" else "lift_freq"
-    rows_sorted = sorted(data, key=lambda r: abs(r.get(key, 0)), reverse=True)[:k]
-    return rows_sorted
+    return stats_service.stats_top(
+        symbol=symbol,
+        timeframe=timeframe,
+        k=k,
+        method=method,
+        significant_only=significant_only,
+    )
 
 
 

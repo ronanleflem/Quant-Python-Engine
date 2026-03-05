@@ -203,3 +203,21 @@ Procédure minimale de validation doc :
 2. vérifier la CLI disponible localement via `qe --help`,
 3. consigner les écarts éventuels (ex. sous-commande non exposée dans ce build) avant exécution en production.
 
+
+## 8) Commandes de non-régression et preuves
+
+Exécuter les checks suivants avant validation d'un changement MI/legacy:
+
+```bash
+poetry run pytest -q tests/api
+poetry run pytest -q tests/architecture/test_import_rules.py
+poetry run pytest -q tests/integration/test_kpi_non_regression_mi.py
+poetry run pytest -q
+```
+
+À archiver dans la PR/ticket:
+
+- commande exécutée,
+- statut (pass/fail),
+- extrait de sortie (ou lien artifact CI),
+- horodatage et commit SHA.
