@@ -5,7 +5,7 @@ annualizing risk metrics and applying a configurable risk-free rate.
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 import math
 import os
 import re
@@ -78,6 +78,12 @@ def _maybe_dt(value: Any) -> Optional[datetime]:
         return pd.to_datetime(value, utc=True).to_pydatetime()
     except Exception:
         return None
+
+
+def _coerce_utc(dt: datetime) -> datetime:
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
 
 
 def _equity_value_curve(equity: Iterable[float], initial_capital: float) -> List[float]:
@@ -221,6 +227,8 @@ def build_backtest_performance(
             meta["regime"] = tr.get("regime")
         if "magnet_failure" not in meta:
             meta["magnet_failure"] = tr.get("magnet_failure")
+        effective_entry_time = entry_time or start_dt or datetime.now(timezone.utc)
+        effective_exit_time = exit_time or end_dt or datetime.now(timezone.utc)
         completed.append(
             CompletedTrade(
                 strategy_id=strategy_id,
@@ -229,8 +237,8 @@ def build_backtest_performance(
                 asset_class=asset_class,
                 side=str(tr.get("side") or "LONG").upper(),
                 cycle_id=None,
-                entry_time_utc=entry_time or start_dt or datetime.utcnow(),
-                exit_time_utc=exit_time or end_dt or datetime.utcnow(),
+                entry_time_utc=_coerce_utc(effective_entry_time),
+                exit_time_utc=_coerce_utc(effective_exit_time),
                 entry_price=entry_price,
                 exit_price=exit_price,
                 quantity=quantity,
@@ -335,8 +343,8 @@ def build_backtest_performance(
         timeframe=timeframe,
         symbol=symbol,
         compared_symbol=None,
-        start_ts_utc=start_dt or datetime.utcnow(),
-        end_ts_utc=end_dt or datetime.utcnow(),
+        start_ts_utc=start_dt or datetime.now(timezone.utc),
+        end_ts_utc=end_dt or datetime.now(timezone.utc),
         win_count=win_count,
         loss_count=loss_count,
         total_return=total_return,

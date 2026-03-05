@@ -9,7 +9,7 @@ analysis while keeping a consistent payload schema.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from math import ceil
 import random
 from statistics import mean, pstdev
@@ -1194,7 +1194,7 @@ def _monte_carlo_bootstrap(
         return _apply_monte_carlo_output_mode(result, parameters)
 
     base_timestamps = _build_timestamps(trades)
-    base_start = base_timestamps[0] if base_timestamps else datetime.utcnow()
+    base_start = base_timestamps[0] if base_timestamps else datetime.now(timezone.utc)
     trade_durations = _build_trade_durations(trades)
     deltas: List[timedelta] = []
     if base_timestamps:
@@ -1444,7 +1444,7 @@ def _monte_carlo_bootstrap_numpy(
                 sortino[i] = mean_ret[i] / downside_std * (sample_size ** 0.5)
 
     base_timestamps = _build_timestamps(ordered_trades)
-    base_start = base_timestamps[0] if base_timestamps else datetime.utcnow()
+    base_start = base_timestamps[0] if base_timestamps else datetime.now(timezone.utc)
     deltas: List[timedelta] = []
     if base_timestamps:
         for prev, nxt in zip(base_timestamps[:-1], base_timestamps[1:]):

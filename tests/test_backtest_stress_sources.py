@@ -77,3 +77,33 @@ def test_backtest_monte_carlo_source_trades_changes_output() -> None:
 
     assert equity_p50 == pytest.approx(0.0)
     assert trades_p50 != pytest.approx(0.0)
+
+
+def test_backtest_payload_coerces_naive_trade_timestamps_to_utc() -> None:
+    payload = build_backtest_payload(
+        strategy_id="bt-naive",
+        run_id="run-naive",
+        asset_class="FX",
+        symbol="EURUSD",
+        timeframe="1m",
+        trades=[
+            {
+                "ts_entry": "2025-01-01T00:00:00",
+                "ts_exit": None,
+                "price_entry": 1.0,
+                "price_exit": 1.001,
+                "quantity": 1.0,
+                "pnl": 1.0,
+                "side": "LONG",
+            }
+        ],
+        equity=[0.0],
+        start_ts="2025-01-01T00:00:00",
+        end_ts=None,
+        config={"stress_tests": {"enabled": True, "monte_carlo": {"source": "trades", "n_sims": 5, "seed": 1}}},
+    )
+
+    trade = payload["trades"][0]
+    assert trade["entryTimeUtc"].endswith("+00:00")
+    assert trade["exitTimeUtc"].endswith("+00:00")
+

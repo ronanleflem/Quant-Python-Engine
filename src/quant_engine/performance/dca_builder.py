@@ -10,7 +10,7 @@ rester cohérentes entre backtests et exécution live.
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Protocol, Tuple
 
 import pandas as pd
@@ -20,6 +20,10 @@ from ..backtest import metrics as backtest_metrics
 from .stress_tests import run_monte_carlo_on_trades
 
 LOGGER = logging.getLogger(__name__)
+
+
+def _utc_now() -> datetime:
+    return datetime.now(timezone.utc)
 
 
 class SignalLike(Protocol):
@@ -39,6 +43,21 @@ def _maybe_dt(value: Any) -> Optional[datetime]:
         return pd.to_datetime(value, utc=True).to_pydatetime()
     except Exception:
         return None
+
+
+def _sort_ts_key(value: Any) -> float:
+    dt = _maybe_dt(value)
+    if dt is None:
+        return _utc_now().timestamp()
+    if dt.tzinfo is None:
+        return pd.Timestamp(dt).tz_localize("UTC").timestamp()
+    return dt.astimezone(timezone.utc).timestamp()
+
+
+def _coerce_utc(dt: datetime) -> datetime:
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
 
 
 def _extract_buy_cashflows(trade: CompletedTrade) -> List[Tuple[datetime, float]]:
@@ -246,11 +265,14 @@ def build_dca_performance_from_signals(
             end_ts = ec_end
 
     if start_ts is None or end_ts is None:
-        now = datetime.utcnow()
+        now = _utc_now()
         start_ts = start_ts or now
         end_ts = end_ts or now
+    start_ts = _coerce_utc(start_ts)
+    end_ts = _coerce_utc(end_ts)
 
     def _price_at(symbol: str, ts: datetime) -> Optional[float]:
+        ts = _coerce_utc(ts)
         df = ohlc_by_symbol.get(symbol)
         if df is None or df.empty:
             return None
@@ -275,7 +297,7 @@ def build_dca_performance_from_signals(
     trades: List[CompletedTrade] = []
     trades_by_symbol: Dict[str, int] = {}
     for symbol, sigs in signals_by_symbol.items():
-        ordered = sorted(sigs, key=lambda s: _maybe_dt(getattr(s, "ts_open_utc", None)) or datetime.utcnow())
+        ordered = sorted(sigs, key=lambda s: _sort_ts_key(getattr(s, "ts_open_utc", None)))
         by_cycle: Dict[int, List[SignalLike]] = {}
         missing_cycle = 0
         for s in ordered:
@@ -306,8 +328,8 @@ def build_dca_performance_from_signals(
             entry_time = _maybe_dt(getattr(buys[0], "ts_open_utc", None)) if buys else _maybe_dt(
                 getattr(sells_tp[0], "ts_open_utc", None)
             )
-            entry_time = entry_time or start_ts
-            exit_time = _maybe_dt(getattr(sells_tp[-1], "ts_open_utc", None)) or end_ts
+            entry_time = _coerce_utc(entry_time or start_ts)
+            exit_time = _coerce_utc(_maybe_dt(getattr(sells_tp[-1], "ts_open_utc", None)) or end_ts)
             # Quantité et prix moyen basés sur les BUY du cycle
             total_qty = 0.0
             total_cost = 0.0
