@@ -719,6 +719,32 @@ def _canonical_optimization_trials(result: Mapping[str, Any]) -> List[Dict[str, 
     return normalized
 
 
+
+
+def _normalize_mi_metadata(raw_metadata: Any) -> Dict[str, Any]:
+    metadata = raw_metadata if isinstance(raw_metadata, Mapping) else {}
+    raw_mi = metadata.get("mi") if isinstance(metadata, Mapping) else None
+    if isinstance(raw_mi, Mapping):
+        mi_meta = dict(raw_mi)
+    else:
+        mi_meta = {}
+    contract = mi_meta.get("contract")
+    if not isinstance(contract, Mapping):
+        contract = {}
+    else:
+        contract = dict(contract)
+    enabled = mi_meta.get("enabled")
+    if not isinstance(enabled, bool):
+        enabled = contract.get("enabled") if isinstance(contract.get("enabled"), bool) else None
+    return {"mi": {"enabled": enabled, "contract": contract}}
+
+
+def _copy_mi_contract(request: Dict[str, Any], target: Dict[str, Any]) -> None:
+    for field in ("market_intelligence", "mi"):
+        raw = request.get(field)
+        if isinstance(raw, dict):
+            target[field] = dict(raw)
+
 def _canonical_optimization_from_request(request: Dict[str, Any]) -> Dict[str, Any]:
     spec_type = str(request.get("spec_type") or "").strip().lower()
     if spec_type not in {"optimize_backtest", "optimize_dca"}:
@@ -787,6 +813,7 @@ def _canonical_optimization_from_request(request: Dict[str, Any]) -> Dict[str, A
     }
 
     raw_result = runner_fn(runner_spec)
+    metadata = _normalize_mi_metadata(raw_result.get("metadata") if isinstance(raw_result, dict) else None)
     trials = _canonical_optimization_trials(raw_result if isinstance(raw_result, dict) else {})
     succeeded = sum(1 for trial in trials if trial.get("status") == "SUCCEEDED")
     failed = len(trials) - succeeded
@@ -821,6 +848,7 @@ def _canonical_optimization_from_request(request: Dict[str, Any]) -> Dict[str, A
                 "trials_path": raw_result.get("trials_path") if isinstance(raw_result, dict) else None,
                 "summary_path": raw_result.get("summary") if isinstance(raw_result, dict) else None,
             },
+            "metadata": metadata,
         },
     }
 
@@ -907,6 +935,7 @@ def _canonical_backtest_to_spec(request: Dict[str, Any]) -> Dict[str, Any]:
         mapped["output"] = request.get("output")
     if isinstance(request.get("persistence"), dict):
         mapped["persistence"] = request.get("persistence")
+    _copy_mi_contract(request, mapped)
 
     return mapped
 
@@ -1216,6 +1245,7 @@ def _canonical_dca_to_strategy_spec(request: Dict[str, Any]) -> Dict[str, Any]:
         performance_spec = _canonical_performance_to_internal(performance_block)
         if performance_spec:
             spec["performance"] = performance_spec
+    _copy_mi_contract(request, spec)
 
     return spec
 
