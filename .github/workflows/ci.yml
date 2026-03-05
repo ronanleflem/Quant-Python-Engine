@@ -18,5 +18,24 @@ jobs:
         run: poetry run black --check .
       - name: Type-check (mypy)
         run: poetry run mypy src
-      - name: Tests
-        run: poetry run pytest -q --disable-warnings
+      - name: Run full regression gate (pytest)
+        shell: bash
+        run: |
+          mkdir -p test-results
+          set +e
+          poetry run pytest -q --junitxml=test-results/junit.xml 2>&1 | tee test-results/pytest.log
+          test_exit_code=${PIPESTATUS[0]}
+          echo "pytest_exit_code=${test_exit_code}" >> "$GITHUB_OUTPUT"
+          if [ "${test_exit_code}" -ne 0 ]; then
+            echo "Regression gate failed: poetry run pytest -q"
+            exit 1
+          fi
+        id: regression_gate
+
+      - name: Upload regression artifacts (junit/log)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: regression-gate-results
+          path: test-results/
+          if-no-files-found: error
