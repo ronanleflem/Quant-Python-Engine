@@ -1,0 +1,39 @@
+{
+  "artifact": "best_plausible_passive_ex_ante",
+  "metadata": {
+    "schema_version": "dca-grid-process-v1",
+    "contract_version": "1.0.0",
+    "universe_rules_version": "asset-universe-rules-v1",
+    "seed": 42,
+    "dataset_hash": "8519f090a7237ae63aae85c6d842fc8970be2a1d3510c01c5e9c1a75b3948ece",
+    "config_version": "dca-grid-process-v1",
+    "generated_at": "2026-03-05T16:00:47.804435+00:00",
+    "reproducibility": {
+      "seed": 42,
+      "dataset_hash": "8519f090a7237ae63aae85c6d842fc8970be2a1d3510c01c5e9c1a75b3948ece",
+      "config_version": "dca-grid-process-v1"
+    }
+  },
+  "rows": [
+    {
+      "selection_method": "max_lift_freq_under_plausibility",
+      "symbol": "ETHUSDT",
+      "target": "up_next_bar",
+      "n": 144,
+      "successes": 74,
+      "lift_freq": 0.15756704980842906,
+      "lift_bayes": 0.1569228744406423,
+      "percentile": 0.0,
+      "perf_dominance_prob": 0.0,
+      "drawdown_dominance_prob": 0.465,
+      "is_dominant": false,
+      "constraints": {
+        "min_percentile": 0.5,
+        "min_perf_dominance_prob": 0.6,
+        "min_drawdown_dominance_prob": 0.6,
+        "requires_dominance_flag": true
+      },
+      "passes_constraints": false
+    }
+  ]
+}

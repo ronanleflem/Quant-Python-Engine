@@ -2344,6 +2344,40 @@ def _canonical_runs_capabilities(spec_type: str) -> Dict[str, Any]:
                     "explicit_source_priority": ["data.path|data.dataset_path", "data.mysql"],
                 },
             },
+            "support_matrix": {
+                "supported": [
+                    "signal.type=ema_cross",
+                    "filters.filters[]",
+                    "filters.rules[]",
+                    "filters.rules_config",
+                    "strategy.params.tp_sl(dict with atr/r_mult/dynamic_sl/jitter)",
+                ],
+                "not_supported_runtime": [
+                    "signal.type!=ema_cross",
+                    "strategy.name",
+                    "strategy.params.tp_sl(non-dict/preset string)",
+                ],
+                "not_supported_contract": [
+                    "legacy ta4j fields outside canonical request model",
+                ],
+            },
+            "signaling": {
+                "unsupported_contract": {
+                    "http_status": 422,
+                    "payload_shape": {"errors": [{"field": "<path>", "code": "<validation_code>", "message": "<text>"}]},
+                },
+                "unsupported_runtime": {
+                    "status": "FAILED",
+                    "error": {
+                        "code": "not_implemented_feature",
+                        "details_reason": "accepted_but_not_wired",
+                    },
+                },
+                "execution_error": {
+                    "status": "FAILED",
+                    "error": {"code": "execution_error"},
+                },
+            },
         }
 
     if normalized == "stress_tests":
@@ -2502,6 +2536,39 @@ def _canonical_runs_capabilities(spec_type: str) -> Dict[str, Any]:
                 "filter_application": "filters and filter_rules are evaluated independently per symbol on each symbol OHLC",
                 "missing_data_behavior": "run fails fast if any universe symbol cannot load OHLC",
             }
+        },
+        "support_matrix": {
+            "supported": [
+                "strategy.type in {dca_equity,dca_etf,dca_benchmark,crypto_grid}",
+                "strategy.grid=grid_balanced or strategy.params.grid[]",
+                "strategy.params.tp_sl(dict internal)",
+                "strategy.params.tp_sl(tp_X_sl_Y)",
+            ],
+            "not_supported_runtime": [
+                "strategy.grid in {grid_conservative,grid_aggressive}",
+                "strategy.params.tp_sl(unrecognized shape)",
+                "strategy.params.execution_mode outside {bar_close,intracandle}",
+            ],
+            "not_supported_contract": [
+                "legacy ta4j fields outside canonical request model",
+            ],
+        },
+        "signaling": {
+            "unsupported_contract": {
+                "http_status": 422,
+                "payload_shape": {"errors": [{"field": "<path>", "code": "<validation_code>", "message": "<text>"}]},
+            },
+            "unsupported_runtime": {
+                "status": "FAILED",
+                "error": {
+                    "code": "not_implemented_feature",
+                    "details_reason": "accepted_but_not_wired",
+                },
+            },
+            "execution_error": {
+                "status": "FAILED",
+                "error": {"code": "execution_error"},
+            },
         },
         "legacy_dca": {
             "entrypoint": "qe strategy backtest --spec <strategy_spec.json>",

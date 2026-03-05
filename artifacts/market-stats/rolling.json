@@ -1,0 +1,139 @@
+{
+  "artifact": "rolling",
+  "metadata": {
+    "schema_version": "dca-grid-process-v1",
+    "contract_version": "1.0.0",
+    "universe_rules_version": "asset-universe-rules-v1",
+    "seed": 42,
+    "dataset_hash": "8519f090a7237ae63aae85c6d842fc8970be2a1d3510c01c5e9c1a75b3948ece",
+    "config_version": "dca-grid-process-v1",
+    "generated_at": "2026-03-05T16:00:47.804435+00:00",
+    "reproducibility": {
+      "seed": 42,
+      "dataset_hash": "8519f090a7237ae63aae85c6d842fc8970be2a1d3510c01c5e9c1a75b3948ece",
+      "config_version": "dca-grid-process-v1"
+    }
+  },
+  "rows": [
+    {
+      "step": 0,
+      "window": 5,
+      "rolling_lift_freq": 0.0
+    },
+    {
+      "step": 1,
+      "window": 5,
+      "rolling_lift_freq": 0.0
+    },
+    {
+      "step": 2,
+      "window": 5,
+      "rolling_lift_freq": 0.0
+    },
+    {
+      "step": 3,
+      "window": 5,
+      "rolling_lift_freq": 0.0
+    },
+    {
+      "step": 4,
+      "window": 5,
+      "rolling_lift_freq": 0.0
+    },
+    {
+      "step": 5,
+      "window": 5,
+      "rolling_lift_freq": 0.0
+    },
+    {
+      "step": 6,
+      "window": 5,
+      "rolling_lift_freq": -0.004873417721518969
+    },
+    {
+      "step": 7,
+      "window": 5,
+      "rolling_lift_freq": 0.00012495942875692111
+    },
+    {
+      "step": 8,
+      "window": 5,
+      "rolling_lift_freq": 0.00012495942875692111
+    },
+    {
+      "step": 9,
+      "window": 5,
+      "rolling_lift_freq": 0.00012495942875692111
+    },
+    {
+      "step": 10,
+      "window": 5,
+      "rolling_lift_freq": 0.00012495942875692111
+    },
+    {
+      "step": 11,
+      "window": 5,
+      "rolling_lift_freq": 0.00499837715027589
+    },
+    {
+      "step": 12,
+      "window": 5,
+      "rolling_lift_freq": 0.0
+    },
+    {
+      "step": 13,
+      "window": 5,
+      "rolling_lift_freq": 0.0
+    },
+    {
+      "step": 14,
+      "window": 5,
+      "rolling_lift_freq": -0.03361111111111111
+    },
+    {
+      "step": 15,
+      "window": 5,
+      "rolling_lift_freq": -0.0033137715179968772
+    },
+    {
+      "step": 16,
+      "window": 5,
+      "rolling_lift_freq": -0.0033137715179968772
+    },
+    {
+      "step": 17,
+      "window": 5,
+      "rolling_lift_freq": -0.0033137715179968772
+    },
+    {
+      "step": 18,
+      "window": 5,
+      "rolling_lift_freq": -0.02049024210623218
+    },
+    {
+      "step": 19,
+      "window": 5,
+      "rolling_lift_freq": 0.029277731749976953
+    },
+    {
+      "step": 20,
+      "window": 5,
+      "rolling_lift_freq": -0.0010196078431372823
+    },
+    {
+      "step": 21,
+      "window": 5,
+      "rolling_lift_freq": -0.0010196078431372823
+    },
+    {
+      "step": 22,
+      "window": 5,
+      "rolling_lift_freq": -0.03980534318059676
+    },
+    {
+      "step": 23,
+      "window": 5,
+      "rolling_lift_freq": 0.008884537369324357
+    }
+  ]
+}

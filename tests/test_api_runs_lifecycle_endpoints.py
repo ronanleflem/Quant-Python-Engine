@@ -392,6 +392,13 @@ def test_runs_capabilities_returns_backtest_runtime_matrix(tmp_path, monkeypatch
     assert body["runtime_rules"]["execution_status"] == "partially_wired"
     assert body["runtime_rules"]["data_source_resolution"]["mode"] == "auto_when_no_explicit_source"
     assert body["runtime_rules"]["data_source_resolution"]["order"] == ["delta", "mysql", "java"]
+    assert "signal.type=ema_cross" in body["support_matrix"]["supported"]
+    assert "signal.type!=ema_cross" in body["support_matrix"]["not_supported_runtime"]
+    assert "legacy ta4j fields outside canonical request model" in body["support_matrix"]["not_supported_contract"]
+    assert body["signaling"]["unsupported_contract"]["http_status"] == 422
+    assert body["signaling"]["unsupported_runtime"]["error"]["code"] == "not_implemented_feature"
+    assert body["signaling"]["unsupported_runtime"]["error"]["details_reason"] == "accepted_but_not_wired"
+    assert body["signaling"]["execution_error"]["error"]["code"] == "execution_error"
 
 
 def test_runs_capabilities_returns_stress_tests_runtime_matrix(tmp_path, monkeypatch) -> None:
@@ -406,6 +413,23 @@ def test_runs_capabilities_returns_stress_tests_runtime_matrix(tmp_path, monkeyp
     assert "performance.stress_tests" in body["fields"]["supported"]
     assert body["runtime_rules"]["execution_status"] == "wired"
     assert "trades_completed table" in body["runtime_rules"]["trade_source_priority"]
+
+
+def test_runs_capabilities_returns_dca_support_matrix_and_signaling(tmp_path, monkeypatch) -> None:
+    client = _setup_db(tmp_path, monkeypatch)
+
+    resp = client.get("/runs/capabilities", params={"spec_type": "dca"})
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["spec_type"] == "dca"
+    assert "strategy.grid=grid_balanced or strategy.params.grid[]" in body["support_matrix"]["supported"]
+    assert "strategy.grid in {grid_conservative,grid_aggressive}" in body["support_matrix"]["not_supported_runtime"]
+    assert "legacy ta4j fields outside canonical request model" in body["support_matrix"]["not_supported_contract"]
+    assert body["signaling"]["unsupported_contract"]["http_status"] == 422
+    assert body["signaling"]["unsupported_runtime"]["status"] == api_app.JOB_STATUS_FAILED_CANONICAL
+    assert body["signaling"]["unsupported_runtime"]["error"]["code"] == "not_implemented_feature"
+    assert body["signaling"]["execution_error"]["error"]["code"] == "execution_error"
 
 
 @pytest.mark.parametrize(

@@ -1,0 +1,115 @@
+{
+  "artifact": "capital_curves",
+  "metadata": {
+    "schema_version": "dca-grid-process-v1",
+    "contract_version": "1.0.0",
+    "universe_rules_version": "asset-universe-rules-v1",
+    "seed": 42,
+    "dataset_hash": "8519f090a7237ae63aae85c6d842fc8970be2a1d3510c01c5e9c1a75b3948ece",
+    "config_version": "dca-grid-process-v1",
+    "generated_at": "2026-03-05T16:00:47.804435+00:00",
+    "reproducibility": {
+      "seed": 42,
+      "dataset_hash": "8519f090a7237ae63aae85c6d842fc8970be2a1d3510c01c5e9c1a75b3948ece",
+      "config_version": "dca-grid-process-v1"
+    }
+  },
+  "rows": [
+    {
+      "step": 0,
+      "equity_index": 0.0
+    },
+    {
+      "step": 1,
+      "equity_index": 0.0
+    },
+    {
+      "step": 2,
+      "equity_index": 0.0
+    },
+    {
+      "step": 3,
+      "equity_index": 0.0
+    },
+    {
+      "step": 4,
+      "equity_index": 0.0
+    },
+    {
+      "step": 5,
+      "equity_index": 0.0
+    },
+    {
+      "step": 6,
+      "equity_index": -0.024367088607594845
+    },
+    {
+      "step": 7,
+      "equity_index": 0.0006247971437846056
+    },
+    {
+      "step": 8,
+      "equity_index": 0.0006247971437846056
+    },
+    {
+      "step": 9,
+      "equity_index": 0.0006247971437846056
+    },
+    {
+      "step": 10,
+      "equity_index": 0.0006247971437846056
+    },
+    {
+      "step": 11,
+      "equity_index": 0.0006247971437846056
+    },
+    {
+      "step": 12,
+      "equity_index": 0.0006247971437846056
+    },
+    {
+      "step": 13,
+      "equity_index": 0.0006247971437846056
+    },
+    {
+      "step": 14,
+      "equity_index": -0.16743075841177096
+    },
+    {
+      "step": 15,
+      "equity_index": -0.01594406044619978
+    },
+    {
+      "step": 16,
+      "equity_index": -0.01594406044619978
+    },
+    {
+      "step": 17,
+      "equity_index": -0.01594406044619978
+    },
+    {
+      "step": 18,
+      "equity_index": -0.1018264133873763
+    },
+    {
+      "step": 19,
+      "equity_index": -0.021042099661886193
+    },
+    {
+      "step": 20,
+      "equity_index": -0.021042099661886193
+    },
+    {
+      "step": 21,
+      "equity_index": -0.021042099661886193
+    },
+    {
+      "step": 22,
+      "equity_index": -0.21497077634918357
+    },
+    {
+      "step": 23,
+      "equity_index": -0.05740372654075451
+    }
+  ]
+}

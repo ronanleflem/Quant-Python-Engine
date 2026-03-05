@@ -1,0 +1,39 @@
+{
+  "version": "dca-grid-process-v1",
+  "seed": 42,
+  "n_runs": 200,
+  "quantiles": {
+    "p5": 0.21388685746960398,
+    "p25": 0.2898516499638859,
+    "p50": 0.35342124864572055,
+    "p75": 0.406996189207897,
+    "p95": 0.4900483214457685
+  },
+  "percentile": 0.0,
+  "dominance": {
+    "perf_dominance_prob": 0.0,
+    "drawdown_dominance_prob": 0.465,
+    "is_dominant": false
+  },
+  "stress_grid": [
+    {
+      "n_runs": 50,
+      "seed": 42,
+      "mean": 0.35970927230046956,
+      "p50": 0.38032205519441437
+    },
+    {
+      "n_runs": 100,
+      "seed": 42,
+      "mean": 0.3549958732093416,
+      "p50": 0.35452724358974363
+    },
+    {
+      "n_runs": 200,
+      "seed": 42,
+      "mean": 0.35096077667930664,
+      "p50": 0.35342124864572055
+    }
+  ],
+  "notes": "Dominance simplifiee: P(perf_obs >= perf_passive) et P(dd_obs <= dd_passive)"
+}

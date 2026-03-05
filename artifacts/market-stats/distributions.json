@@ -1,0 +1,39 @@
+{
+  "artifact": "distributions",
+  "metadata": {
+    "schema_version": "dca-grid-process-v1",
+    "contract_version": "1.0.0",
+    "universe_rules_version": "asset-universe-rules-v1",
+    "seed": 42,
+    "dataset_hash": "8519f090a7237ae63aae85c6d842fc8970be2a1d3510c01c5e9c1a75b3948ece",
+    "config_version": "dca-grid-process-v1",
+    "generated_at": "2026-03-05T16:00:47.804435+00:00",
+    "reproducibility": {
+      "seed": 42,
+      "dataset_hash": "8519f090a7237ae63aae85c6d842fc8970be2a1d3510c01c5e9c1a75b3948ece",
+      "config_version": "dca-grid-process-v1"
+    }
+  },
+  "rows": [
+    {
+      "quantile": "p5",
+      "value": 0.21388685746960398
+    },
+    {
+      "quantile": "p25",
+      "value": 0.2898516499638859
+    },
+    {
+      "quantile": "p50",
+      "value": 0.35342124864572055
+    },
+    {
+      "quantile": "p75",
+      "value": 0.406996189207897
+    },
+    {
+      "quantile": "p95",
+      "value": 0.4900483214457685
+    }
+  ]
+}
