@@ -1,115 +1,82 @@
-"""Event definitions for statistics runs."""
+"""Legacy event definitions for statistics runs.
+
+Deprecated wrappers around market-intelligence event feature functions.
+"""
 from __future__ import annotations
+
+import warnings
 
 import pandas as pd
 
+from quant_engine.market_intelligence import events as mi_events
+
+
+def _warn_deprecated(func_name: str) -> None:
+    warnings.warn(
+        (
+            f"quant_engine.stats.events.{func_name} is deprecated and will be removed "
+            "in a future release; use quant_engine.market_intelligence.events instead."
+        ),
+        DeprecationWarning,
+        stacklevel=2,
+    )
+
 
 def k_consecutive(df: pd.DataFrame, *, k: int, direction: str) -> pd.Series:
-    """Return ``True`` when ``k`` consecutive bars close in ``direction``.
-
-    Parameters
-    ----------
-    df:
-        DataFrame containing at least ``open`` and ``close`` columns.
-    k:
-        Number of consecutive bars to check.
-    direction:
-        ``"up"`` for positive closes, ``"down"`` for negative closes.
-    """
-
-    up = df["close"] > df["open"]
-    down = df["open"] > df["close"]
-    series = up if direction == "up" else down
-    return series.rolling(k).sum().eq(k).fillna(False)
+    _warn_deprecated("k_consecutive")
+    return mi_events.k_consecutive(df, k=k, direction=direction)
 
 
 def shock_atr(df: pd.DataFrame, *, mult: float, window: int) -> pd.Series:
-    """True if the current true range exceeds ``mult`` times the ATR."""
-
-    high, low, close = df["high"], df["low"], df["close"]
-    prev_close = close.shift(1)
-    tr = pd.concat(
-        [high - low, (high - prev_close).abs(), (low - prev_close).abs()], axis=1
-    ).max(axis=1)
-    atr = tr.rolling(window).mean()
-    return (tr > mult * atr).fillna(False)
+    _warn_deprecated("shock_atr")
+    return mi_events.shock_atr(df, mult=mult, window=window)
 
 
 def breakout_hhll(df: pd.DataFrame, *, lookback: int, type: str) -> pd.Series:
-    """Detect breakout of higher highs or lower lows.
-
-    Parameters
-    ----------
-    df:
-        OHLC DataFrame.
-    lookback:
-        Number of bars to look back when computing the reference high/low.
-    type:
-        ``"hh"`` to detect new highs, ``"ll"`` for new lows.
-    """
-
-    if type == "hh":
-        ref = df["high"].shift(1).rolling(lookback, min_periods=1).max()
-        return (df["high"] > ref).fillna(False)
-    if type == "ll":
-        ref = df["low"].shift(1).rolling(lookback, min_periods=1).min()
-        return (df["low"] < ref).fillna(False)
-    raise ValueError("type must be 'hh' or 'll'")
+    _warn_deprecated("breakout_hhll")
+    return mi_events.breakout_hhll(df, lookback=lookback, type=type)
 
 
 def bullish_candle(df: pd.DataFrame) -> pd.Series:
-    """True when close > open."""
-    return (df["close"] > df["open"]).fillna(False)
+    _warn_deprecated("bullish_candle")
+    return mi_events.bullish_candle(df)
 
 
 def bearish_candle(df: pd.DataFrame) -> pd.Series:
-    """True when close < open."""
-    return (df["close"] < df["open"]).fillna(False)
+    _warn_deprecated("bearish_candle")
+    return mi_events.bearish_candle(df)
 
 
 def bullish_engulfing(df: pd.DataFrame) -> pd.Series:
-    """True on bullish engulfing pattern."""
-    prev_open = df["open"].shift(1)
-    prev_close = df["close"].shift(1)
-    prev_bear = prev_close < prev_open
-    curr_bull = df["close"] > df["open"]
-    engulf = (df["close"] >= prev_open) & (df["open"] <= prev_close)
-    return (prev_bear & curr_bull & engulf).fillna(False)
+    _warn_deprecated("bullish_engulfing")
+    return mi_events.bullish_engulfing(df)
 
 
 def bearish_engulfing(df: pd.DataFrame) -> pd.Series:
-    """True on bearish engulfing pattern."""
-    prev_open = df["open"].shift(1)
-    prev_close = df["close"].shift(1)
-    prev_bull = prev_close > prev_open
-    curr_bear = df["close"] < df["open"]
-    engulf = (df["open"] >= prev_close) & (df["close"] <= prev_open)
-    return (prev_bull & curr_bear & engulf).fillna(False)
+    _warn_deprecated("bearish_engulfing")
+    return mi_events.bearish_engulfing(df)
 
 
 def bullish_streak(df: pd.DataFrame, *, k: int = 3) -> pd.Series:
-    """True when k consecutive bullish candles occur."""
-    return k_consecutive(df, k=k, direction="up")
+    _warn_deprecated("bullish_streak")
+    return mi_events.bullish_streak(df, k=k)
 
 
 def bearish_streak(df: pd.DataFrame, *, k: int = 3) -> pd.Series:
-    """True when k consecutive bearish candles occur."""
-    return k_consecutive(df, k=k, direction="down")
+    _warn_deprecated("bearish_streak")
+    return mi_events.bearish_streak(df, k=k)
 
 
 def gap_up(df: pd.DataFrame) -> pd.Series:
-    """True when current low is above previous high."""
-    prev_high = df["high"].shift(1)
-    return (df["low"] > prev_high).fillna(False)
+    _warn_deprecated("gap_up")
+    return mi_events.gap_up(df)
 
 
 def gap_down(df: pd.DataFrame) -> pd.Series:
-    """True when current high is below previous low."""
-    prev_low = df["low"].shift(1)
-    return (df["high"] < prev_low).fillna(False)
+    _warn_deprecated("gap_down")
+    return mi_events.gap_down(df)
 
 
 def always_true(df: pd.DataFrame) -> pd.Series:
-    """Always-true event for frequency calculations."""
-    return pd.Series(True, index=df.index)
-
+    _warn_deprecated("always_true")
+    return mi_events.always_true(df)
