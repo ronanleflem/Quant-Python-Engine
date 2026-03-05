@@ -173,9 +173,10 @@ def process_next_job(
         and isinstance(result.get("error"), dict)
     ):
         error_message = str(result["error"].get("message") or "Run failed")
+        payload_out = api_app._build_job_result(job.get("job_type"), job_id, result)
+        api_app._update_job_result(job_id, payload_out, status=failure_status)
         api_app._update_job_status(job_id, failure_status, error=error_message)
-        api_app._update_job_error_result(job_id, result, status=failure_status)
-        return None
+        return payload_out
     if api_app._is_true_flag(api_app._get_job(job_id).get("cancel_requested")):
         api_app._mark_canceled(job_id)
         return None

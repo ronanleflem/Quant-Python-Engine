@@ -70,6 +70,13 @@ Exécuter la suite complète de tests comme dans la CI :
 poetry run pytest -q
 ```
 
+Checks release MI (P0) recommandés :
+
+```bash
+poetry run pytest -q tests/architecture/test_import_rules.py
+poetry run pytest -q tests/integration/test_kpi_non_regression_mi.py
+```
+
 Optionnel (si installé/projet configuré) :
 
 ```bash

@@ -231,7 +231,8 @@ def test_worker_marks_canonical_backtest_not_implemented(tmp_path, monkeypatch) 
 
     result = worker_module.process_next_job()
 
-    assert result is None
+    assert result is not None
+    assert result["error"]["code"] == "not_implemented_feature"
     job = api_app._get_job(response.run_id)
     assert job["status"] == api_app.JOB_STATUS_FAILED_CANONICAL
     error = job["result"]["error"]
@@ -320,7 +321,8 @@ def test_worker_marks_canonical_backtest_not_implemented_for_unwired_tp_sl(tmp_p
 
     result = worker_module.process_next_job()
 
-    assert result is None
+    assert result is not None
+    assert result["error"]["code"] == "not_implemented_feature"
     job = api_app._get_job(response.run_id)
     assert job["status"] == api_app.JOB_STATUS_FAILED_CANONICAL
     error = job["result"]["error"]
@@ -738,7 +740,7 @@ def test_worker_marks_canonical_dca_not_implemented_for_invalid_trailing_tp_sl(t
 
     assert result is not None
     job = api_app._get_job(response.run_id)
-    assert job["status"] == api_app.JOB_STATUS_FAILED
+    assert job["status"] == api_app.JOB_STATUS_FAILED_CANONICAL
     error = job["result"]["error"]
     assert error["code"] == "not_implemented_feature"
     fields = [item["field"] for item in error["details"]]
@@ -836,7 +838,8 @@ def test_worker_marks_canonical_dca_not_implemented_for_unwired_fields(tmp_path,
     response = api_app.enqueue_run_request(payload)
     result = worker_module.process_next_job()
 
-    assert result is None
+    assert result is not None
+    assert result["error"]["code"] == "not_implemented_feature"
     job = api_app._get_job(response.run_id)
     assert job["status"] == api_app.JOB_STATUS_FAILED_CANONICAL
     error = job["result"]["error"]
