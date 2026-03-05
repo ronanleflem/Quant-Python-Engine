@@ -24,3 +24,11 @@ def test_filters_list_http_contract():
     assert isinstance(payload, list)
     assert "adx" in payload
     assert all(isinstance(item, str) for item in payload)
+
+
+def test_testclient_bootstrap_compatibility() -> None:
+    # Guardrail: this should keep working even when httpx drops ``app=`` in Client.__init__.
+    fresh_client = TestClient(api_app.fastapi_app)
+
+    response = fresh_client.get("/stats/conditions")
+    assert response.status_code == 200
