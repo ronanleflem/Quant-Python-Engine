@@ -1,18 +1,30 @@
 """Regime condition helpers for statistics runs."""
 from __future__ import annotations
 
+import warnings
 from collections.abc import Callable
 from typing import Dict, Iterable, Optional, Tuple
 
-import numpy as np
 import pandas as pd
 
 from quant_engine.levels import helpers as lvl_helpers
 from quant_engine.levels import repo as lvl_repo
+from quant_engine.market_intelligence import conditions as mi_conditions
 
 
 LEVELS_TABLE = "marketdata.levels"
 _LEVELS_CACHE: Dict[Tuple[str, Optional[pd.Timestamp], Optional[pd.Timestamp], Tuple[str, ...]], pd.DataFrame] = {}
+
+
+def _warn_deprecated(func_name: str) -> None:
+    warnings.warn(
+        (
+            f"quant_engine.stats.conditions.{func_name} is deprecated and will be removed "
+            "in a future release; use quant_engine.market_intelligence.conditions instead."
+        ),
+        DeprecationWarning,
+        stacklevel=2,
+    )
 
 
 def _normalise_timestamp(series: pd.Series) -> pd.Series:
@@ -92,72 +104,52 @@ def _load_levels_for(df_symbol: pd.DataFrame, level_types: list[str]) -> pd.Data
 
 
 def htf_trend(df: pd.DataFrame, *, tf_multiplier: int, ema_period: int) -> pd.Series:
-    """Return higher time frame trend as ``"up"`` or ``"down"``.
+    """Return higher time frame trend as ``"up"`` or ``"down"``."""
 
-    The dataset is downsampled by ``tf_multiplier`` and an EMA of ``ema_period``
-    is computed on the resulting series.  Trend labels are then forward filled
-    to the original frequency.
-    """
-
-    groups = np.arange(len(df)) // tf_multiplier
-    htf_close = df["close"].groupby(groups).last()
-    ema = htf_close.ewm(span=ema_period, adjust=False).mean()
-    trend_per_group = pd.Series(
-        np.where(ema.diff() > 0, "up", "down"), index=htf_close.index
-    )
-    return pd.Series(groups).map(trend_per_group).astype("category")
+    _warn_deprecated("htf_trend")
+    return mi_conditions.htf_trend(df, tf_multiplier=tf_multiplier, ema_period=ema_period)
 
 
 def vol_tertile(df: pd.DataFrame, *, window: int) -> pd.Series:
     """Classify current ATR into tertiles across the sample."""
 
-    high, low, close = df["high"], df["low"], df["close"]
-    prev_close = close.shift(1)
-    tr = pd.concat(
-        [high - low, (high - prev_close).abs(), (low - prev_close).abs()], axis=1
-    ).max(axis=1)
-    atr = tr.rolling(window).mean()
-    q1, q2 = atr.quantile([1 / 3, 2 / 3])
-    if q1 == q2:
-        tertiles = pd.Series(["mid"] * len(atr), index=atr.index)
-    else:
-        tertiles = pd.cut(atr, [-np.inf, q1, q2, np.inf], labels=["low", "mid", "high"])
-    return tertiles.astype("category")
+    _warn_deprecated("vol_tertile")
+    return mi_conditions.vol_tertile(df, window=window)
 
 
 def session(df: pd.DataFrame, *, col: str = "session_id") -> pd.Series:
     """Return the session label as a categorical series."""
 
-    return df[col].astype("category")
+    _warn_deprecated("session")
+    return mi_conditions.session(df, col=col)
 
 
 def hour_bin(df: pd.DataFrame) -> pd.Series:
     """Return hour-of-day bins (0-23) from timestamp column."""
-    ts = pd.to_datetime(df["ts"], utc=True, errors="coerce")
-    return ts.dt.hour.astype("Int64")
+
+    _warn_deprecated("hour_bin")
+    return mi_conditions.hour_bin(df)
 
 
 def day_of_week(df: pd.DataFrame) -> pd.Series:
     """Return day-of-week bins (0=Mon..6=Sun)."""
-    ts = pd.to_datetime(df["ts"], utc=True, errors="coerce")
-    return ts.dt.dayofweek.astype("Int64")
+
+    _warn_deprecated("day_of_week")
+    return mi_conditions.day_of_week(df)
 
 
 def month_of_year(df: pd.DataFrame) -> pd.Series:
     """Return month-of-year bins (1-12)."""
-    ts = pd.to_datetime(df["ts"], utc=True, errors="coerce")
-    return ts.dt.month.astype("Int64")
+
+    _warn_deprecated("month_of_year")
+    return mi_conditions.month_of_year(df)
 
 
 def session_from_ts(df: pd.DataFrame) -> pd.Series:
     """Return a coarse session label from timestamp if session_id is missing."""
-    ts = pd.to_datetime(df["ts"], utc=True, errors="coerce")
-    hours = ts.dt.hour
-    session_id = pd.Series("unknown", index=df.index)
-    session_id[(hours >= 23) | (hours < 7)] = "asia"
-    session_id[(hours >= 7) & (hours < 15)] = "london"
-    session_id[(hours >= 13) & (hours < 21)] = "newyork"
-    return session_id.astype("category")
+
+    _warn_deprecated("session_from_ts")
+    return mi_conditions.session_from_ts(df)
 
 
 def in_zone_level(level_type: str, tolerance: float = 0.0) -> Callable[[pd.DataFrame, Optional[pd.DataFrame]], pd.Series]:
@@ -225,4 +217,3 @@ def list_condition_types() -> list[str]:
         if callable(obj):
             supported.append(name)
     return sorted(set(supported))
-
