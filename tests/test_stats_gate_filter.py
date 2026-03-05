@@ -9,6 +9,7 @@ import pytest
 
 from quant_engine.persistence import db as qe_db
 from quant_engine.persistence.repo import MarketStatsRepository
+from quant_engine.config import reset_settings_cache
 from quant_engine.strategies import runner as strategies_runner
 
 
@@ -19,6 +20,7 @@ SPEC_CONDITION_PATH = Path("specs/tests/strategy_dca_equity_stats_gate_condition
 
 def test_stats_gate_filter_allows_run(monkeypatch) -> None:
     monkeypatch.setenv("DB_DSN", f"sqlite:///{Path('tests/data/stats_gate.db')}")
+    reset_settings_cache()
     spec = json.loads(SPEC_PATH.read_text())
     result = strategies_runner.run_backtest_with_payload(spec)
     payload = result.get("payload", {})
@@ -27,6 +29,7 @@ def test_stats_gate_filter_allows_run(monkeypatch) -> None:
 
 
 def test_stats_gate_allow_if_missing_false_raises(monkeypatch) -> None:
+    reset_settings_cache()
     conn = sqlite3.connect(":memory:")
     conn.row_factory = sqlite3.Row
     qe_db.init_db(conn)
@@ -43,6 +46,7 @@ def test_stats_gate_allow_if_missing_false_raises(monkeypatch) -> None:
 
 
 def test_stats_gate_condition_value_and_metric_lift(monkeypatch) -> None:
+    reset_settings_cache()
     conn = sqlite3.connect(":memory:")
     conn.row_factory = sqlite3.Row
     qe_db.init_db(conn)

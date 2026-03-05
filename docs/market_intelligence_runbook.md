@@ -221,3 +221,33 @@ poetry run pytest -q
 - statut (pass/fail),
 - extrait de sortie (ou lien artifact CI),
 - horodatage et commit SHA.
+
+
+## 9) Release gate hardening (PY-MI-5.11)
+
+### 9.1 Commande canonique de reproduction locale
+
+```bash
+poetry run pytest -q
+```
+
+Cette commande est la référence pour reproduire la gate CI de non-régression avant release.
+
+### 9.2 Checklist “go prod” (bloquante)
+
+- [ ] `poetry run pytest -q` vert (suite complète).
+- [ ] `poetry run pytest -q tests/architecture/test_import_rules.py` vert.
+- [ ] `poetry run pytest -q tests/integration/test_kpi_non_regression_mi.py` vert.
+- [ ] Aucun test flaky observé sur les runs de validation release.
+- [ ] Warnings restants triés et explicitement acceptés dans le ticket release.
+- [ ] Gate CI confirmée bloquante sur échec (`.github/workflows/ci.yml`, step `Run full regression gate (pytest)`).
+- [ ] Preuves archivées: commandes, statuts, durée, commit SHA, lien artifact CI.
+
+### 9.3 Rollback plan (instabilité)
+
+En cas d'instabilité de dernière minute:
+
+1. isoler le(s) test(s) non déterministe(s) avec un marquage temporaire explicite,
+2. ouvrir un ticket technique dédié (cause probable, impact, propriétaire, ETA),
+3. documenter la justification de l'isolation dans la release,
+4. rétablir la gate complète dès correction.
