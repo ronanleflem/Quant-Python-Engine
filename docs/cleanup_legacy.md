@@ -14,3 +14,6 @@
 ## TODO
 - Confirmer dependances Java/FE sur endpoints legacy.
 - Ajouter warnings deprecation dans docs et logs.
+
+## Migration guide
+- Voir `docs/migration_legacy_wrappers.md` pour la correspondance old->new des wrappers `quant_engine.stats.*`.
