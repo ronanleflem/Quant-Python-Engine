@@ -67,6 +67,46 @@ def _extract_buy_cashflows(trade: CompletedTrade) -> List[Tuple[datetime, float]
 
 
 
+
+
+def _segment_value(meta: Mapping[str, Any], key: str) -> str:
+    value = meta.get(key)
+    if value is None:
+        return "unknown"
+    text = str(value).strip()
+    return text if text else "unknown"
+
+
+def _build_segmented_metrics(trades: List[CompletedTrade]) -> Dict[str, Dict[str, Dict[str, Any]]]:
+    segmented: Dict[str, Dict[str, Dict[str, Any]]] = {"regime": {}, "magnet_failure": {}}
+    for trade in trades:
+        trade_meta = trade.meta if isinstance(trade.meta, Mapping) else {}
+        for segment_key in segmented.keys():
+            bucket = _segment_value(trade_meta, segment_key)
+            groups = segmented[segment_key]
+            if bucket not in groups:
+                groups[bucket] = {
+                    "trades": 0,
+                    "wins": 0,
+                    "losses": 0,
+                    "total_return_pct": 0.0,
+                    "average_trade_pct": 0.0,
+                    "winrate_pct": None,
+                }
+            row = groups[bucket]
+            row["trades"] += 1
+            if trade.gross_pnl_pct > 0:
+                row["wins"] += 1
+            else:
+                row["losses"] += 1
+            row["total_return_pct"] += float(trade.gross_pnl_pct)
+
+    for groups in segmented.values():
+        for row in groups.values():
+            trades_count = int(row["trades"])
+            row["average_trade_pct"] = (row["total_return_pct"] / trades_count) if trades_count else 0.0
+            row["winrate_pct"] = (row["wins"] / trades_count * 100.0) if trades_count else None
+    return segmented
 def _label_market_regime(return_pct: float) -> str:
     """Label market regime from window return.
 
@@ -336,6 +376,10 @@ def build_dca_performance_from_signals(
             tp_meta["position_qty"] = quantity
             tp_meta["pnl_pct_at_exit"] = gross_pnl_pct
             tp_meta["capital_used"] = capital_used
+            if "regime" not in tp_meta:
+                tp_meta["regime"] = "unknown"
+            if "magnet_failure" not in tp_meta:
+                tp_meta["magnet_failure"] = "unknown"
             if be_pct is not None:
                 try:
                     tp_meta["break_even_reached"] = gross_pnl_pct >= float(be_pct)
@@ -544,6 +588,7 @@ def build_dca_performance_from_signals(
             "dca_composite_score": dca_score,
             "dca_edge": dca_score.get("edge"),
             "dca_score": dca_score.get("score"),
+            "segmentation": _build_segmented_metrics(trades),
         },
     )
 
