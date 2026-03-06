@@ -52,9 +52,13 @@ def test_stats_persistence_sqlite_memory(monkeypatch, tmp_path: Path) -> None:
     df = stats_runner.run_stats(spec)
     assert not df.empty
     cur = conn.execute(
-        "SELECT COUNT(*) AS n, MIN(spec_id) AS spec_id, MIN(dataset_id) AS dataset_id FROM market_stats"
+        "SELECT COUNT(*) AS n, MIN(spec_id) AS spec_id, MIN(dataset_id) AS dataset_id, "
+        "MIN(lift_freq) AS lift_freq, MIN(lift_bayes) AS lift_bayes "
+        "FROM market_stats"
     )
     row = cur.fetchone()
     assert row["n"] > 0
     assert row["spec_id"] == "STAT_MEM"
     assert row["dataset_id"] == "DATA_MEM"
+    assert row["lift_freq"] is not None
+    assert row["lift_bayes"] is not None

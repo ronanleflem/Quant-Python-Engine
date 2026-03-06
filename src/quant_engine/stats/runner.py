@@ -546,6 +546,12 @@ def run_stats(spec: StatsSpec) -> pd.DataFrame:
             lift_bayes_val = r.get("lift_bayes")
             if pd.isna(lift_bayes_val):
                 lift_bayes_val = lift_freq_val
+            p_value = r.get("p_value")
+            if pd.isna(p_value):
+                p_value = None
+            q_value = r.get("q_value")
+            if pd.isna(q_value):
+                q_value = None
 
             rows.append(
                 {
@@ -568,6 +574,10 @@ def run_stats(spec: StatsSpec) -> pd.DataFrame:
                     "lift_freq": float(lift_freq_val),
                     "lift_bayes": float(lift_bayes_val),
                     "lift": float(lift_freq_val),
+                    "p_value": float(p_value) if p_value is not None else None,
+                    "q_value": float(q_value) if q_value is not None else None,
+                    "significant": bool(r.get("significant", False)),
+                    "insufficient": bool(r.get("insufficient", False)),
                     "start": start,
                     "end": end,
                     "spec_id": spec_id,

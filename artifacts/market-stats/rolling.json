@@ -7,7 +7,7 @@
     "seed": 42,
     "dataset_hash": "8519f090a7237ae63aae85c6d842fc8970be2a1d3510c01c5e9c1a75b3948ece",
     "config_version": "dca-grid-process-v1",
-    "generated_at": "2026-03-05T17:53:01.995038+00:00",
+    "generated_at": "2026-03-06T16:16:04.650252+00:00",
     "reproducibility": {
       "seed": 42,
       "dataset_hash": "8519f090a7237ae63aae85c6d842fc8970be2a1d3510c01c5e9c1a75b3948ece",
@@ -48,32 +48,32 @@
     {
       "step": 6,
       "window": 5,
-      "rolling_lift_freq": -0.004873417721518969
+      "rolling_lift_freq": -0.0070162748643761265
     },
     {
       "step": 7,
       "window": 5,
-      "rolling_lift_freq": 0.00012495942875692111
+      "rolling_lift_freq": -0.0014351471313496455
     },
     {
       "step": 8,
       "window": 5,
-      "rolling_lift_freq": 0.00012495942875692111
+      "rolling_lift_freq": -0.0014351471313496455
     },
     {
       "step": 9,
       "window": 5,
-      "rolling_lift_freq": 0.00012495942875692111
+      "rolling_lift_freq": -0.0014351471313496455
     },
     {
       "step": 10,
       "window": 5,
-      "rolling_lift_freq": 0.00012495942875692111
+      "rolling_lift_freq": -0.0014351471313496455
     },
     {
       "step": 11,
       "window": 5,
-      "rolling_lift_freq": 0.00499837715027589
+      "rolling_lift_freq": 0.005581127733026481
     },
     {
       "step": 12,
@@ -88,52 +88,52 @@
     {
       "step": 14,
       "window": 5,
-      "rolling_lift_freq": -0.03361111111111111
+      "rolling_lift_freq": -0.037929606625258794
     },
     {
       "step": 15,
       "window": 5,
-      "rolling_lift_freq": -0.0033137715179968772
+      "rolling_lift_freq": -0.006090885735443008
     },
     {
       "step": 16,
       "window": 5,
-      "rolling_lift_freq": -0.0033137715179968772
+      "rolling_lift_freq": -0.006090885735443008
     },
     {
       "step": 17,
       "window": 5,
-      "rolling_lift_freq": -0.0033137715179968772
+      "rolling_lift_freq": -0.006090885735443008
     },
     {
       "step": 18,
       "window": 5,
-      "rolling_lift_freq": -0.02049024210623218
+      "rolling_lift_freq": -0.029699608094165365
     },
     {
       "step": 19,
       "window": 5,
-      "rolling_lift_freq": 0.029277731749976953
+      "rolling_lift_freq": 0.023523098034719237
     },
     {
       "step": 20,
       "window": 5,
-      "rolling_lift_freq": -0.0010196078431372823
+      "rolling_lift_freq": -0.008315622855096549
     },
     {
       "step": 21,
       "window": 5,
-      "rolling_lift_freq": -0.0010196078431372823
+      "rolling_lift_freq": -0.008315622855096549
     },
     {
       "step": 22,
       "window": 5,
-      "rolling_lift_freq": -0.03980534318059676
+      "rolling_lift_freq": -0.044491860254575535
     },
     {
       "step": 23,
       "window": 5,
-      "rolling_lift_freq": 0.008884537369324357
+      "rolling_lift_freq": 0.008543801481334956
     }
   ]
 }

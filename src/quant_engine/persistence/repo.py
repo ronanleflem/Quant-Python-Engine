@@ -32,7 +32,17 @@ class MarketStatsRepository:
                     r.get("p_hat"),
                     r.get("ci_low"),
                     r.get("ci_high"),
+                    r.get("p_mean"),
+                    r.get("p_map"),
+                    r.get("hdi_low"),
+                    r.get("hdi_high"),
+                    r.get("lift_freq"),
+                    r.get("lift_bayes"),
                     r.get("lift"),
+                    r.get("p_value"),
+                    r.get("q_value"),
+                    r.get("significant"),
+                    r.get("insufficient"),
                     r.get("start"),
                     r.get("end"),
                     r.get("spec_id"),
@@ -43,9 +53,11 @@ class MarketStatsRepository:
             """
             INSERT INTO market_stats (
                 symbol, timeframe, event, condition_name, condition_value,
-                target, split, n, successes, p_hat, ci_low, ci_high, lift,
+                target, split, n, successes, p_hat, ci_low, ci_high,
+                p_mean, p_map, hdi_low, hdi_high, lift_freq, lift_bayes, lift,
+                p_value, q_value, significant, insufficient,
                 start, end, spec_id, dataset_id
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(
                 symbol, timeframe, event, condition_name, condition_value,
                 target, split, start, end, spec_id
@@ -55,7 +67,17 @@ class MarketStatsRepository:
                 p_hat=excluded.p_hat,
                 ci_low=excluded.ci_low,
                 ci_high=excluded.ci_high,
+                p_mean=excluded.p_mean,
+                p_map=excluded.p_map,
+                hdi_low=excluded.hdi_low,
+                hdi_high=excluded.hdi_high,
+                lift_freq=excluded.lift_freq,
+                lift_bayes=excluded.lift_bayes,
                 lift=excluded.lift,
+                p_value=excluded.p_value,
+                q_value=excluded.q_value,
+                significant=excluded.significant,
+                insufficient=excluded.insufficient,
                 dataset_id=excluded.dataset_id
             """,
             rows,

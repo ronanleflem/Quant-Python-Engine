@@ -51,9 +51,9 @@ def list_stats(
 
     out = [dict(r) for r in rows]
     for row in out:
-        if "lift_freq" not in row and "lift" in row:
+        if (row.get("lift_freq") is None) and ("lift" in row):
             row["lift_freq"] = row.get("lift")
-        if "lift_bayes" not in row:
+        if row.get("lift_bayes") is None:
             row["lift_bayes"] = row.get("lift_freq")
 
     if significant_only:
@@ -125,7 +125,7 @@ def stats_heatmap(
     condition_name: str,
 ) -> List[Dict[str, Any]]:
     base_query = (
-        "SELECT condition_value as bin, p_hat, ci_low, ci_high, n, lift "
+        "SELECT condition_value as bin, p_hat, ci_low, ci_high, n, lift, lift_freq, lift_bayes "
         "FROM market_stats WHERE symbol = ? AND timeframe = ? AND event = ? "
         "AND target = ? AND condition_name = ?"
     )
@@ -163,9 +163,9 @@ def stats_top(
 
     data = [dict(row) for row in rows]
     for row in data:
-        if "lift_freq" not in row and "lift" in row:
+        if (row.get("lift_freq") is None) and ("lift" in row):
             row["lift_freq"] = row.get("lift")
-        if "lift_bayes" not in row:
+        if row.get("lift_bayes") is None:
             row["lift_bayes"] = row.get("lift_freq")
 
     if significant_only:

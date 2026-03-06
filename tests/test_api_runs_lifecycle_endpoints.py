@@ -346,8 +346,10 @@ def test_runs_capabilities_returns_market_stats_runtime_matrix(tmp_path, monkeyp
     assert "data.currency" in body["fields"]["supported"]
     assert "data.symbols" in body["fields"]["supported"]
     assert "stats.validation" in body["fields"]["supported"]
+    assert body["fields"]["accepted_but_not_wired"] == ["data.session", "data.include_weekends"]
     assert body["runtime_rules"]["symbol_resolution"] == "data.symbols has priority over data.symbol"
-    assert body["runtime_rules"]["execution_status"] == "partially_wired"
+    assert body["runtime_rules"]["execution_status"] == "wired"
+    assert body["stats_pack_catalog"]
 
 
 def test_runs_capabilities_returns_seasonality_runtime_matrix(tmp_path, monkeypatch) -> None:

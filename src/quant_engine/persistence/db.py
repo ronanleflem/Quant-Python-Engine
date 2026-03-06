@@ -452,6 +452,26 @@ def _migration_3(conn: sqlite3.Connection) -> None:
             pass
 
 
+def _migration_4(conn: sqlite3.Connection) -> None:
+    cur = conn.cursor()
+    for statement in (
+        "ALTER TABLE market_stats ADD COLUMN p_mean REAL",
+        "ALTER TABLE market_stats ADD COLUMN p_map REAL",
+        "ALTER TABLE market_stats ADD COLUMN hdi_low REAL",
+        "ALTER TABLE market_stats ADD COLUMN hdi_high REAL",
+        "ALTER TABLE market_stats ADD COLUMN lift_freq REAL",
+        "ALTER TABLE market_stats ADD COLUMN lift_bayes REAL",
+        "ALTER TABLE market_stats ADD COLUMN p_value REAL",
+        "ALTER TABLE market_stats ADD COLUMN q_value REAL",
+        "ALTER TABLE market_stats ADD COLUMN significant INTEGER",
+        "ALTER TABLE market_stats ADD COLUMN insufficient INTEGER",
+    ):
+        try:
+            cur.execute(statement)
+        except sqlite3.OperationalError:
+            pass
+
+
 MYSQL_MIGRATION_1 = (
     """
     CREATE TABLE IF NOT EXISTS experiment_runs (
@@ -625,10 +645,24 @@ MYSQL_MIGRATION_3 = (
     "ALTER TABLE api_jobs ADD COLUMN canceled_at TIMESTAMP NULL",
 )
 
+MYSQL_MIGRATION_4 = (
+    "ALTER TABLE market_stats ADD COLUMN p_mean DOUBLE NULL",
+    "ALTER TABLE market_stats ADD COLUMN p_map DOUBLE NULL",
+    "ALTER TABLE market_stats ADD COLUMN hdi_low DOUBLE NULL",
+    "ALTER TABLE market_stats ADD COLUMN hdi_high DOUBLE NULL",
+    "ALTER TABLE market_stats ADD COLUMN lift_freq DOUBLE NULL",
+    "ALTER TABLE market_stats ADD COLUMN lift_bayes DOUBLE NULL",
+    "ALTER TABLE market_stats ADD COLUMN p_value DOUBLE NULL",
+    "ALTER TABLE market_stats ADD COLUMN q_value DOUBLE NULL",
+    "ALTER TABLE market_stats ADD COLUMN significant TINYINT NULL",
+    "ALTER TABLE market_stats ADD COLUMN insufficient TINYINT NULL",
+)
+
 MIGRATIONS = [
     Migration(1, "initial_schema", _migration_1, MYSQL_MIGRATION_1),
     Migration(2, "seasonality_profiles_metrics", _migration_2, MYSQL_MIGRATION_2),
     Migration(3, "api_jobs_queue_fields", _migration_3, MYSQL_MIGRATION_3),
+    Migration(4, "market_stats_enriched_metrics", _migration_4, MYSQL_MIGRATION_4),
 ]
 
 

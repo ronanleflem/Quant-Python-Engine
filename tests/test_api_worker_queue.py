@@ -86,6 +86,17 @@ def _canonical_market_stats_payload_with_symbols_priority() -> dict:
     return payload
 
 
+def _canonical_market_stats_pack_payload() -> dict:
+    payload = _canonical_market_stats_payload()
+    payload["data"]["stats_pack"] = "candle_structure"
+    payload.pop("stats", None)
+    payload["stats"] = {
+        "condition": {"id": "day_of_week", "params": {}},
+        "validation": {"train_months": 6, "test_months": 2, "folds": 2, "embargo_days": 0},
+    }
+    return payload
+
+
 def _canonical_seasonality_payload() -> dict:
     return {
         "spec_type": "seasonality",
@@ -499,6 +510,43 @@ def test_worker_uses_explicit_dates_over_lookback_for_canonical_market_stats(tmp
     assert job["status"] == api_app.JOB_STATUS_SUCCEEDED
     assert observed["spec"].data.start == "2022-01-01T00:00:00+00:00"
     assert observed["spec"].data.end == "2024-12-31T00:00:00+00:00"
+
+
+def test_worker_processes_canonical_market_stats_pack_with_runner(tmp_path, monkeypatch) -> None:
+    import pandas as pd
+
+    monkeypatch.setenv("DB_SQLITE_PATH", str(tmp_path / "quant.db"))
+    reset_settings_cache()
+    observed = {}
+
+    def _fake_run_stats(spec):
+        observed["spec"] = spec
+        return pd.DataFrame(
+            [
+                {
+                    "symbol": "BTCUSDT",
+                    "event": "bullish_candle",
+                    "condition_name": "day_of_week",
+                    "condition_value": "1",
+                    "target": "next_bullish",
+                    "n": 10,
+                    "successes": 6,
+                    "p_hat": 0.6,
+                }
+            ]
+        )
+
+    monkeypatch.setattr(api_app.stats_runner, "run_stats", _fake_run_stats)
+
+    response = api_app.enqueue_run_request(_canonical_market_stats_pack_payload())
+    result = worker_module.process_next_job()
+
+    assert result is not None
+    job = api_app._get_job(response.run_id)
+    assert job["status"] == api_app.JOB_STATUS_SUCCEEDED
+    assert len(observed["spec"].events) > 1
+    assert len(observed["spec"].targets) > 1
+    assert observed["spec"].conditions[0].name == "day_of_week"
 
 
 def test_worker_uses_symbols_over_symbol_for_canonical_seasonality(tmp_path, monkeypatch) -> None:

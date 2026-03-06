@@ -23,7 +23,17 @@ class MarketStat:
     p_hat: float | None = None
     ci_low: float | None = None
     ci_high: float | None = None
+    p_mean: float | None = None
+    p_map: float | None = None
+    hdi_low: float | None = None
+    hdi_high: float | None = None
+    lift_freq: float | None = None
+    lift_bayes: float | None = None
     lift: float | None = None
+    p_value: float | None = None
+    q_value: float | None = None
+    significant: bool | None = None
+    insufficient: bool | None = None
     start: str | None = None
     end: str | None = None
     spec_id: str | None = None

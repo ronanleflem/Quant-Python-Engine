@@ -131,9 +131,9 @@ class MarketLeafSpec(StrictModel):
 
 
 class MarketStatsBlock(StrictModel):
-    event: MarketLeafSpec
-    condition: MarketLeafSpec
-    target: MarketLeafSpec
+    event: Optional[MarketLeafSpec] = None
+    condition: Optional[MarketLeafSpec] = None
+    target: Optional[MarketLeafSpec] = None
     validation: Optional[Dict[str, Any]] = None
 
 
@@ -222,7 +222,7 @@ class DcaRunRequest(RunRequestCommon):
 class MarketStatsRunRequest(RunRequestCommon):
     spec_type: Literal["market_stats"]
     data: MarketStatsDataBlock
-    stats: MarketStatsBlock
+    stats: Optional[MarketStatsBlock] = None
 
     @model_validator(mode="after")
     def _validate_symbol_or_symbols(self) -> "MarketStatsRunRequest":
@@ -230,6 +230,13 @@ class MarketStatsRunRequest(RunRequestCommon):
         has_symbols = bool(self.data.symbols) if self.data is not None else False
         if not has_symbol and not has_symbols:
             raise ValueError("market_stats requires data.symbol or data.symbols")
+        has_stats_pack = bool((self.data.stats_pack or "").strip()) if self.data is not None else False
+        stats_block = self.stats
+        has_event = stats_block is not None and stats_block.event is not None
+        has_condition = stats_block is not None and stats_block.condition is not None
+        has_target = stats_block is not None and stats_block.target is not None
+        if not has_stats_pack and not (has_event and has_condition and has_target):
+            raise ValueError("market_stats requires data.stats_pack or stats.event/stats.condition/stats.target")
         return self
 
 

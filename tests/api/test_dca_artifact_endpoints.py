@@ -101,3 +101,27 @@ def test_canonical_market_stats_mapping_normalizes_timezone_to_utc(api_db):
 
     assert mapped["data"]["start"] == "2025-01-06T08:00:00+00:00"
     assert mapped["data"]["end"] == "2025-01-07T17:00:00+00:00"
+
+
+def test_canonical_market_stats_mapping_expands_stats_pack(api_db):
+    mapped = api_app._canonical_market_stats_to_spec(
+        {
+            "data": {
+                "symbol": "AAPL",
+                "timeframe": "1D",
+                "stats_pack": "candle_structure",
+            },
+            "stats": {
+                "condition": {"id": "day_of_week", "params": {}},
+            },
+        }
+    )
+
+    event_names = {item["name"] for item in mapped["events"]}
+    target_names = {item["name"] for item in mapped["targets"]}
+
+    assert "bullish_engulfing" in event_names
+    assert "bearish_streak" in event_names
+    assert "next_bullish" in target_names
+    assert "lower_wick_ratio" in target_names
+    assert mapped["conditions"] == [{"name": "day_of_week", "params": {}}]

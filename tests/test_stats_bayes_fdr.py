@@ -38,9 +38,6 @@ def setup_db(tmp_path):
 def test_api_list_stats_significant_bayes(tmp_path):
     setup_db(tmp_path)
     with session() as conn:
-        conn.execute("ALTER TABLE market_stats ADD COLUMN q_value REAL")
-        conn.execute("ALTER TABLE market_stats ADD COLUMN lift_bayes REAL")
-        conn.execute("ALTER TABLE market_stats ADD COLUMN significant INTEGER")
         rows = [
             (
                 "ABC",
@@ -55,6 +52,7 @@ def test_api_list_stats_significant_bayes(tmp_path):
                 0.6,
                 0.5,
                 0.7,
+                0.2,
                 0.2,
                 "2020",
                 "2020",
@@ -76,6 +74,7 @@ def test_api_list_stats_significant_bayes(tmp_path):
                 0.6,
                 0.8,
                 0.3,
+                0.3,
                 "2020",
                 "2020",
                 0.02,
@@ -96,6 +95,7 @@ def test_api_list_stats_significant_bayes(tmp_path):
                 0.4,
                 0.6,
                 0.1,
+                0.1,
                 "2020",
                 "2020",
                 0.2,
@@ -104,7 +104,7 @@ def test_api_list_stats_significant_bayes(tmp_path):
             ),
         ]
         conn.executemany(
-            "INSERT INTO market_stats (symbol,timeframe,event,condition_name,condition_value,target,split,n,successes,p_hat,ci_low,ci_high,lift,start,end,q_value,lift_bayes,significant) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "INSERT INTO market_stats (symbol,timeframe,event,condition_name,condition_value,target,split,n,successes,p_hat,ci_low,ci_high,lift,lift_freq,start,end,q_value,lift_bayes,significant) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             rows,
         )
     res = app.list_stats(

@@ -1,5 +1,4 @@
 import os
-import sqlite3
 
 import pytest
 
@@ -15,12 +14,6 @@ def api_db(tmp_path):
     reset_settings_cache()
 
     with session() as conn:
-        for column, col_type in (("significant", "INTEGER"), ("q_value", "REAL")):
-            try:
-                conn.execute(f"ALTER TABLE market_stats ADD COLUMN {column} {col_type}")
-            except sqlite3.OperationalError:
-                pass
-
         conn.executemany(
             """
             INSERT INTO experiment_runs (
@@ -71,9 +64,11 @@ def api_db(tmp_path):
             """
             INSERT INTO market_stats (
                 symbol, timeframe, event, condition_name, condition_value, target,
-                split, n, successes, p_hat, ci_low, ci_high, lift, start, end,
+                split, n, successes, p_hat, ci_low, ci_high,
+                p_mean, p_map, hdi_low, hdi_high,
+                lift, lift_freq, lift_bayes, start, end,
                 significant, q_value
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             [
                 (
@@ -89,7 +84,13 @@ def api_db(tmp_path):
                     0.6,
                     0.5,
                     0.7,
+                    0.59,
+                    0.6,
+                    0.48,
+                    0.68,
                     0.12,
+                    0.12,
+                    0.1,
                     "2024-01-01",
                     "2024-01-31",
                     1,
@@ -108,7 +109,13 @@ def api_db(tmp_path):
                     0.4,
                     0.3,
                     0.5,
+                    0.41,
+                    0.4,
+                    0.32,
+                    0.49,
                     -0.08,
+                    -0.08,
+                    -0.07,
                     "2024-01-01",
                     "2024-01-31",
                     0,
@@ -127,7 +134,13 @@ def api_db(tmp_path):
                     0.7,
                     0.6,
                     0.8,
+                    0.69,
+                    0.7,
+                    0.58,
+                    0.77,
                     0.25,
+                    0.25,
+                    0.22,
                     "2024-01-01",
                     "2024-01-31",
                     1,
@@ -212,7 +225,7 @@ def test_stats_endpoint_filters_and_normalization(api_db):
     assert resp == expected
     for row in resp:
         assert row["lift_freq"] == row["lift"]
-        assert row["lift_bayes"] == row["lift_freq"]
+        assert row["lift_bayes"] is not None
 
     params_bayes = {
         "symbol": "BTCUSDT",
@@ -243,4 +256,4 @@ def test_stats_endpoint_filters_and_normalization(api_db):
     assert resp_bayes == expected_bayes
     for row in resp_bayes:
         assert row["lift_freq"] == row["lift"]
-        assert row["lift_bayes"] == row["lift_freq"]
+        assert row["lift_bayes"] is not None

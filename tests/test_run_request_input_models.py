@@ -87,7 +87,7 @@ def test_rejects_missing_required_branch_block() -> None:
     with pytest.raises(ValidationError) as exc_info:
         validate_run_request_input(payload)
 
-    assert "stats" in str(exc_info.value)
+    assert "market_stats requires data.stats_pack or stats.event/stats.condition/stats.target" in str(exc_info.value)
 
 
 def test_stress_tests_rejects_missing_performance_stress_tests() -> None:
@@ -167,6 +167,23 @@ def test_market_stats_accepts_symbols_without_symbol() -> None:
     assert parsed.spec_type == "market_stats"
     assert parsed.data.symbol is None
     assert parsed.data.symbols == ["BTCUSDT", "ETHUSDT"]
+
+
+def test_market_stats_accepts_stats_pack_without_stats_block() -> None:
+    payload = {
+        "spec_type": "market_stats",
+        "catalog_version": "v1",
+        "data": {
+            "symbols": ["BTCUSDT", "ETHUSDT"],
+            "timeframe": "1h",
+            "stats_pack": "all_basic",
+        },
+    }
+
+    parsed = validate_run_request_input(payload)
+    assert parsed.spec_type == "market_stats"
+    assert parsed.data.stats_pack == "all_basic"
+    assert parsed.stats is None
 
 
 def test_market_stats_accepts_explicit_start_end_dates() -> None:

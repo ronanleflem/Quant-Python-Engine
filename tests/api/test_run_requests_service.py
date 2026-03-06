@@ -86,3 +86,21 @@ def test_validate_market_stats_params_reports_errors():
     assert "market_stats.stats.condition.params.ema_period" in fields
     assert "market_stats.stats.target.params.n" in fields
     assert "market_stats.stats.target.params.direction" in fields
+
+
+def test_validate_market_stats_params_rejects_unknown_stats_pack() -> None:
+    payload = {
+        "spec_type": "market_stats",
+        "data": {"stats_pack": "mystery_pack"},
+    }
+
+    with pytest.raises(ApiValidationException) as exc:
+        run_requests.validate_market_stats_params(payload)
+
+    assert exc.value.errors == [
+        {
+            "field": "market_stats.data.stats_pack",
+            "code": "literal_error",
+            "message": "Unsupported stats_pack",
+        }
+    ]

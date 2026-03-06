@@ -75,6 +75,29 @@ Si tu veux filtrer ces patterns en runtime, utilise un stats run + stats_gate
 
 ## Example: stats spec + stats_gate for candle patterns
 
+## Canonical `stats_pack` guidance
+
+Le contrat canonical `POST /runs` supporte maintenant un mode `data.stats_pack`
+pour lancer des calculs enrichis sans imposer un seul triplet
+`stats.event/stats.condition/stats.target`.
+
+Packs exposes par le runtime Python:
+
+- `candle_structure`
+- `volatility_shocks`
+- `gaps_breakouts`
+- `all_basic` (union deterministe des trois packs)
+
+Regles:
+
+- Un pack etend uniquement `events[]` et `targets[]`.
+- `stats.condition` reste optionnel et, s'il est fourni, s'applique a tout le pack.
+- L'absence de `stats.condition` produit des stats globales (`condition_name` /
+  `condition_value` nuls) sans lookahead additionnel.
+- Les metriques enrichies calculees par le runner sont persistees dans
+  `market_stats`: `p_mean`, `p_map`, `hdi_low`, `hdi_high`, `lift_freq`,
+  `lift_bayes`, `p_value`, `q_value`, `significant`, `insufficient`.
+
 Example StatsSpec (events + targets) to compute candle structure metrics:
 
 ```json

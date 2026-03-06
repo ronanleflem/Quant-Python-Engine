@@ -7,7 +7,7 @@
     "seed": 42,
     "dataset_hash": "8519f090a7237ae63aae85c6d842fc8970be2a1d3510c01c5e9c1a75b3948ece",
     "config_version": "dca-grid-process-v1",
-    "generated_at": "2026-03-05T17:53:01.995038+00:00",
+    "generated_at": "2026-03-06T16:16:04.650252+00:00",
     "reproducibility": {
       "seed": 42,
       "dataset_hash": "8519f090a7237ae63aae85c6d842fc8970be2a1d3510c01c5e9c1a75b3948ece",
@@ -18,194 +18,194 @@
     {
       "symbol": "BTCUSDT",
       "target": "up_next_bar",
-      "n": 69,
+      "n": 50,
       "successes": 0,
       "lift_freq": 0.0,
-      "lift_bayes": 0.004773188896411645
+      "lift_bayes": 0.006331699346405229
     },
     {
       "symbol": "BTCUSDT",
       "target": "up_next_bar",
-      "n": 141,
+      "n": 93,
       "successes": 0,
       "lift_freq": 0.0,
-      "lift_bayes": 0.0011514585141178825
+      "lift_bayes": 0.0018469267139479906
     },
     {
       "symbol": "ETHUSDT",
       "target": "up_next_bar",
-      "n": 133,
-      "successes": 133,
+      "n": 70,
+      "successes": 70,
       "lift_freq": 0.0,
-      "lift_bayes": -0.00149920042643914
+      "lift_bayes": -0.0035211267605633756
     },
     {
       "symbol": "ETHUSDT",
       "target": "up_next_bar",
-      "n": 90,
-      "successes": 90,
+      "n": 71,
+      "successes": 71,
       "lift_freq": 0.0,
-      "lift_bayes": -0.0032623626373625703
+      "lift_bayes": -0.003423317683881044
     },
     {
       "symbol": "BTCUSDT",
+      "target": "up_next_bar",
+      "n": 33,
+      "successes": 0,
+      "lift_freq": 0.0,
+      "lift_bayes": 0.008891928864569083
+    },
+    {
+      "symbol": "BTCUSDT",
+      "target": "up_next_bar",
+      "n": 52,
+      "successes": 0,
+      "lift_freq": 0.0,
+      "lift_bayes": 0.00362000877577885
+    },
+    {
+      "symbol": "ETHUSDT",
+      "target": "up_next_bar",
+      "n": 35,
+      "successes": 32,
+      "lift_freq": -0.03508137432188063,
+      "lift_bayes": -0.04097222222222219
+    },
+    {
+      "symbol": "ETHUSDT",
       "target": "up_next_bar",
       "n": 44,
-      "successes": 0,
-      "lift_freq": 0.0,
-      "lift_bayes": 0.0076146076146076155
+      "successes": 43,
+      "lift_freq": 0.027905638665132404,
+      "lift_bayes": 0.022916666666666696
     },
     {
       "symbol": "BTCUSDT",
       "target": "up_next_bar",
-      "n": 98,
+      "n": 61,
       "successes": 0,
       "lift_freq": 0.0,
-      "lift_bayes": 0.0015540015540015544
-    },
-    {
-      "symbol": "ETHUSDT",
-      "target": "up_next_bar",
-      "n": 40,
-      "successes": 37,
-      "lift_freq": -0.024367088607594845,
-      "lift_bayes": -0.029115853658536528
-    },
-    {
-      "symbol": "ETHUSDT",
-      "target": "up_next_bar",
-      "n": 39,
-      "successes": 38,
-      "lift_freq": 0.02499188575137945,
-      "lift_bayes": 0.018750000000000044
+      "lift_bayes": 0.005473842553902724
     },
     {
       "symbol": "BTCUSDT",
       "target": "up_next_bar",
-      "n": 97,
+      "n": 131,
       "successes": 0,
       "lift_freq": 0.0,
-      "lift_bayes": 0.003494323774525887
+      "lift_bayes": 0.0011972052127492542
+    },
+    {
+      "symbol": "ETHUSDT",
+      "target": "up_next_bar",
+      "n": 79,
+      "successes": 79,
+      "lift_freq": 0.0,
+      "lift_bayes": -0.003532608695652195
+    },
+    {
+      "symbol": "ETHUSDT",
+      "target": "up_next_bar",
+      "n": 104,
+      "successes": 104,
+      "lift_freq": 0.0,
+      "lift_bayes": -0.0020445134575569623
     },
     {
       "symbol": "BTCUSDT",
       "target": "up_next_bar",
-      "n": 213,
+      "n": 148,
       "successes": 0,
       "lift_freq": 0.0,
-      "lift_bayes": 0.0007287315563301979
-    },
-    {
-      "symbol": "ETHUSDT",
-      "target": "up_next_bar",
-      "n": 117,
-      "successes": 117,
-      "lift_freq": 0.0,
-      "lift_bayes": -0.0020051452784503043
-    },
-    {
-      "symbol": "ETHUSDT",
-      "target": "up_next_bar",
-      "n": 106,
-      "successes": 106,
-      "lift_freq": 0.0,
-      "lift_bayes": -0.0024407543391187225
+      "lift_bayes": 0.001576345267381595
     },
     {
       "symbol": "BTCUSDT",
       "target": "up_next_bar",
-      "n": 147,
+      "n": 132,
       "successes": 0,
       "lift_freq": 0.0,
-      "lift_bayes": 0.0018678043602514903
-    },
-    {
-      "symbol": "BTCUSDT",
-      "target": "up_next_bar",
-      "n": 183,
-      "successes": 0,
-      "lift_freq": 0.0,
-      "lift_bayes": 0.0012068172862209378
+      "lift_bayes": 0.001980039065635619
     },
     {
       "symbol": "ETHUSDT",
       "target": "up_next_bar",
-      "n": 128,
-      "successes": 24,
-      "lift_freq": -0.16805555555555557,
-      "lift_bayes": -0.16616608026545382
+      "n": 115,
+      "successes": 22,
+      "lift_freq": -0.18964803312629397,
+      "lift_bayes": -0.18745740765980648
     },
     {
       "symbol": "ETHUSDT",
       "target": "up_next_bar",
-      "n": 142,
-      "successes": 72,
-      "lift_freq": 0.15148669796557118,
-      "lift_bayes": 0.15090444610739812
-    },
-    {
-      "symbol": "BTCUSDT",
-      "target": "up_next_bar",
-      "n": 233,
-      "successes": 0,
-      "lift_freq": 0.0,
-      "lift_bayes": 0.0013143837156995054
-    },
-    {
-      "symbol": "BTCUSDT",
-      "target": "up_next_bar",
-      "n": 374,
-      "successes": 0,
-      "lift_freq": 0.0,
-      "lift_bayes": 0.0005109649122807018
-    },
-    {
-      "symbol": "ETHUSDT",
-      "target": "up_next_bar",
-      "n": 206,
-      "successes": 103,
-      "lift_freq": -0.08588235294117652,
-      "lift_bayes": -0.08568075117370888
-    },
-    {
-      "symbol": "ETHUSDT",
-      "target": "up_next_bar",
-      "n": 219,
-      "successes": 146,
-      "lift_freq": 0.08078431372549011,
-      "lift_bayes": 0.08022833973538201
-    },
-    {
-      "symbol": "BTCUSDT",
-      "target": "up_next_bar",
-      "n": 128,
-      "successes": 0,
-      "lift_freq": 0.0,
-      "lift_bayes": 0.002387873754152824
-    },
-    {
-      "symbol": "BTCUSDT",
-      "target": "up_next_bar",
-      "n": 207,
-      "successes": 0,
-      "lift_freq": 0.0,
-      "lift_bayes": 0.000915750915750916
-    },
-    {
-      "symbol": "ETHUSDT",
-      "target": "up_next_bar",
-      "n": 117,
-      "successes": 19,
-      "lift_freq": -0.19392867668729738,
-      "lift_bayes": -0.191615991719498
-    },
-    {
-      "symbol": "ETHUSDT",
-      "target": "up_next_bar",
-      "n": 144,
+      "n": 137,
       "successes": 74,
-      "lift_freq": 0.15756704980842906,
-      "lift_bayes": 0.1569228744406423
+      "lift_freq": 0.15919360444907893,
+      "lift_bayes": 0.15843214756258228
+    },
+    {
+      "symbol": "BTCUSDT",
+      "target": "up_next_bar",
+      "n": 195,
+      "successes": 0,
+      "lift_freq": 0.0,
+      "lift_bayes": 0.0014274249025452875
+    },
+    {
+      "symbol": "BTCUSDT",
+      "target": "up_next_bar",
+      "n": 249,
+      "successes": 0,
+      "lift_freq": 0.0,
+      "lift_bayes": 0.0008764044943820224
+    },
+    {
+      "symbol": "ETHUSDT",
+      "target": "up_next_bar",
+      "n": 160,
+      "successes": 79,
+      "lift_freq": -0.11804361179361178,
+      "lift_bayes": -0.11773078796736092
+    },
+    {
+      "symbol": "ETHUSDT",
+      "target": "up_next_bar",
+      "n": 247,
+      "successes": 170,
+      "lift_freq": 0.07646549751812903,
+      "lift_bayes": 0.0759803921568627
+    },
+    {
+      "symbol": "BTCUSDT",
+      "target": "up_next_bar",
+      "n": 159,
+      "successes": 0,
+      "lift_freq": 0.0,
+      "lift_bayes": 0.0014067869415807562
+    },
+    {
+      "symbol": "BTCUSDT",
+      "target": "up_next_bar",
+      "n": 131,
+      "successes": 0,
+      "lift_freq": 0.0,
+      "lift_bayes": 0.002069665729459544
+    },
+    {
+      "symbol": "ETHUSDT",
+      "target": "up_next_bar",
+      "n": 109,
+      "successes": 22,
+      "lift_freq": -0.18088118699739492,
+      "lift_bayes": -0.17865126676602086
+    },
+    {
+      "symbol": "ETHUSDT",
+      "target": "up_next_bar",
+      "n": 134,
+      "successes": 71,
+      "lift_freq": 0.14713469688594066,
+      "lift_bayes": 0.14643290831815425
     }
   ]
 }

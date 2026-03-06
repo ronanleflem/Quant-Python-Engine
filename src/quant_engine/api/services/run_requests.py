@@ -5,6 +5,7 @@ from typing import Any, Callable, Dict, List
 from pydantic import ValidationError
 
 from ...io import ids
+from ...stats.packs import is_supported_market_stats_pack
 from .. import schemas
 from ..validation_errors import ApiValidationException, normalize_pydantic_errors, single_validation_error
 
@@ -72,10 +73,38 @@ def validate_market_stats_params(canonical_payload: Dict[str, Any]) -> None:
         return
 
     stats_block = canonical_payload.get("stats")
+    if stats_block is None:
+        stats_block = {}
     if not isinstance(stats_block, dict):
         return
 
     errors: List[Dict[str, str]] = []
+    data_block = canonical_payload.get("data") if isinstance(canonical_payload.get("data"), dict) else {}
+    stats_pack = str(data_block.get("stats_pack") or "").strip()
+    has_pack = bool(stats_pack)
+    if has_pack and not is_supported_market_stats_pack(stats_pack):
+        errors.append(
+            {
+                "field": "market_stats.data.stats_pack",
+                "code": "literal_error",
+                "message": "Unsupported stats_pack",
+            }
+        )
+
+    event = stats_block.get("event")
+    condition = stats_block.get("condition")
+    target = stats_block.get("target")
+
+    has_event = isinstance(event, dict)
+    has_condition = isinstance(condition, dict)
+    has_target = isinstance(target, dict)
+    if not has_pack:
+        if not has_event:
+            errors.append({"field": "market_stats.stats.event", "code": "missing", "message": "Field required"})
+        if not has_condition:
+            errors.append({"field": "market_stats.stats.condition", "code": "missing", "message": "Field required"})
+        if not has_target:
+            errors.append({"field": "market_stats.stats.target", "code": "missing", "message": "Field required"})
 
     def _require_positive_int(params: Dict[str, Any], field_prefix: str, name: str) -> None:
         value = params.get(name)
@@ -100,7 +129,6 @@ def validate_market_stats_params(canonical_payload: Dict[str, Any]) -> None:
         if token not in {"up", "down"}:
             errors.append({"field": field, "code": "literal_error", "message": "Input should be 'up' or 'down'"})
 
-    event = stats_block.get("event")
     if isinstance(event, dict):
         event_id = str(event.get("id") or "").strip().lower()
         event_params = event.get("params") if isinstance(event.get("params"), dict) else {}
@@ -109,7 +137,6 @@ def validate_market_stats_params(canonical_payload: Dict[str, Any]) -> None:
             _require_positive_int(event_params, base, "k")
             _require_direction(event_params, base)
 
-    condition = stats_block.get("condition")
     if isinstance(condition, dict):
         condition_id = str(condition.get("id") or "").strip().lower()
         condition_params = condition.get("params") if isinstance(condition.get("params"), dict) else {}
@@ -118,7 +145,6 @@ def validate_market_stats_params(canonical_payload: Dict[str, Any]) -> None:
             _require_positive_int(condition_params, base, "tf_multiplier")
             _require_positive_int(condition_params, base, "ema_period")
 
-    target = stats_block.get("target")
     if isinstance(target, dict):
         target_id = str(target.get("id") or "").strip().lower()
         target_params = target.get("params") if isinstance(target.get("params"), dict) else {}

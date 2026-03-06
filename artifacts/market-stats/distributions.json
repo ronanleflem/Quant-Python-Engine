@@ -7,7 +7,7 @@
     "seed": 42,
     "dataset_hash": "8519f090a7237ae63aae85c6d842fc8970be2a1d3510c01c5e9c1a75b3948ece",
     "config_version": "dca-grid-process-v1",
-    "generated_at": "2026-03-05T17:53:01.995038+00:00",
+    "generated_at": "2026-03-06T16:16:04.650252+00:00",
     "reproducibility": {
       "seed": 42,
       "dataset_hash": "8519f090a7237ae63aae85c6d842fc8970be2a1d3510c01c5e9c1a75b3948ece",
@@ -17,23 +17,23 @@
   "rows": [
     {
       "quantile": "p5",
-      "value": 0.21388685746960398
+      "value": 0.2193101251825693
     },
     {
       "quantile": "p25",
-      "value": 0.2898516499638859
+      "value": 0.2946981507915777
     },
     {
       "quantile": "p50",
-      "value": 0.35342124864572055
+      "value": 0.35740372104163565
     },
     {
       "quantile": "p75",
-      "value": 0.406996189207897
+      "value": 0.410893032626977
     },
     {
       "quantile": "p95",
-      "value": 0.4900483214457685
+      "value": 0.4941746384802599
     }
   ]
 }

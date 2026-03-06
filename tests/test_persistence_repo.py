@@ -26,7 +26,17 @@ def test_market_stats_bulk_upsert_updates_without_duplicates(monkeypatch):
             "p_hat": 0.6,
             "ci_low": 0.4,
             "ci_high": 0.8,
+            "p_mean": 0.58,
+            "p_map": 0.6,
+            "hdi_low": 0.35,
+            "hdi_high": 0.79,
+            "lift_freq": 0.12,
+            "lift_bayes": 0.1,
             "lift": 1.2,
+            "p_value": 0.04,
+            "q_value": 0.05,
+            "significant": True,
+            "insufficient": False,
             "start": "2020-01-01",
             "end": "2020-06-01",
             "spec_id": "spec-1",
@@ -39,6 +49,9 @@ def test_market_stats_bulk_upsert_updates_without_duplicates(monkeypatch):
             "n": 20,
             "successes": 12,
             "p_hat": 0.62,
+            "p_mean": 0.61,
+            "lift_freq": 0.14,
+            "q_value": 0.03,
             "dataset_id": "dataset-2",
         }
         repo.bulk_upsert([updated_row])
@@ -47,12 +60,15 @@ def test_market_stats_bulk_upsert_updates_without_duplicates(monkeypatch):
         assert count == 1
 
         stored = conn.execute(
-            "SELECT n, successes, p_hat, dataset_id FROM market_stats"
+            "SELECT n, successes, p_hat, p_mean, lift_freq, q_value, dataset_id FROM market_stats"
         ).fetchone()
         assert stored[0] == 20
         assert stored[1] == 12
         assert stored[2] == pytest.approx(0.62)
-        assert stored[3] == "dataset-2"
+        assert stored[3] == pytest.approx(0.61)
+        assert stored[4] == pytest.approx(0.14)
+        assert stored[5] == pytest.approx(0.03)
+        assert stored[6] == "dataset-2"
     finally:
         conn.close()
 

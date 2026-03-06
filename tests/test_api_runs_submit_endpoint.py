@@ -103,6 +103,22 @@ def _canonical_market_stats_payload_k_consecutive() -> dict:
     }
 
 
+def _canonical_market_stats_pack_payload() -> dict:
+    return {
+        "spec_type": "market_stats",
+        "catalog_version": "v1",
+        "data": {
+            "symbols": ["BTCUSDT"],
+            "timeframe": "1d",
+            "path": "tests/data/ohlcv_ts.csv",
+            "stats_pack": "all_basic",
+        },
+        "stats": {
+            "condition": {"id": "day_of_week", "params": {}},
+        },
+    }
+
+
 def _canonical_seasonality_payload_symbols_only() -> dict:
     return {
         "spec_type": "seasonality",
@@ -183,6 +199,18 @@ def test_runs_submit_enqueues_market_stats_symbols_only_request(tmp_path, monkey
     client = TestClient(api_app.fastapi_app)
 
     response = client.post("/runs", json=_canonical_market_stats_payload_symbols_only())
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "QUEUED"
+
+
+def test_runs_submit_enqueues_market_stats_pack_request(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("DB_SQLITE_PATH", str(tmp_path / "quant.db"))
+    reset_settings_cache()
+    client = TestClient(api_app.fastapi_app)
+
+    response = client.post("/runs", json=_canonical_market_stats_pack_payload())
 
     assert response.status_code == 200
     payload = response.json()
@@ -291,6 +319,20 @@ def test_runs_submit_rejects_market_stats_invalid_htf_trend_params(tmp_path, mon
     fields = {err["field"] for err in errors}
     assert "market_stats.stats.condition.params.tf_multiplier" in fields
     assert "market_stats.stats.condition.params.ema_period" in fields
+
+
+def test_runs_submit_rejects_market_stats_unknown_stats_pack(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("DB_SQLITE_PATH", str(tmp_path / "quant.db"))
+    reset_settings_cache()
+    client = TestClient(api_app.fastapi_app)
+    payload = _canonical_market_stats_pack_payload()
+    payload["data"]["stats_pack"] = "unknown_pack"
+
+    response = client.post("/runs", json=payload)
+
+    assert response.status_code == 422
+    errors = response.json()["errors"]
+    assert any(err["field"] == "market_stats.data.stats_pack" for err in errors)
 
 
 def test_runs_submit_rejects_optimize_backtest_empty_search_space(tmp_path, monkeypatch) -> None:
