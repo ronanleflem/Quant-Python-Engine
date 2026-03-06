@@ -7,7 +7,7 @@
     "seed": 42,
     "dataset_hash": "8519f090a7237ae63aae85c6d842fc8970be2a1d3510c01c5e9c1a75b3948ece",
     "config_version": "dca-grid-process-v1",
-    "generated_at": "2026-03-05T16:00:47.804435+00:00",
+    "generated_at": "2026-03-05T17:53:01.995038+00:00",
     "reproducibility": {
       "seed": 42,
       "dataset_hash": "8519f090a7237ae63aae85c6d842fc8970be2a1d3510c01c5e9c1a75b3948ece",
@@ -18,34 +18,34 @@
     {
       "symbol": "BTCUSDT",
       "target": "up_next_bar",
-      "n": 64,
+      "n": 69,
       "successes": 0,
       "lift_freq": 0.0,
-      "lift_bayes": 0.005322639445862195
+      "lift_bayes": 0.004773188896411645
     },
     {
       "symbol": "BTCUSDT",
       "target": "up_next_bar",
-      "n": 146,
+      "n": 141,
       "successes": 0,
       "lift_freq": 0.0,
-      "lift_bayes": 0.0010316922977721891
+      "lift_bayes": 0.0011514585141178825
     },
     {
       "symbol": "ETHUSDT",
       "target": "up_next_bar",
-      "n": 122,
-      "successes": 122,
+      "n": 133,
+      "successes": 133,
       "lift_freq": 0.0,
-      "lift_bayes": -0.001832897793263566
+      "lift_bayes": -0.00149920042643914
     },
     {
       "symbol": "ETHUSDT",
       "target": "up_next_bar",
-      "n": 101,
-      "successes": 101,
+      "n": 90,
+      "successes": 90,
       "lift_freq": 0.0,
-      "lift_bayes": -0.0026698179271708034
+      "lift_bayes": -0.0032623626373625703
     },
     {
       "symbol": "BTCUSDT",
@@ -82,34 +82,34 @@
     {
       "symbol": "BTCUSDT",
       "target": "up_next_bar",
-      "n": 95,
+      "n": 97,
       "successes": 0,
       "lift_freq": 0.0,
-      "lift_bayes": 0.00360061629153269
+      "lift_bayes": 0.003494323774525887
     },
     {
       "symbol": "BTCUSDT",
       "target": "up_next_bar",
-      "n": 215,
+      "n": 213,
       "successes": 0,
       "lift_freq": 0.0,
-      "lift_bayes": 0.0007070977730141716
+      "lift_bayes": 0.0007287315563301979
     },
     {
       "symbol": "ETHUSDT",
       "target": "up_next_bar",
-      "n": 115,
-      "successes": 115,
+      "n": 117,
+      "successes": 117,
       "lift_freq": 0.0,
-      "lift_bayes": -0.002078201970443283
+      "lift_bayes": -0.0020051452784503043
     },
     {
       "symbol": "ETHUSDT",
       "target": "up_next_bar",
-      "n": 108,
-      "successes": 108,
+      "n": 106,
+      "successes": 106,
       "lift_freq": 0.0,
-      "lift_bayes": -0.00235501310615982
+      "lift_bayes": -0.0024407543391187225
     },
     {
       "symbol": "BTCUSDT",
