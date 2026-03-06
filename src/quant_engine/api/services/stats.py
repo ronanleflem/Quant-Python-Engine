@@ -6,6 +6,16 @@ from ...persistence import db
 from ...stats.estimators import freq_with_wilson
 
 
+def _normalize_market_stats_row(row: Dict[str, Any]) -> Dict[str, Any]:
+    normalized = dict(row)
+    for bool_col in ("significant", "insufficient"):
+        value = normalized.get(bool_col)
+        if value is None:
+            continue
+        normalized[bool_col] = bool(value)
+    return normalized
+
+
 def list_stats(
     symbol: str | None = None,
     timeframe: str | None = None,
@@ -49,12 +59,7 @@ def list_stats(
             query += " WHERE " + " AND ".join(clauses)
         rows = conn.execute(query, params).fetchall()
 
-    out = [dict(r) for r in rows]
-    for row in out:
-        if (row.get("lift_freq") is None) and ("lift" in row):
-            row["lift_freq"] = row.get("lift")
-        if row.get("lift_bayes") is None:
-            row["lift_bayes"] = row.get("lift_freq")
+    out = [_normalize_market_stats_row(dict(r)) for r in rows]
 
     if significant_only:
         out = [
@@ -161,12 +166,7 @@ def stats_top(
         if not rows:
             rows = conn.execute(base_query, params).fetchall()
 
-    data = [dict(row) for row in rows]
-    for row in data:
-        if (row.get("lift_freq") is None) and ("lift" in row):
-            row["lift_freq"] = row.get("lift")
-        if row.get("lift_bayes") is None:
-            row["lift_bayes"] = row.get("lift_freq")
+    data = [_normalize_market_stats_row(dict(row)) for row in rows]
 
     if significant_only:
         data = [

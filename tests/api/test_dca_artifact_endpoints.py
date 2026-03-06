@@ -125,3 +125,29 @@ def test_canonical_market_stats_mapping_expands_stats_pack(api_db):
     assert "next_bullish" in target_names
     assert "lower_wick_ratio" in target_names
     assert mapped["conditions"] == [{"name": "day_of_week", "params": {}}]
+
+
+def test_canonical_market_stats_mapping_merges_stats_pack_with_explicit_triplet(api_db):
+    mapped = api_app._canonical_market_stats_to_spec(
+        {
+            "data": {
+                "symbol": "AAPL",
+                "timeframe": "1D",
+                "stats_pack": "volatility_shocks",
+            },
+            "stats": {
+                "event": {"id": "gap_up", "params": {}},
+                "condition": {"id": "day_of_week", "params": {}},
+                "target": {"id": "next_bearish", "params": {}},
+            },
+        }
+    )
+
+    event_names = {item["name"] for item in mapped["events"]}
+    target_names = {item["name"] for item in mapped["targets"]}
+
+    assert "shock_atr" in event_names
+    assert "gap_up" in event_names
+    assert "up_next_bar" in target_names
+    assert "next_bearish" in target_names
+    assert mapped["conditions"] == [{"name": "day_of_week", "params": {}}]

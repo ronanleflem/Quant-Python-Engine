@@ -690,6 +690,22 @@ def _ensure_migrations_table(conn: Any) -> None:
         )
 
 
+def _is_ignorable_mysql_migration_error(exc: Exception) -> bool:
+    errno = getattr(exc, "args", [None])[0]
+    message = str(exc).lower()
+    if errno in {1060, 1061, 1091}:
+        return True
+    return any(
+        token in message
+        for token in (
+            "duplicate column name",
+            "duplicate key name",
+            "can't drop",
+            "check that column/key exists",
+        )
+    )
+
+
 def migrate(conn: Any) -> None:
     _ensure_migrations_table(conn)
     cur = conn.cursor()
@@ -702,7 +718,11 @@ def migrate(conn: Any) -> None:
             continue
         if getattr(conn, "dialect", "sqlite") == "mysql":
             for statement in migration.mysql_statements:
-                cur.execute(statement)
+                try:
+                    cur.execute(statement)
+                except Exception as exc:
+                    if not _is_ignorable_mysql_migration_error(exc):
+                        raise
             cur.execute(
                 "INSERT INTO schema_migrations(version, name) VALUES (?, ?)",
                 (migration.version, migration.name),

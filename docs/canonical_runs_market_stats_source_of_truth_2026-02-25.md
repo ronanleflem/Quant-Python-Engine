@@ -28,6 +28,7 @@ This document is the Python runtime reference for canonical `POST /runs` request
     - `data.stats_pack`
     - optional `stats.condition`
     - optional `stats.validation`
+    - optional `stats.event` and `stats.target`
 - supported:
   - `data.path` / `data.dataset_path`
   - `data.mysql`
@@ -43,6 +44,14 @@ This document is the Python runtime reference for canonical `POST /runs` request
   - `data.include_weekends`
 
 ## Stats pack catalog
+
+## Deterministic expansion rules
+
+- `data.stats_pack` expands only `events[]` and `targets[]`.
+- `stats.condition`, when provided, is appended once and applied to the whole expanded run.
+- `stats.event` and `stats.target`, when also provided with `data.stats_pack`, extend the pack output; they do not replace it.
+- If no `stats.condition` is provided, runtime computes global stats with `condition_name = null` and `condition_value = null`.
+- Duplicate leaves produced by pack expansion and explicit triplet leaves are deduplicated by `(name, params)`.
 
 - `candle_structure`
   - events: `bullish_candle`, `bearish_candle`, `bullish_engulfing`, `bearish_engulfing`, `bullish_streak(k=3)`, `bearish_streak(k=3)`

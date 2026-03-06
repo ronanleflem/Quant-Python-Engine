@@ -226,6 +226,7 @@ def test_stats_endpoint_filters_and_normalization(api_db):
     for row in resp:
         assert row["lift_freq"] == row["lift"]
         assert row["lift_bayes"] is not None
+        assert isinstance(row["significant"], bool)
 
     params_bayes = {
         "symbol": "BTCUSDT",
@@ -257,3 +258,43 @@ def test_stats_endpoint_filters_and_normalization(api_db):
     for row in resp_bayes:
         assert row["lift_freq"] == row["lift"]
         assert row["lift_bayes"] is not None
+        assert isinstance(row["significant"], bool)
+
+
+def test_stats_endpoint_keeps_legacy_rows_readable_without_reconstructing_enriched_lifts(api_db):
+    with session() as conn:
+        conn.execute(
+            """
+            INSERT INTO market_stats (
+                symbol, timeframe, event, condition_name, condition_value, target,
+                split, n, successes, p_hat, ci_low, ci_high,
+                lift, start, end, significant, q_value
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "BTCUSDT",
+                "1h",
+                "legacy_event",
+                "rsi",
+                "50",
+                "up",
+                "test",
+                30,
+                15,
+                0.5,
+                0.35,
+                0.65,
+                0.02,
+                "2024-01-01",
+                "2024-01-31",
+                0,
+                None,
+            ),
+        )
+
+    rows = api_app.list_stats(symbol="BTCUSDT", timeframe="1h", event="legacy_event", method="freq")
+
+    assert len(rows) == 1
+    assert rows[0]["lift"] == 0.02
+    assert rows[0]["lift_freq"] is None
+    assert rows[0]["lift_bayes"] is None

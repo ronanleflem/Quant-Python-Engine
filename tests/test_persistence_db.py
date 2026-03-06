@@ -88,6 +88,45 @@ def test_mysql_dsn_uses_mysql_connector(monkeypatch):
         conn.close()
 
 
+def test_migrate_mysql_ignores_duplicate_column_when_version_missing() -> None:
+    executed: list[tuple[str, object | None]] = []
+    inserted_versions: list[int] = []
+
+    class _FakeCursor:
+        def execute(self, sql, params=None):
+            executed.append((sql, params))
+            if sql == "SELECT version FROM schema_migrations":
+                return self
+            if sql == "ALTER TABLE market_stats ADD COLUMN p_mean DOUBLE NULL":
+                raise Exception(1060, "Duplicate column name 'p_mean'")
+            if sql.startswith("INSERT INTO schema_migrations"):
+                inserted_versions.append(int(params[0]))
+            return self
+
+        def fetchall(self):
+            return [{"version": 1}, {"version": 2}, {"version": 3}]
+
+    class _FakeConn:
+        dialect = "mysql"
+
+        def __init__(self):
+            self.cursor_obj = _FakeCursor()
+            self.committed = False
+
+        def cursor(self):
+            return self.cursor_obj
+
+        def commit(self):
+            self.committed = True
+
+    conn = _FakeConn()
+
+    db.migrate(conn)
+
+    assert conn.committed is True
+    assert 4 in inserted_versions
+
+
 def test_extract_dca_run_metrics_flattens_ratio_and_efficiency() -> None:
     extra = {
         "capital_efficiency_index": 1.2,

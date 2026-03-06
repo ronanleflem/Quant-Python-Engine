@@ -91,6 +91,8 @@ Packs exposes par le runtime Python:
 Regles:
 
 - Un pack etend uniquement `events[]` et `targets[]`.
+- Si `data.stats_pack` et le triplet mono (`stats.event` / `stats.target`) sont fournis ensemble,
+  le runtime fait une union deterministe; le triplet n'ecrase pas le pack.
 - `stats.condition` reste optionnel et, s'il est fourni, s'applique a tout le pack.
 - L'absence de `stats.condition` produit des stats globales (`condition_name` /
   `condition_value` nuls) sans lookahead additionnel.
