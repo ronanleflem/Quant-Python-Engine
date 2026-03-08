@@ -118,3 +118,40 @@ def test_seasonality_profiles_bulk_upsert_updates_without_duplicates(monkeypatch
         assert stored[3] == "dataset-3"
     finally:
         conn.close()
+
+
+def test_seasonality_profiles_bulk_upsert_accepts_text_bins(monkeypatch):
+    monkeypatch.setenv("DB_DSN", "sqlite:///:memory:")
+    reset_settings_cache()
+    conn = db.connect()
+    try:
+        db.init_db(conn)
+        repo = SeasonalityProfilesRepository(conn)
+
+        row = {
+            "symbol": "BTCUSDT",
+            "timeframe": "1d",
+            "dim": "session",
+            "bin": "Asia",
+            "measure": "avg_return",
+            "score": 0.12,
+            "n": 42,
+            "baseline": 0.03,
+            "lift": 0.09,
+            "metrics": {"mean": 0.12},
+            "start": "2022-01-01",
+            "end": "2024-12-31",
+            "spec_id": "seas_001",
+            "dataset_id": "seasonality_ds",
+        }
+        repo.bulk_upsert([row])
+
+        stored = conn.execute(
+            "SELECT dim, bin, measure, dataset_id FROM seasonality_profiles"
+        ).fetchone()
+        assert stored[0] == "session"
+        assert stored[1] == "Asia"
+        assert stored[2] == "avg_return"
+        assert stored[3] == "seasonality_ds"
+    finally:
+        conn.close()

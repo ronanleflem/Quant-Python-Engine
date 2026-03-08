@@ -49,7 +49,7 @@ class SeasonalityProfile:
     symbol: str | None = None
     timeframe: str | None = None
     dim: str | None = None
-    bin: int | None = None
+    bin: Any = None
     measure: str | None = None
     score: float | None = None
     n: int | None = None

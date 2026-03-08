@@ -356,7 +356,7 @@ def _migration_1(conn: sqlite3.Connection) -> None:
             symbol TEXT NOT NULL,
             timeframe TEXT,
             dim TEXT NOT NULL,
-            bin INTEGER NOT NULL,
+            bin TEXT NOT NULL,
             measure TEXT NOT NULL,
             score REAL,
             n INTEGER,
@@ -568,7 +568,7 @@ MYSQL_MIGRATION_1 = (
         symbol VARCHAR(64) NOT NULL,
         timeframe VARCHAR(64),
         dim VARCHAR(255) NOT NULL,
-        bin INTEGER NOT NULL,
+        bin VARCHAR(255) NOT NULL,
         measure VARCHAR(255) NOT NULL,
         score DOUBLE,
         n INTEGER,
@@ -583,7 +583,7 @@ MYSQL_MIGRATION_1 = (
             symbol,
             timeframe,
             dim(64),
-            bin,
+            bin(64),
             measure(64),
             start(32),
             end(32),
@@ -658,11 +658,16 @@ MYSQL_MIGRATION_4 = (
     "ALTER TABLE market_stats ADD COLUMN insufficient TINYINT NULL",
 )
 
+MYSQL_MIGRATION_5 = (
+    "ALTER TABLE seasonality_profiles MODIFY COLUMN bin VARCHAR(255) NOT NULL",
+)
+
 MIGRATIONS = [
     Migration(1, "initial_schema", _migration_1, MYSQL_MIGRATION_1),
     Migration(2, "seasonality_profiles_metrics", _migration_2, MYSQL_MIGRATION_2),
     Migration(3, "api_jobs_queue_fields", _migration_3, MYSQL_MIGRATION_3),
     Migration(4, "market_stats_enriched_metrics", _migration_4, MYSQL_MIGRATION_4),
+    Migration(5, "seasonality_profiles_bin_text", lambda conn: None, MYSQL_MIGRATION_5),
 ]
 
 

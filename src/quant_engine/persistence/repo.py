@@ -8,6 +8,17 @@ from typing import Dict, Any, List, Optional, Sequence
 import sqlite3
 
 
+def _json_default(obj: Any) -> Any:
+    if isinstance(obj, complex):
+        return {"real": obj.real, "imag": obj.imag}
+    if hasattr(obj, "item"):
+        try:
+            return obj.item()
+        except Exception:
+            pass
+    return str(obj)
+
+
 class MarketStatsRepository:
     """Operations for the ``market_stats`` table."""
 
@@ -170,7 +181,7 @@ class SeasonalityRunsRepository:
         best_summary: Optional[Dict[str, Any]] = None,
     ) -> None:
         cur = self.conn.cursor()
-        payload = json.dumps(best_summary) if best_summary is not None else None
+        payload = json.dumps(best_summary, default=_json_default) if best_summary is not None else None
         cur.execute(
             """
             UPDATE seasonality_runs

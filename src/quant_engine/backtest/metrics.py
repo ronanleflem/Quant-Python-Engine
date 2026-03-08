@@ -362,6 +362,11 @@ def cagr(equity: List[float]) -> float:
     years = len(equity) / 252
     if years == 0:
         return 0.0
+    # Negative terminal equity cannot produce a real-valued CAGR under the
+    # standard compound-growth formula. Clamp to a full loss instead of
+    # returning a complex number that later breaks JSON serialization.
+    if end_value <= 0:
+        return -1.0
     return end_value ** (1 / years) - 1
 
 
