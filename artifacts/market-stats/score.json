@@ -5,12 +5,12 @@
     "contract_version": "1.0.0",
     "universe_rules_version": "asset-universe-rules-v1",
     "seed": 42,
-    "dataset_hash": "8519f090a7237ae63aae85c6d842fc8970be2a1d3510c01c5e9c1a75b3948ece",
+    "dataset_hash": "62a7167d9d3245284cb015a1a17a9fe1864674d08675e4ac6ba553509d4cf432",
     "config_version": "dca-grid-process-v1",
-    "generated_at": "2026-03-06T16:16:04.650252+00:00",
+    "generated_at": "2026-03-08T17:51:38.035727+00:00",
     "reproducibility": {
       "seed": 42,
-      "dataset_hash": "8519f090a7237ae63aae85c6d842fc8970be2a1d3510c01c5e9c1a75b3948ece",
+      "dataset_hash": "62a7167d9d3245284cb015a1a17a9fe1864674d08675e4ac6ba553509d4cf432",
       "config_version": "dca-grid-process-v1"
     }
   },
@@ -18,7 +18,7 @@
     {
       "percentile": 0.0,
       "perf_dominance_prob": 0.0,
-      "drawdown_dominance_prob": 0.46,
+      "drawdown_dominance_prob": 0.485,
       "is_dominant": false
     }
   ]

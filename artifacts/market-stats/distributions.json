@@ -5,35 +5,35 @@
     "contract_version": "1.0.0",
     "universe_rules_version": "asset-universe-rules-v1",
     "seed": 42,
-    "dataset_hash": "8519f090a7237ae63aae85c6d842fc8970be2a1d3510c01c5e9c1a75b3948ece",
+    "dataset_hash": "62a7167d9d3245284cb015a1a17a9fe1864674d08675e4ac6ba553509d4cf432",
     "config_version": "dca-grid-process-v1",
-    "generated_at": "2026-03-06T16:16:04.650252+00:00",
+    "generated_at": "2026-03-08T17:51:38.035727+00:00",
     "reproducibility": {
       "seed": 42,
-      "dataset_hash": "8519f090a7237ae63aae85c6d842fc8970be2a1d3510c01c5e9c1a75b3948ece",
+      "dataset_hash": "62a7167d9d3245284cb015a1a17a9fe1864674d08675e4ac6ba553509d4cf432",
       "config_version": "dca-grid-process-v1"
     }
   },
   "rows": [
     {
       "quantile": "p5",
-      "value": 0.2193101251825693
+      "value": 0.17862515716613778
     },
     {
       "quantile": "p25",
-      "value": 0.2946981507915777
+      "value": 0.20223127524703244
     },
     {
       "quantile": "p50",
-      "value": 0.35740372104163565
+      "value": 0.21964893779779784
     },
     {
       "quantile": "p75",
-      "value": 0.410893032626977
+      "value": 0.23917389377046416
     },
     {
       "quantile": "p95",
-      "value": 0.4941746384802599
+      "value": 0.2642335128853763
     }
   ]
 }

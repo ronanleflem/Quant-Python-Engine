@@ -1381,6 +1381,10 @@ def _canonical_market_stats_to_spec(request: Dict[str, Any]) -> Dict[str, Any]:
         if signature not in existing:
             target.append({"name": name, "params": dict(params)})
 
+    explicit_event = _leaf_to_item(stats_block.get("event"))
+    explicit_condition = _leaf_to_item(stats_block.get("condition"))
+    explicit_target = _leaf_to_item(stats_block.get("target"))
+
     events: List[Dict[str, Any]] = []
     conditions: List[Dict[str, Any]] = []
     targets: List[Dict[str, Any]] = []
@@ -1388,21 +1392,27 @@ def _canonical_market_stats_to_spec(request: Dict[str, Any]) -> Dict[str, Any]:
     stats_pack = data_block.get("stats_pack")
     if isinstance(stats_pack, str) and stats_pack.strip():
         pack = resolve_market_stats_pack(stats_pack)
-        for item in pack["events"]:
-            _append_unique(events, item)
-        for item in pack["targets"]:
-            _append_unique(targets, item)
-        if DEFAULT_MARKET_STATS_PACK_CONDITION is not None:
+        if explicit_event:
+            _append_unique(events, explicit_event)
+        else:
+            for item in pack["events"]:
+                _append_unique(events, item)
+        if explicit_target:
+            _append_unique(targets, explicit_target)
+        else:
+            for item in pack["targets"]:
+                _append_unique(targets, item)
+        if explicit_condition:
+            _append_unique(conditions, explicit_condition)
+        elif DEFAULT_MARKET_STATS_PACK_CONDITION is not None:
             _append_unique(conditions, DEFAULT_MARKET_STATS_PACK_CONDITION)
-
-    for leaf_key, collection in (
-        ("event", events),
-        ("condition", conditions),
-        ("target", targets),
-    ):
-        item = _leaf_to_item(stats_block.get(leaf_key))
-        if item:
-            _append_unique(collection, item)
+    else:
+        if explicit_event:
+            _append_unique(events, explicit_event)
+        if explicit_target:
+            _append_unique(targets, explicit_target)
+        if explicit_condition:
+            _append_unique(conditions, explicit_condition)
 
     mapped: Dict[str, Any] = {
         "data": mapped_data,

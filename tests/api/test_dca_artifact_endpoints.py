@@ -127,7 +127,7 @@ def test_canonical_market_stats_mapping_expands_stats_pack(api_db):
     assert mapped["conditions"] == [{"name": "day_of_week", "params": {}}]
 
 
-def test_canonical_market_stats_mapping_merges_stats_pack_with_explicit_triplet(api_db):
+def test_canonical_market_stats_mapping_prefers_explicit_triplet_over_stats_pack(api_db):
     mapped = api_app._canonical_market_stats_to_spec(
         {
             "data": {
@@ -146,8 +146,6 @@ def test_canonical_market_stats_mapping_merges_stats_pack_with_explicit_triplet(
     event_names = {item["name"] for item in mapped["events"]}
     target_names = {item["name"] for item in mapped["targets"]}
 
-    assert "shock_atr" in event_names
-    assert "gap_up" in event_names
-    assert "up_next_bar" in target_names
-    assert "next_bearish" in target_names
+    assert event_names == {"gap_up"}
+    assert target_names == {"next_bearish"}
     assert mapped["conditions"] == [{"name": "day_of_week", "params": {}}]

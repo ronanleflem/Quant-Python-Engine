@@ -5,111 +5,63 @@
     "contract_version": "1.0.0",
     "universe_rules_version": "asset-universe-rules-v1",
     "seed": 42,
-    "dataset_hash": "8519f090a7237ae63aae85c6d842fc8970be2a1d3510c01c5e9c1a75b3948ece",
+    "dataset_hash": "62a7167d9d3245284cb015a1a17a9fe1864674d08675e4ac6ba553509d4cf432",
     "config_version": "dca-grid-process-v1",
-    "generated_at": "2026-03-06T16:16:04.650252+00:00",
+    "generated_at": "2026-03-08T17:51:38.035727+00:00",
     "reproducibility": {
       "seed": 42,
-      "dataset_hash": "8519f090a7237ae63aae85c6d842fc8970be2a1d3510c01c5e9c1a75b3948ece",
+      "dataset_hash": "62a7167d9d3245284cb015a1a17a9fe1864674d08675e4ac6ba553509d4cf432",
       "config_version": "dca-grid-process-v1"
     }
   },
   "rows": [
     {
       "step": 0,
-      "equity_index": 0.0
+      "equity_index": -0.03118002686968202
     },
     {
       "step": 1,
-      "equity_index": 0.0
+      "equity_index": -0.007320528047664476
     },
     {
       "step": 2,
-      "equity_index": 0.0
+      "equity_index": -0.05953018889041889
     },
     {
       "step": 3,
-      "equity_index": 0.0
+      "equity_index": -0.04195962995295349
     },
     {
       "step": 4,
-      "equity_index": 0.0
+      "equity_index": -0.06624534423866779
     },
     {
       "step": 5,
-      "equity_index": 0.0
+      "equity_index": -0.05680089979422337
     },
     {
       "step": 6,
-      "equity_index": -0.03508137432188063
+      "equity_index": -0.10225544524876881
     },
     {
       "step": 7,
-      "equity_index": -0.007175735656748228
+      "equity_index": -0.08277492576824932
     },
     {
       "step": 8,
-      "equity_index": -0.007175735656748228
+      "equity_index": -0.0964326438890547
     },
     {
       "step": 9,
-      "equity_index": -0.007175735656748228
+      "equity_index": -0.09192044876710348
     },
     {
       "step": 10,
-      "equity_index": -0.007175735656748228
+      "equity_index": -0.1949507517974065
     },
     {
       "step": 11,
-      "equity_index": -0.007175735656748228
-    },
-    {
-      "step": 12,
-      "equity_index": -0.007175735656748228
-    },
-    {
-      "step": 13,
-      "equity_index": -0.007175735656748228
-    },
-    {
-      "step": 14,
-      "equity_index": -0.1968237687830422
-    },
-    {
-      "step": 15,
-      "equity_index": -0.03763016433396327
-    },
-    {
-      "step": 16,
-      "equity_index": -0.03763016433396327
-    },
-    {
-      "step": 17,
-      "equity_index": -0.03763016433396327
-    },
-    {
-      "step": 18,
-      "equity_index": -0.15567377612757505
-    },
-    {
-      "step": 19,
-      "equity_index": -0.07920827860944601
-    },
-    {
-      "step": 20,
-      "equity_index": -0.07920827860944601
-    },
-    {
-      "step": 21,
-      "equity_index": -0.07920827860944601
-    },
-    {
-      "step": 22,
-      "equity_index": -0.26008946560684093
-    },
-    {
-      "step": 23,
-      "equity_index": -0.11295476872090027
+      "equity_index": -0.1743446911913459
     }
   ]
 }

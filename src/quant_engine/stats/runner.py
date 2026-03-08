@@ -234,6 +234,7 @@ def _aggregate(df: pd.DataFrame) -> pd.DataFrame:
         df.groupby(
             ["symbol", "event", "condition_name", "condition_value", "target"],
             dropna=False,
+            observed=False,
         )["outcome_value"]
         .agg(["count", "sum"])
         .rename(columns={"count": "n", "sum": "successes"})
